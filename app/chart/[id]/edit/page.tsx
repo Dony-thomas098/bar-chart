@@ -6,7 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { ChordInput } from '@/components/ChordInput';
 import { transposeChart, resetChartTranspose } from '@/lib/transpose';
 import { createDefaultLine, createDefaultBlock, Line, Block } from '@/lib/chart-types';
-import { parseChordToText } from '@/lib/chord-parser';
+import { parseChord, parseChordToText } from '@/lib/chord-parser';
 import { getChordNotes } from '@/lib/chord-notes';
 import { moveEntry } from '@/lib/storage';
 import { FolderPickerModal } from '@/components/FolderPickerModal';
@@ -796,7 +796,7 @@ export default function ChartEditor() {
                                       : 'bg-surface border-dashed border-border/70 text-text-muted text-base'
                                 }`}
                               >
-                                {bar || '·'}
+                                {bar ? parseChord(bar) : '·'}
                               </button>
                             );
                           })}

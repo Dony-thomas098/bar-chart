@@ -455,23 +455,15 @@
     }
 
     /* ═══════════════════════════════════════════════════════════════
-       MOBILE CHORD KEYPAD BOTTOM SHEET
+       MOBILE CHORD KEYPAD BOTTOM SHEET (NO DARKENING OVERLAY)
        ═══════════════════════════════════════════════════════════════ */
     .chord-sheet-backdrop {
-      position: fixed;
-      inset: 0;
-      background: rgba(0, 0, 0, 0.65);
-      backdrop-filter: blur(4px);
-      -webkit-backdrop-filter: blur(4px);
-      z-index: 90;
-      opacity: 0;
+      display: none;
       pointer-events: none;
-      transition: opacity 0.25s ease;
     }
 
-    .chord-sheet-backdrop.active {
-      opacity: 1;
-      pointer-events: auto;
+    body.sheet-active .app-container {
+      padding-bottom: 340px;
     }
 
     .chord-sheet {
@@ -479,12 +471,14 @@
       left: 0;
       right: 0;
       bottom: 0;
-      background: #140d2a;
+      background: rgba(18, 11, 36, 0.96);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
       border-top: 1px solid var(--border-light);
       border-radius: var(--radius-xl) var(--radius-xl) 0 0;
       padding: 10px 10px calc(14px + env(safe-area-inset-bottom, 12px));
       z-index: 100;
-      box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.7);
+      box-shadow: 0 -15px 40px rgba(0, 0, 0, 0.85);
       transform: translateY(105%);
       transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
       max-width: 580px;
@@ -911,6 +905,53 @@
       });
     }
 
+    const SUPER_MAP = {
+      '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴',
+      '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹',
+      '+': '⁺', '-': '⁻'
+    };
+
+    function formatChordToUnicodeText(rawChord) {
+      if (!rawChord) return "";
+      return rawChord.replace(/([A-G][♯♭#b]?)(.*)/, (match, root, rest) => {
+        let accRoot = root.replace('#', '♯').replace('b', '♭');
+        if (!rest) return accRoot;
+        if (rest.startsWith('m') && !rest.startsWith('maj') && !rest.startsWith('min')) {
+          return accRoot + 'm' + rest.slice(1).split('').map(c => SUPER_MAP[c] || c).join('');
+        }
+        if (rest.startsWith('maj')) {
+          return accRoot + 'maj' + rest.slice(3).split('').map(c => SUPER_MAP[c] || c).join('');
+        }
+        if (rest.startsWith('sus')) {
+          return accRoot + 'sus' + rest.slice(3).split('').map(c => SUPER_MAP[c] || c).join('');
+        }
+        return accRoot + rest.split('').map(c => SUPER_MAP[c] || c).join('');
+      });
+    }
+
+    function formatChordDisplayHtml(rawChord) {
+      if (!rawChord) return "·";
+      return rawChord.replace(/([A-G][♯♭#b]?)(.*)/, (match, root, rest) => {
+        let accRoot = root.replace('#', '♯').replace('b', '♭');
+        if (!rest) return `<strong>${accRoot}</strong>`;
+        let baseMod = '';
+        let superMod = '';
+        if (rest.startsWith('m') && !rest.startsWith('maj') && !rest.startsWith('min')) {
+          baseMod = 'm';
+          superMod = rest.slice(1);
+        } else if (rest.startsWith('maj')) {
+          baseMod = 'maj';
+          superMod = rest.slice(3);
+        } else if (rest.startsWith('sus')) {
+          baseMod = 'sus';
+          superMod = rest.slice(3);
+        } else {
+          superMod = rest;
+        }
+        return `<strong>${accRoot}</strong>${baseMod ? `<span>${baseMod}</span>` : ''}${superMod ? `<sup style="font-size: 0.72em; vertical-align: super; font-weight: bold; margin-left: 1px;">${superMod}</sup>` : ''}`;
+      });
+    }
+
     // Chord Voicing Calculator
     function calculateVoicing(rawChord) {
       if (!rawChord || rawChord === "%" || rawChord === "." || rawChord === "_") {
@@ -978,11 +1019,11 @@
 
           block.forEach((barVal, barIdx) => {
             const isSelected = activeSelection && activeSelection.lineIndex === li && activeSelection.blockIndex === bi && activeSelection.barIndex === barIdx;
-            const displayVal = barVal ? getTransposedChord(barVal) : "·";
+            const displayVal = barVal ? formatChordDisplayHtml(getTransposedChord(barVal)) : "·";
             html += `
               <button class="bar-cell ${!barVal ? 'empty' : ''} ${isSelected ? 'selected' : ''}" 
                       onclick="openChordSheet(${li}, ${bi}, ${barIdx})">
-                ${escapeHtml(displayVal)}
+                ${displayVal}
               </button>
             `;
           });
@@ -1018,7 +1059,7 @@
       lines.forEach(l => {
         let lineStr = "";
         l.blocks.forEach((b, idx) => {
-          lineStr += (idx === 0 ? "|| " : "| ") + b.map(c => c ? getTransposedChord(c) : "_").join(" | ") + " ";
+          lineStr += (idx === 0 ? "|| " : "| ") + b.map(c => c ? formatChordToUnicodeText(getTransposedChord(c)) : "_").join(" | ") + " ";
         });
         preview += (l.part ? `[${l.part}] ` : "") + lineStr + "||" + (l.text ? `   ${l.text}` : "") + "\n";
       });
@@ -1027,18 +1068,30 @@
     }
 
     // Keypad and Bottom Sheet Controls
+    let isSlashBassMode = false;
+
     function openChordSheet(lineIndex, blockIndex, barIndex) {
       activeSelection = { lineIndex, blockIndex, barIndex };
+      isSlashBassMode = false;
+      document.body.classList.add("sheet-active");
       $("#chordSheet").classList.add("open");
-      $("#sheetBackdrop").classList.add("active");
       refreshSheetDisplay();
       renderApp();
+
+      // Smooth auto-scroll to center active measure cell
+      setTimeout(() => {
+        const selectedElem = document.querySelector(".bar-cell.selected");
+        if (selectedElem) {
+          selectedElem.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      }, 50);
     }
 
     function closeChordSheet() {
       $("#chordSheet").classList.remove("open");
-      $("#sheetBackdrop").classList.remove("active");
+      document.body.classList.remove("sheet-active");
       activeSelection = null;
+      isSlashBassMode = false;
       renderApp();
     }
 
@@ -1060,7 +1113,11 @@
       const curBlock = curLine.blocks[activeSelection.blockIndex];
       const val = curBlock[activeSelection.barIndex] || "";
 
-      $("#chordDisplayText").textContent = val ? getTransposedChord(val) : "";
+      let displayStr = val ? getTransposedChord(val) : "";
+      if (isSlashBassMode) {
+        displayStr += " / [Bass?]";
+      }
+      $("#chordDisplayText").textContent = displayStr;
       $("#sheetPartLabel").textContent = curLine.part || `Line ${activeSelection.lineIndex + 1}`;
       $("#sheetBarIndex").textContent = `Bar ${activeSelection.barIndex + 1} of ${curBlock.length}`;
       
@@ -1100,9 +1157,17 @@
         return;
       }
 
+      isSlashBassMode = false;
       activeSelection = flat[nextIndex];
       refreshSheetDisplay();
       renderApp();
+
+      setTimeout(() => {
+        const selectedElem = document.querySelector(".bar-cell.selected");
+        if (selectedElem) {
+          selectedElem.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      }, 50);
     }
 
     // Build Keypad Buttons
@@ -1131,7 +1196,7 @@
       $("#qualitiesRow2").innerHTML = row2Html;
     }
 
-    // Event Delegation for Keypad taps
+    // Event Delegation for Keypad taps (Smart Builder + Slash Bass)
     document.addEventListener("click", (e) => {
       const btn = e.target.closest("button");
       if (!btn) return;
@@ -1139,12 +1204,22 @@
       const key = btn.dataset.key;
       if (key && activeSelection) {
         let current = getCurrentBarValue();
-        if (key === "␣") {
-          current += " ";
+        if (key === "/") {
+          current = current.trim() + "/";
+          isSlashBassMode = true;
+          toast("Pick bass note (C - B)");
+        } else if (isSlashBassMode && ROOTS.includes(key)) {
+          current += key;
+          isSlashBassMode = false;
+        } else if (key === "␣") {
+          current = current.trim() + " ";
+          isSlashBassMode = false;
         } else if (key === ".") {
-          current = current.trim() + " .";
+          current = current.trim() ? `${current.trim()} .` : ".";
+          isSlashBassMode = false;
         } else if (key === "%") {
           current = "%";
+          isSlashBassMode = false;
         } else {
           current += key;
         }
