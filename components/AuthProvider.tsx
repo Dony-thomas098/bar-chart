@@ -84,9 +84,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return;
         }
 
-        // Race supabase session fetch against a 3s timeout so we don't hang forever when offline
+        // Race supabase session fetch against a 1.2s timeout so we don't hang when offline
         const timeout = new Promise<{ data: { session: null } }>((resolve) =>
-          setTimeout(() => resolve({ data: { session: null } }), 3000)
+          setTimeout(() => resolve({ data: { session: null } }), 1200)
         );
         const { data: { session } } = await Promise.race([
           supabase.auth.getSession(),

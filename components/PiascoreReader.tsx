@@ -299,6 +299,16 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
         sessionName: currentChart.title || 'Live Performance',
       })
     );
+    try {
+      localStorage.setItem(
+        `perform-active-session-${code}`,
+        JSON.stringify({
+          chartIds: tabs.map((t) => t.id),
+          sessionName: currentChart.title || 'Live Performance',
+          createdAt: Date.now()
+        })
+      );
+    } catch {}
     setIsSyncModalOpen(false);
     if (onLeaderStart) {
       onLeaderStart(code);

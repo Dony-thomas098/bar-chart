@@ -50,9 +50,32 @@ export async function saveLyrics(lyric: Lyric) {
 }
 
 export async function readLyrics(id: string): Promise<Lyric | null> {
+  // 1. Try local cache first
+  const dbPromise = getDBPromise();
+  if (dbPromise) {
+    try {
+      const db = await dbPromise;
+      const cached = await db.get('lyrics', id);
+      if (cached) {
+        if (isOnline()) {
+          (async () => {
+            try {
+              const { data } = await supabase.from('lyrics').select('*').eq('id', id).single();
+              if (data) await cacheLyric(data);
+            } catch {}
+          })();
+        }
+        return cached;
+      }
+    } catch {}
+  }
+
+  // 2. Fetch from cloud with timeout
   if (isOnline()) {
     try {
-      const { data, error } = await supabase.from('lyrics').select('*').eq('id', id).single();
+      const fetchPromise = supabase.from('lyrics').select('*').eq('id', id).single();
+      const timeoutPromise = new Promise<any>((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000));
+      const { data, error } = await Promise.race([fetchPromise, timeoutPromise]);
       if (!error && data) {
         await cacheLyric(data);
         return data;
@@ -61,7 +84,6 @@ export async function readLyrics(id: string): Promise<Lyric | null> {
       console.warn('[Lyrics] Network error reading lyrics, falling back to local storage:', err);
     }
   }
-  const dbPromise = getDBPromise();
   if (dbPromise) {
     const db = await dbPromise;
     return (await db.get('lyrics', id)) || null;

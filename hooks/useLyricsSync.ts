@@ -23,12 +23,25 @@ export function useLyricsSync(lyricId: string) {
   useEffect(() => {
     let isMounted = true;
     
-    readLyrics(lyricId).then(data => {
-      if (isMounted) {
-        setLyric(data as Lyric | null);
-        setLoading(false);
-      }
-    });
+    const safetyTimer = setTimeout(() => {
+      if (isMounted) setLoading(false);
+    }, 2500);
+
+    readLyrics(lyricId)
+      .then(data => {
+        if (isMounted) {
+          clearTimeout(safetyTimer);
+          setLyric(data as Lyric | null);
+          setLoading(false);
+        }
+      })
+      .catch(err => {
+        console.warn('[useLyricsSync] readLyrics error:', err);
+        if (isMounted) {
+          clearTimeout(safetyTimer);
+          setLoading(false);
+        }
+      });
 
     const channel = supabase.channel(`lyrics-${lyricId}`);
     channelRef.current = channel;

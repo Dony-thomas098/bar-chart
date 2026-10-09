@@ -1,20 +1,9 @@
 import type { Metadata, Viewport } from "next";
-import { Outfit, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/components/AuthProvider";
 import { OfflineSyncProvider } from "@/components/OfflineSyncContext";
 import { Navigation } from "@/components/Navigation";
 import Script from "next/script";
-
-const outfit = Outfit({
-  variable: "--font-outfit",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
 
 export const metadata: Metadata = {
   title: "Clypto UI",
@@ -52,7 +41,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${outfit.variable} ${geistMono.variable} h-full antialiased`}
+      className="h-full antialiased"
       suppressHydrationWarning
     >
       <head>
@@ -93,16 +82,25 @@ export default function RootLayout({
         <Script id="register-sw" strategy="afterInteractive">
           {`
             if ('serviceWorker' in navigator) {
-              window.addEventListener('load', function() {
-                navigator.serviceWorker.register('/sw.js').then(
-                  function(registration) {
-                    console.log('Service Worker registration successful with scope: ', registration.scope);
-                  },
-                  function(err) {
-                    console.log('Service Worker registration failed: ', err);
+              if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+                // In dev mode, unregister any active service worker to avoid stale chunk caching & localhost latency
+                navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                  for (let registration of registrations) {
+                    registration.unregister();
                   }
-                );
-              });
+                });
+              } else {
+                window.addEventListener('load', function() {
+                  navigator.serviceWorker.register('/sw.js').then(
+                    function(registration) {
+                      console.log('Service Worker registration successful with scope: ', registration.scope);
+                    },
+                    function(err) {
+                      console.log('Service Worker registration failed: ', err);
+                    }
+                  );
+                });
+              }
             }
           `}
         </Script>

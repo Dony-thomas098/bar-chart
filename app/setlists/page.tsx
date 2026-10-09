@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/AuthProvider';
 import { Header } from '@/components/Header';
+import { supabase } from '@/lib/supabase';
 import { listSetlists, createSetlist, deleteSetlist, duplicateSetlist, updateSetlist, type Setlist } from '@/lib/setlists';
 import {
   ListMusic, Plus, MoreVertical, Trash2, Copy, Pencil, Calendar,
@@ -282,7 +283,6 @@ export default function SetlistsPage() {
     try {
       const data = await listSetlists();
       // Fetch item counts in one shot
-      const { supabase } = await import('@/lib/supabase');
       const counts: Record<string, number> = {};
       if (data.length > 0) {
         const { data: countRows } = await supabase

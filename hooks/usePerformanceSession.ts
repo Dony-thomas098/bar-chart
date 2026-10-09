@@ -59,21 +59,90 @@ export function usePerformanceSession(
 
   useEffect(() => {
     isMountedRef.current = true;
-    // Unique suffix per mount prevents "cannot add presence callbacks after subscribe()"
-    // which occurs under React Strict Mode's double-invoke of effects.
     const instanceId = Math.random().toString(36).slice(2, 8);
+    let requestInterval: NodeJS.Timeout | null = null;
+    
     const init = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!isMountedRef.current) return;
-      if (user) {
-        myEmailRef.current = user.email ?? null;
-        myNameRef.current = user.email?.split('@')[0] ?? 'Anonymous';
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          myEmailRef.current = session.user.email ?? null;
+          myNameRef.current = session.user.user_metadata?.username || session.user.email?.split('@')[0] || 'Anonymous';
+        } else {
+          myNameRef.current = 'Guest';
+        }
+      } catch {
+        myNameRef.current = 'Guest';
       }
 
-      const channel = supabase.channel(`session-${code}-${instanceId}`);
+      if (!isMountedRef.current) return;
+
+      // Local storage active session fallback (useful for same browser/tabs)
+      if (!isLeader) {
+        try {
+          const raw = localStorage.getItem(`perform-active-session-${code}`);
+          if (raw) {
+            const data = JSON.parse(raw);
+            if (data?.chartIds?.length > 0) {
+              setChartIds(data.chartIds);
+              setSessionName(data.sessionName || '');
+              setLeaderName('Leader');
+              setMode('follower');
+            }
+          }
+        } catch {}
+      }
+
+      // Clean up any existing channel before subscribing
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+      }
+
+      // Shared channel name for everyone joining this session code
+      const channel = supabase.channel(`session-${code}`, {
+        config: {
+          presence: { key: instanceId },
+          broadcast: { ack: false, self: false },
+        },
+      });
       channelRef.current = channel;
 
       channel
+        .on('broadcast', { event: 'request-state' }, () => {
+          if (!isMountedRef.current || !isLeader) return;
+          // Leader replies with current state
+          channel.send({
+            type: 'broadcast',
+            event: 'sync-state',
+            payload: {
+              role: 'leader',
+              name: myNameRef.current,
+              currentIndex: currentIndexRef.current,
+              chartIds: initialPayload?.chartIds || [],
+              sessionName: initialPayload?.sessionName || '',
+            }
+          });
+        })
+        .on('broadcast', { event: 'sync-state' }, ({ payload }) => {
+          if (!isMountedRef.current || isLeader || !payload) return;
+          if (payload.chartIds && payload.chartIds.length > 0) {
+            setChartIds(payload.chartIds);
+          }
+          if (payload.sessionName) {
+            setSessionName(payload.sessionName);
+          }
+          if (payload.name) {
+            setLeaderName(payload.name);
+          }
+          const idx = payload.currentIndex ?? 0;
+          setCurrentIndex(idx);
+          currentIndexRef.current = idx;
+          setMode('follower');
+          if (requestInterval) {
+            clearInterval(requestInterval);
+            requestInterval = null;
+          }
+        })
         .on('broadcast', { event: 'chart-change' }, ({ payload }) => {
           if (!isMountedRef.current) return;
           const idx = payload?.index ?? 0;
@@ -94,18 +163,23 @@ export function usePerformanceSession(
           const presences = Object.values(state).flat() as PerformancePresence[];
 
           const leader = presences.find(p => p.role === 'leader');
-          setLeaderName(leader?.name ?? null);
-
-          if (!isLeader && leader) {
-            if (leader.chartIds && leader.chartIds.length > 0) {
-              setChartIds(leader.chartIds);
+          if (leader) {
+            setLeaderName(leader.name ?? 'Leader');
+            if (!isLeader) {
+              if (leader.chartIds && leader.chartIds.length > 0) {
+                setChartIds(leader.chartIds);
+              }
+              if (leader.sessionName) {
+                setSessionName(leader.sessionName);
+              }
+              setCurrentIndex(leader.currentIndex ?? 0);
+              currentIndexRef.current = leader.currentIndex ?? 0;
+              setMode('follower');
+              if (requestInterval) {
+                clearInterval(requestInterval);
+                requestInterval = null;
+              }
             }
-            if (leader.sessionName) {
-              setSessionName(leader.sessionName);
-            }
-            setCurrentIndex(leader.currentIndex ?? 0);
-            currentIndexRef.current = leader.currentIndex ?? 0;
-            setMode('follower');
           }
 
           const followers = presences.filter(p => p.role === 'follower');
@@ -119,7 +193,7 @@ export function usePerformanceSession(
             await channel.track({
               role: 'leader',
               name: myNameRef.current,
-              currentIndex: 0,
+              currentIndex: currentIndexRef.current,
               chartIds: initialPayload!.chartIds,
               sessionName: initialPayload!.sessionName,
             });
@@ -130,6 +204,15 @@ export function usePerformanceSession(
               name: myNameRef.current,
               currentIndex: 0,
             });
+            // Immediately ask leader for the state
+            channel.send({ type: 'broadcast', event: 'request-state', payload: {} });
+
+            // Periodic retry while still loading
+            requestInterval = setInterval(() => {
+              if (mode === 'loading' && channelRef.current) {
+                channelRef.current.send({ type: 'broadcast', event: 'request-state', payload: {} });
+              }
+            }, 1500);
           }
         });
     };
@@ -138,9 +221,11 @@ export function usePerformanceSession(
 
     return () => {
       isMountedRef.current = false;
+      if (requestInterval) clearInterval(requestInterval);
       const ch = channelRef.current;
       if (ch) {
         supabase.removeChannel(ch);
+        channelRef.current = null;
       }
     };
   }, [code, isLeader]);

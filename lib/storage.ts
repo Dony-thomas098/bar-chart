@@ -135,50 +135,64 @@ export async function deleteFromCache(id: string, store: 'charts' | 'lyrics' | '
 
 // --- Data Access Layer ---
 
+export async function listFolderFromCache(folderId: string | null, kind: 'chart' | 'lyrics' = 'chart') {
+  if (!dbPromise) return { folders: [], charts: [] };
+  const db = await dbPromise;
+  const allFolders = await db.getAll('folders');
+  const allItems = await db.getAll(kind === 'chart' ? 'charts' : 'lyrics');
+  const folders = allFolders.filter((f) => f.parent_id === folderId && f.kind === kind && !f.name.startsWith('__TRASH__:'));
+  const items = allItems.filter((c) => c.folder_id === folderId && !c.title.startsWith('__TRASH__:'));
+  return {
+    folders,
+    charts: items.map((c) => ({ id: c.id, title: c.title, updated_at: c.updated_at, is_bookmarked: c.is_bookmarked, type: kind })),
+  };
+}
+
 export async function listFolder(folderId: string | null, kind: 'chart' | 'lyrics' = 'chart') {
   if (isOnline()) {
-    let foldersQuery = supabase.from('folders').select('*').eq('kind', kind).order('updated_at', { ascending: false }).not('name', 'like', '__TRASH__:%');
-    if (folderId) {
-      foldersQuery = foldersQuery.eq('parent_id', folderId);
-    } else {
-      foldersQuery = foldersQuery.is('parent_id', null);
-    }
-    const foldersRes = await foldersQuery;
+    try {
+      let foldersQuery = supabase.from('folders').select('*').eq('kind', kind).order('updated_at', { ascending: false }).not('name', 'like', '__TRASH__:%');
+      if (folderId) {
+        foldersQuery = foldersQuery.eq('parent_id', folderId);
+      } else {
+        foldersQuery = foldersQuery.is('parent_id', null);
+      }
 
-    let itemsQuery;
-    if (kind === 'chart') {
-      itemsQuery = supabase.from('charts').select('id, title, updated_at, is_bookmarked').order('updated_at', { ascending: false }).not('title', 'like', '__TRASH__:%');
-    } else {
-      itemsQuery = supabase.from('lyrics').select('id, title, updated_at, is_bookmarked').order('updated_at', { ascending: false }).not('title', 'like', '__TRASH__:%');
-    }
-    
-    if (folderId) {
-      itemsQuery = itemsQuery.eq('folder_id', folderId);
-    } else {
-      itemsQuery = itemsQuery.is('folder_id', null);
-    }
-    const itemsRes = await itemsQuery;
+      let itemsQuery;
+      if (kind === 'chart') {
+        itemsQuery = supabase.from('charts').select('id, title, updated_at, is_bookmarked').order('updated_at', { ascending: false }).not('title', 'like', '__TRASH__:%');
+      } else {
+        itemsQuery = supabase.from('lyrics').select('id, title, updated_at, is_bookmarked').order('updated_at', { ascending: false }).not('title', 'like', '__TRASH__:%');
+      }
+      
+      if (folderId) {
+        itemsQuery = itemsQuery.eq('folder_id', folderId);
+      } else {
+        itemsQuery = itemsQuery.is('folder_id', null);
+      }
 
-    if (foldersRes.data && dbPromise) {
-      const db = await dbPromise;
-      const tx = db.transaction('folders', 'readwrite');
-      foldersRes.data.forEach((f) => tx.store.put(f));
+      // Race against a 3s timeout so tabs never hang indefinitely on slow connection
+      const timeoutPromise = new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Network timeout')), 3000));
+      const [foldersRes, itemsRes] = await Promise.race([
+        Promise.all([foldersQuery, itemsQuery]),
+        timeoutPromise,
+      ]);
+
+      if (foldersRes.data && dbPromise) {
+        const db = await dbPromise;
+        const tx = db.transaction('folders', 'readwrite');
+        foldersRes.data.forEach((f) => tx.store.put(f));
+      }
+      return {
+        folders: foldersRes.data || [],
+        charts: (itemsRes.data || []).map((c) => ({ ...c, type: kind })),
+      };
+    } catch (e) {
+      console.warn('[Storage] listFolder online fetch failed or timed out, using local cache:', e);
+      return listFolderFromCache(folderId, kind);
     }
-    return {
-      folders: foldersRes.data || [],
-      charts: (itemsRes.data || []).map((c) => ({ ...c, type: kind })),
-    };
   } else {
-    if (!dbPromise) return { folders: [], charts: [] };
-    const db = await dbPromise;
-    const allFolders = await db.getAll('folders');
-    const allItems = await db.getAll(kind === 'chart' ? 'charts' : 'lyrics');
-    const folders = allFolders.filter((f) => f.parent_id === folderId && f.kind === kind && !f.name.startsWith('__TRASH__:'));
-    const items = allItems.filter((c) => c.folder_id === folderId && !c.title.startsWith('__TRASH__:'));
-    return {
-      folders,
-      charts: items.map((c) => ({ id: c.id, title: c.title, updated_at: c.updated_at, is_bookmarked: c.is_bookmarked, type: kind })),
-    };
+    return listFolderFromCache(folderId, kind);
   }
 }
 
@@ -425,9 +439,32 @@ export async function saveChart(chart: Chart) {
 }
 
 export async function readChart(id: string, bypassCache = false): Promise<Chart | null> {
+  // 1. Try local IndexedDB cache first for instant (<5ms) rendering
+  if (!bypassCache && dbPromise) {
+    try {
+      const db = await dbPromise;
+      const cached = await db.get('charts', id);
+      if (cached) {
+        // Fetch in background to update cache if online
+        if (isOnline()) {
+          (async () => {
+            try {
+              const { data } = await supabase.from('charts').select('*').eq('id', id).single();
+              if (data) await cacheChart(data);
+            } catch {}
+          })();
+        }
+        return cached;
+      }
+    } catch {}
+  }
+
+  // 2. If not cached locally or bypassCache, fetch online with timeout
   if (isOnline()) {
     try {
-      const { data, error } = await supabase.from('charts').select('*').eq('id', id).single();
+      const fetchPromise = supabase.from('charts').select('*').eq('id', id).single();
+      const timeoutPromise = new Promise<any>((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000));
+      const { data, error } = await Promise.race([fetchPromise, timeoutPromise]);
       if (!error && data) {
         await cacheChart(data);
         return data;

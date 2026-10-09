@@ -3,15 +3,16 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  Folder, Chart, listFolder, createFolder, renameEntry,
+  Folder, Chart, listFolder, listFolderFromCache, createFolder, renameEntry,
   deleteEntry, moveToTrash, moveEntry, saveChart, searchAll, exportChart, toggleBookmark
 } from '@/lib/storage';
+import { seedSampleData } from '@/lib/sampleData';
 import { FolderPickerModal } from './FolderPickerModal';
 import { useAuth } from '@/components/AuthProvider';
 import {
   Folder as FolderIcon, FileText, MoreVertical, Search,
   Plus, CornerLeftUp, Trash2, Edit2, CornerRightDown, Download, X,
-  FolderPlus, FilePlus, Printer, Star, LayoutGrid, List
+  FolderPlus, FilePlus, Printer, Star, LayoutGrid, List, Sparkles
 } from 'lucide-react';
 
 interface Props {
@@ -131,15 +132,26 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
 
 
   const loadContents = async () => {
-    setLoading(true);
+    // 1. Instant local cache load (< 5ms)
+    try {
+      const cached = await listFolderFromCache(folderId, kind);
+      if (cached && (cached.folders.length > 0 || cached.charts.length > 0)) {
+        setFolders(cached.folders);
+        setCharts(cached.charts);
+        setLoading(false);
+      }
+    } catch {}
+
+    // 2. Fetch fresh updates from cloud
     try {
       const res = await listFolder(folderId, kind);
-      setFolders(res.folders);
-      setCharts(res.charts);
+      setFolders(res?.folders || []);
+      setCharts(res?.charts || []);
     } catch (err) {
       console.error('Failed to load contents', err);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   useEffect(() => {
@@ -331,7 +343,13 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
                 onClick={(e) => { 
                   e.stopPropagation(); 
                   setActiveDropdown(null); 
-                  const q = JSON.parse(localStorage.getItem('chord-grid-print-queue') || '[]');
+                  let q: string[] = [];
+                  try {
+                    q = JSON.parse(localStorage.getItem('chord-grid-print-queue') || '[]');
+                    if (!Array.isArray(q)) q = [];
+                  } catch {
+                    q = [];
+                  }
                   if (!q.includes(id)) {
                     localStorage.setItem('chord-grid-print-queue', JSON.stringify([...q, id]));
                     alert('Added to print queue');
@@ -540,12 +558,27 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
         ) : (
           <div className={viewMode === 'list' ? 'flex flex-col gap-2.5' : 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6'}>
             {folders.length === 0 && charts.length === 0 ? (
-              <div className="col-span-full p-16 text-center">
-                <div className="mx-auto h-20 w-20 bg-surface-raised rounded-full shadow-inner border border-border flex items-center justify-center mb-6">
+              <div className="col-span-full p-12 text-center flex flex-col items-center justify-center">
+                <div className="mx-auto h-20 w-20 bg-surface-raised rounded-full shadow-inner border border-border flex items-center justify-center mb-5">
                   <FolderIcon size={32} className="text-text-secondary opacity-50" strokeWidth={2} />
                 </div>
-                <h3 className="text-sm font-bold text-text-primary mb-2">This folder is empty</h3>
-                <p className="text-xs text-text-secondary">Get started by creating a new folder or chart.</p>
+                <h3 className="text-base font-bold text-text-primary mb-1.5">No songs or folders yet</h3>
+                <p className="text-xs text-text-secondary max-w-sm mb-6">
+                  Get started by creating a new folder, or load ready-to-use sample worship songs, jazz standards, and pop classics.
+                </p>
+                <button
+                  onClick={async () => {
+                    setLoading(true);
+                    await seedSampleData(user?.id);
+                    const res = await listFolder(folderId, kind);
+                    setFolders(res?.folders || []);
+                    setCharts(res?.charts || []);
+                    setLoading(false);
+                  }}
+                  className="px-5 py-2.5 rounded-xl bg-accent-gradient text-white text-xs font-bold shadow-lg hover:brightness-110 flex items-center gap-2 transition-all active:scale-95"
+                >
+                  <Sparkles size={16} /> Load Demo Charts & Folders
+                </button>
               </div>
             ) : (
               <>

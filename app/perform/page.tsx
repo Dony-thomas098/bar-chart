@@ -186,6 +186,12 @@ export default function PerformPage() {
       `perform-leader-${code}`,
       JSON.stringify({ chartIds: queue.map(q => q.id), sessionName: setlistName }),
     );
+    try {
+      localStorage.setItem(
+        `perform-active-session-${code}`,
+        JSON.stringify({ chartIds: queue.map(q => q.id), sessionName: setlistName, createdAt: Date.now() }),
+      );
+    } catch {}
     router.push(`/perform/${code}`);
   };
 

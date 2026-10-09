@@ -25,12 +25,25 @@ export function useChartSync(chartId: string) {
   useEffect(() => {
     let isMounted = true;
     
-    readChart(chartId).then(data => {
-      if (isMounted) {
-        setChart(data as ChartData | null);
-        setLoading(false);
-      }
-    });
+    const safetyTimer = setTimeout(() => {
+      if (isMounted) setLoading(false);
+    }, 2500);
+
+    readChart(chartId)
+      .then(data => {
+        if (isMounted) {
+          clearTimeout(safetyTimer);
+          setChart(data as ChartData | null);
+          setLoading(false);
+        }
+      })
+      .catch(err => {
+        console.warn('[useChartSync] readChart error:', err);
+        if (isMounted) {
+          clearTimeout(safetyTimer);
+          setLoading(false);
+        }
+      });
 
     const channel = supabase.channel(`chart-${chartId}`);
     channelRef.current = channel;

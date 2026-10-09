@@ -103,10 +103,10 @@ export function Header() {
                 const active = tab.match(pathname);
                 const Icon = tab.icon;
                 return (
-                  <button
+                  <Link
                     key={tab.id}
-                    ref={active ? activeTabRef : undefined}
-                    onClick={() => router.push(tab.href)}
+                    href={tab.href}
+                    prefetch={true}
                     className={`
                       relative flex items-center gap-1.5 px-4 py-2 text-xs font-bold
                       rounded-t-xl border border-b-0 transition-all duration-200
@@ -123,7 +123,7 @@ export function Header() {
                     )}
                     <Icon size={13} className={active ? 'text-accent-start' : ''} />
                     {tab.label}
-                  </button>
+                  </Link>
                 );
               })}
               {/* Right padding spacer */}

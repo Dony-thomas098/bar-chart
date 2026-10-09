@@ -116,10 +116,17 @@ export default function PrinterPage() {
   );
 
   useEffect(() => {
-    const qCharts = JSON.parse(localStorage.getItem('chord-grid-print-queue') || '[]');
+    let qCharts: string[] = [];
+    let qLyrics: string[] = [];
+    try {
+      qCharts = JSON.parse(localStorage.getItem('chord-grid-print-queue') || '[]');
+      if (!Array.isArray(qCharts)) qCharts = [];
+    } catch {}
+    try {
+      qLyrics = JSON.parse(localStorage.getItem('chord-grid-lyrics-print-queue') || '[]');
+      if (!Array.isArray(qLyrics)) qLyrics = [];
+    } catch {}
     setChartQueue(qCharts);
-    
-    const qLyrics = JSON.parse(localStorage.getItem('chord-grid-lyrics-print-queue') || '[]');
     setLyricsQueue(qLyrics);
     
     const savedFont = localStorage.getItem('chord-grid-font');

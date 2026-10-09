@@ -28,7 +28,7 @@ export function FolderPickerModal({ isOpen, onClose, onMoveHere, title = "Move t
     listFolder(currentFolderId).then(res => {
       if (isMounted) {
         // Exclude the folders we are trying to move
-        setFolders(res.folders.filter(f => !excludeIds.includes(f.id)));
+        setFolders((res?.folders || []).filter(f => !excludeIds.includes(f.id)));
         setLoading(false);
       }
     });
