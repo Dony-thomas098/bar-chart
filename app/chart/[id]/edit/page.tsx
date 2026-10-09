@@ -45,17 +45,17 @@ export default function ChartEditor() {
     toastTimeoutRef.current = setTimeout(() => setMobileToast(null), 1800);
   }, []);
 
-  const generateText = useCallback((chartData: typeof chart) => {
+  const generateText = useCallback((chartData: ChartData | null) => {
     if (!chartData) return '';
     const title = chartData.title || 'Untitled Chart';
     const timeSig = chartData.time_sig || '4/4';
     const tempo = `t=${chartData.tempo || 120}`;
     const headerStr = `${title}      ${timeSig}      ${tempo}`;
 
-    const maxLabelLen = Math.max(...chartData.lines.map(l => l.label ? l.label.length : 0));
+    const maxLabelLen = Math.max(...(chartData.lines || []).map(l => l.label ? l.label.length : 0), 0);
     let bodyLines: string[] = [];
 
-    chartData.lines.forEach(line => {
+    (chartData.lines || []).forEach(line => {
       let lineTxt = '';
       if (maxLabelLen > 0) {
         if (line.label) {
@@ -110,7 +110,7 @@ export default function ChartEditor() {
     return txt.trimEnd();
   }, []);
 
-  const normalizeChordText = (text: string) => {
+  const normalizeChordText = useCallback((text: string) => {
     let normalized = text
       .replace(/♭/g, 'b')
       .replace(/♯/g, '#')
@@ -138,7 +138,7 @@ export default function ChartEditor() {
       result += INVERSE_SUPER_MAP[char] || char;
     }
     return result;
-  };
+  }, []);
 
   const parseTextToLines = useCallback((text: string) => {
     const lines: Line[] = [];
@@ -147,7 +147,6 @@ export default function ChartEditor() {
     for (const tLine of textLines) {
       if (!tLine.trim()) continue; 
       
-      // Skip the auto-generated header line so it doesn't become a text annotation
       if (tLine.includes('t=') && !tLine.includes('|') && lines.length === 0) {
         continue;
       }
@@ -179,7 +178,6 @@ export default function ChartEditor() {
         }
       }
       
-      // Extract labelRight from the end
       const lastBarMatch = content.match(/^(.*?)(\|\||:\|\|)\s+(.+)$/);
       if (lastBarMatch && !lastBarMatch[3].includes('|')) {
         content = lastBarMatch[1] + lastBarMatch[2];
@@ -246,7 +244,7 @@ export default function ChartEditor() {
       lines.push(createDefaultLine());
     }
     return lines;
-  }, []);
+  }, [normalizeChordText]);
 
   useEffect(() => {
     if (chart && !isTypingText.current) {
@@ -254,139 +252,20 @@ export default function ChartEditor() {
     }
   }, [chart, generateText]);
 
-  if (authLoading || chartLoading) {
-    return (
-      <div className="flex h-screen items-center justify-center text-white bg-bg">
-        <div className="flex items-center gap-3">
-          <RefreshCw size={20} className="animate-spin text-accent-solid" />
-          <span className="font-semibold text-sm">Loading Chart...</span>
-        </div>
-      </div>
-    );
-  }
-
-  if (!user || !chart) {
-    return (
-      <div className="flex h-screen flex-col items-center justify-center text-white bg-bg gap-4">
-        <p className="text-text-secondary">Chart not found or access denied.</p>
-        <button onClick={() => router.push('/')} className="px-5 py-2.5 bg-accent-solid text-white font-bold rounded-xl shadow-lg hover:brightness-110">
-          Go Home
-        </button>
-      </div>
-    );
-  }
-
-  const handleBlockEdit = (updates: Partial<typeof chart>) => {
-    // If they edit the grid, we also clear custom_text so it doesn't override the viewer
+  const handleBlockEdit = useCallback((updates: Partial<ChartData>) => {
     updateChart({ ...updates, custom_text: null });
-  };
+  }, [updateChart]);
 
-  const updateTitle = (title: string) => handleBlockEdit({ title });
-  const updateTempo = (tempo: number) => handleBlockEdit({ tempo });
-  const updateTimeSig = (time_sig: string) => handleBlockEdit({ time_sig });
-
-  const addLine = () => handleBlockEdit({ lines: [...chart.lines, createDefaultLine()] });
-  
-  const insertLineAfter = (lineId: string) => {
-    const index = chart.lines.findIndex(l => l.id === lineId);
-    if (index === -1) return;
-    const newLines = [...chart.lines];
-    newLines.splice(index + 1, 0, createDefaultLine());
-    handleBlockEdit({ lines: newLines });
-  };
-  
-  const removeLine = (lineId: string) => {
-    if (chart.lines.length <= 1) return;
-    handleBlockEdit({ lines: chart.lines.filter(l => l.id !== lineId) });
-    if (activeMobileSelection?.lineId === lineId) {
-      setActiveMobileSelection(null);
-    }
-  };
-
-  const updateLineLabel = (lineId: string, label: string) => {
-    const newLines = chart.lines.map(l => l.id === lineId ? { ...l, label } : l);
-    handleBlockEdit({ lines: newLines });
-  };
-
-  const updateLineLabelRight = (lineId: string, labelRight: string) => {
-    const newLines = chart.lines.map(l => l.id === lineId ? { ...l, labelRight } : l);
-    handleBlockEdit({ lines: newLines });
-  };
-
-  const addBlock = (lineId: string, atStart: boolean) => {
-    const newLines = chart.lines.map(l => {
-      if (l.id !== lineId) return l;
-      const newBlock = createDefaultBlock();
-      const blocks = atStart ? [newBlock, ...l.blocks] : [...l.blocks, newBlock];
-      return { ...l, blocks };
-    });
-    handleBlockEdit({ lines: newLines });
-  };
-
-  const addBarsToLine = (lineId: string, count: number) => {
-    const newBlock: Block = {
-      id: Date.now().toString() + Math.random().toString(36).substring(2, 9),
-      bars: Array(count).fill(''),
-    };
-    const newLines = chart.lines.map(l => {
-      if (l.id !== lineId) return l;
-      return { ...l, blocks: [...l.blocks, newBlock] };
-    });
-    handleBlockEdit({ lines: newLines });
-    showToast(`+${count} Bars Added`);
-  };
-
-  const removeBlock = (lineId: string, blockId: string) => {
-    const newLines = chart.lines.map(l => {
-      if (l.id !== lineId) return l;
-      if (l.blocks.length <= 1) return l;
-      return { ...l, blocks: l.blocks.filter(b => b.id !== blockId) };
-    });
-    handleBlockEdit({ lines: newLines });
-    if (activeMobileSelection?.blockId === blockId) {
-      setActiveMobileSelection(null);
-    }
-  };
-
-  const addBarToBlock = (lineId: string, blockId: string) => {
-    const newLines = chart.lines.map(l => {
-      if (l.id !== lineId) return l;
-      const blocks = l.blocks.map(b => {
-        if (b.id !== blockId) return b;
-        return { ...b, bars: [...b.bars, ''] };
-      });
-      return { ...l, blocks };
-    });
-    handleBlockEdit({ lines: newLines });
-  };
-
-  const toggleStartRepeat = (lineId: string, blockId: string) => {
-    const newLines = chart.lines.map(l => {
-      if (l.id !== lineId) return l;
-      const blocks = l.blocks.map(b => b.id === blockId ? { ...b, startRepeat: !b.startRepeat } : b);
-      return { ...l, blocks };
-    });
-    handleBlockEdit({ lines: newLines });
-  };
-
-  const toggleEndRepeat = (lineId: string, blockId: string) => {
-    const newLines = chart.lines.map(l => {
-      if (l.id !== lineId) return l;
-      const blocks = l.blocks.map(b => b.id === blockId ? { ...b, endRepeat: !b.endRepeat } : b);
-      return { ...l, blocks };
-    });
-    handleBlockEdit({ lines: newLines });
-  };
-
-  const formatChordCase = (val: string) => {
+  const formatChordCase = useCallback((val: string) => {
     if (!val) return val;
     return val.split('/').map(part => {
       if (!part) return part;
       return part.charAt(0).toUpperCase() + part.slice(1).toLowerCase();
     }).join('/');
-  };
+  }, []);
 
-  const updateBar = (lineId: string, blockId: string, barIndex: number, val: string) => {
+  const updateBar = useCallback((lineId: string, blockId: string, barIndex: number, val: string) => {
+    if (!chart) return;
     const formattedVal = formatChordCase(val);
     const newLines = chart.lines.map(l => {
       if (l.id !== lineId) return l;
@@ -399,13 +278,134 @@ export default function ChartEditor() {
       return { ...l, blocks };
     });
     handleBlockEdit({ lines: newLines });
-  };
+  }, [chart, formatChordCase, handleBlockEdit]);
 
-  const handleTranspose = (delta: number) => handleBlockEdit(transposeChart(chart, delta, chart.prefer_flats));
-  const handleResetTranspose = () => handleBlockEdit(resetChartTranspose(chart));
-  const toggleSpelling = () => handleBlockEdit(transposeChart(chart, 0, !chart.prefer_flats));
+  const updateTitle = useCallback((title: string) => handleBlockEdit({ title }), [handleBlockEdit]);
+  const updateTempo = useCallback((tempo: number) => handleBlockEdit({ tempo }), [handleBlockEdit]);
+  const updateTimeSig = useCallback((time_sig: string) => handleBlockEdit({ time_sig }), [handleBlockEdit]);
 
-  const clearAll = () => {
+  const addLine = useCallback(() => {
+    if (!chart) return;
+    handleBlockEdit({ lines: [...chart.lines, createDefaultLine()] });
+  }, [chart, handleBlockEdit]);
+  
+  const insertLineAfter = useCallback((lineId: string) => {
+    if (!chart) return;
+    const index = chart.lines.findIndex(l => l.id === lineId);
+    if (index === -1) return;
+    const newLines = [...chart.lines];
+    newLines.splice(index + 1, 0, createDefaultLine());
+    handleBlockEdit({ lines: newLines });
+  }, [chart, handleBlockEdit]);
+  
+  const removeLine = useCallback((lineId: string) => {
+    if (!chart || chart.lines.length <= 1) return;
+    handleBlockEdit({ lines: chart.lines.filter(l => l.id !== lineId) });
+    if (activeMobileSelection?.lineId === lineId) {
+      setActiveMobileSelection(null);
+    }
+  }, [chart, handleBlockEdit, activeMobileSelection]);
+
+  const updateLineLabel = useCallback((lineId: string, label: string) => {
+    if (!chart) return;
+    const newLines = chart.lines.map(l => l.id === lineId ? { ...l, label } : l);
+    handleBlockEdit({ lines: newLines });
+  }, [chart, handleBlockEdit]);
+
+  const updateLineLabelRight = useCallback((lineId: string, labelRight: string) => {
+    if (!chart) return;
+    const newLines = chart.lines.map(l => l.id === lineId ? { ...l, labelRight } : l);
+    handleBlockEdit({ lines: newLines });
+  }, [chart, handleBlockEdit]);
+
+  const addBlock = useCallback((lineId: string, atStart: boolean) => {
+    if (!chart) return;
+    const newLines = chart.lines.map(l => {
+      if (l.id !== lineId) return l;
+      const newBlock = createDefaultBlock();
+      const blocks = atStart ? [newBlock, ...l.blocks] : [...l.blocks, newBlock];
+      return { ...l, blocks };
+    });
+    handleBlockEdit({ lines: newLines });
+  }, [chart, handleBlockEdit]);
+
+  const addBarsToLine = useCallback((lineId: string, count: number) => {
+    if (!chart) return;
+    const newBlock: Block = {
+      id: Date.now().toString() + Math.random().toString(36).substring(2, 9),
+      bars: Array(count).fill(''),
+    };
+    const newLines = chart.lines.map(l => {
+      if (l.id !== lineId) return l;
+      return { ...l, blocks: [...l.blocks, newBlock] };
+    });
+    handleBlockEdit({ lines: newLines });
+    showToast(`+${count} Bars Added`);
+  }, [chart, handleBlockEdit, showToast]);
+
+  const removeBlock = useCallback((lineId: string, blockId: string) => {
+    if (!chart) return;
+    const newLines = chart.lines.map(l => {
+      if (l.id !== lineId) return l;
+      if (l.blocks.length <= 1) return l;
+      return { ...l, blocks: l.blocks.filter(b => b.id !== blockId) };
+    });
+    handleBlockEdit({ lines: newLines });
+    if (activeMobileSelection?.blockId === blockId) {
+      setActiveMobileSelection(null);
+    }
+  }, [chart, handleBlockEdit, activeMobileSelection]);
+
+  const addBarToBlock = useCallback((lineId: string, blockId: string) => {
+    if (!chart) return;
+    const newLines = chart.lines.map(l => {
+      if (l.id !== lineId) return l;
+      const blocks = l.blocks.map(b => {
+        if (b.id !== blockId) return b;
+        return { ...b, bars: [...b.bars, ''] };
+      });
+      return { ...l, blocks };
+    });
+    handleBlockEdit({ lines: newLines });
+  }, [chart, handleBlockEdit]);
+
+  const toggleStartRepeat = useCallback((lineId: string, blockId: string) => {
+    if (!chart) return;
+    const newLines = chart.lines.map(l => {
+      if (l.id !== lineId) return l;
+      const blocks = l.blocks.map(b => b.id === blockId ? { ...b, startRepeat: !b.startRepeat } : b);
+      return { ...l, blocks };
+    });
+    handleBlockEdit({ lines: newLines });
+  }, [chart, handleBlockEdit]);
+
+  const toggleEndRepeat = useCallback((lineId: string, blockId: string) => {
+    if (!chart) return;
+    const newLines = chart.lines.map(l => {
+      if (l.id !== lineId) return l;
+      const blocks = l.blocks.map(b => b.id === blockId ? { ...b, endRepeat: !b.endRepeat } : b);
+      return { ...l, blocks };
+    });
+    handleBlockEdit({ lines: newLines });
+  }, [chart, handleBlockEdit]);
+
+  const handleTranspose = useCallback((delta: number) => {
+    if (!chart) return;
+    handleBlockEdit(transposeChart(chart, delta, chart.prefer_flats));
+  }, [chart, handleBlockEdit]);
+
+  const handleResetTranspose = useCallback(() => {
+    if (!chart) return;
+    handleBlockEdit(resetChartTranspose(chart));
+  }, [chart, handleBlockEdit]);
+
+  const toggleSpelling = useCallback(() => {
+    if (!chart) return;
+    handleBlockEdit(transposeChart(chart, 0, !chart.prefer_flats));
+  }, [chart, handleBlockEdit]);
+
+  const clearAll = useCallback(() => {
+    if (!chart) return;
     if (confirm('Are you sure you want to clear all chords?')) {
        const clearedLines = chart.lines.map(line => ({
          ...line,
@@ -417,24 +417,27 @@ export default function ChartEditor() {
        handleBlockEdit({ lines: clearedLines });
        showToast('Chart cleared');
     }
-  };
+  }, [chart, handleBlockEdit, showToast]);
 
-  const copyAsText = () => {
+  const copyAsText = useCallback(() => {
+    if (!chart) return;
     navigator.clipboard.writeText(customText || generateText(chart));
     setCopied(true);
     showToast('Copied to clipboard! 📋');
     setTimeout(() => setCopied(false), 2000);
-  };
+  }, [chart, customText, generateText, showToast]);
 
-  const handleMoveChart = async (newFolderId: string | null) => {
+  const handleMoveChart = useCallback(async (newFolderId: string | null) => {
+    if (!chart) return;
     await moveEntry(chart.id, 'chart', newFolderId);
     updateChart({ folder_id: newFolderId });
     showToast('Chart moved');
-  };
+  }, [chart, updateChart, showToast]);
 
   // ─── Flat bar list for mobile sequential navigation ────────────────────────
   const getFlatBars = useCallback(() => {
     const list: { lineId: string; blockId: string; barIndex: number; lineLabel: string; barTotalInBlock: number }[] = [];
+    if (!chart?.lines) return list;
     chart.lines.forEach((l) => {
       l.blocks.forEach((b) => {
         b.bars.forEach((_, barIdx) => {
@@ -449,14 +452,14 @@ export default function ChartEditor() {
       });
     });
     return list;
-  }, [chart.lines]);
+  }, [chart?.lines]);
 
   const getActiveBarValue = useCallback(() => {
-    if (!activeMobileSelection) return '';
+    if (!activeMobileSelection || !chart?.lines) return '';
     const line = chart.lines.find(l => l.id === activeMobileSelection.lineId);
     const block = line?.blocks.find(b => b.id === activeMobileSelection.blockId);
     return block?.bars[activeMobileSelection.barIndex] || '';
-  }, [chart.lines, activeMobileSelection]);
+  }, [chart?.lines, activeMobileSelection]);
 
   const stepMobileBar = useCallback((delta: number) => {
     if (!activeMobileSelection) return;
@@ -523,7 +526,7 @@ export default function ChartEditor() {
   }, [activeMobileSelection, getActiveBarValue, updateBar]);
 
   const handleKeypadInsertBar = useCallback(() => {
-    if (!activeMobileSelection) return;
+    if (!activeMobileSelection || !chart) return;
     const { lineId, blockId, barIndex } = activeMobileSelection;
     const newLines = chart.lines.map(l => {
       if (l.id !== lineId) return l;
@@ -538,17 +541,16 @@ export default function ChartEditor() {
     handleBlockEdit({ lines: newLines });
     setActiveMobileSelection({ lineId, blockId, barIndex: barIndex + 1 });
     showToast('+1 Bar Inserted');
-  }, [activeMobileSelection, chart.lines, handleBlockEdit, showToast]);
+  }, [activeMobileSelection, chart, handleBlockEdit, showToast]);
 
   const handleKeypadDeleteBar = useCallback(() => {
-    if (!activeMobileSelection) return;
+    if (!activeMobileSelection || !chart) return;
     const { lineId, blockId, barIndex } = activeMobileSelection;
     const line = chart.lines.find(l => l.id === lineId);
     const block = line?.blocks.find(b => b.id === blockId);
     if (!line || !block) return;
 
     if (block.bars.length <= 1 && line.blocks.length <= 1 && chart.lines.length <= 1) {
-      // Clear instead of removing last standing bar
       updateBar(lineId, blockId, 0, '');
       showToast('Bar cleared');
       return;
@@ -568,7 +570,6 @@ export default function ChartEditor() {
     handleBlockEdit({ lines: newLines });
     showToast('Bar deleted');
 
-    // Select adjacent bar
     setTimeout(() => {
       const flat = getFlatBars();
       if (flat.length > 0) {
@@ -582,7 +583,30 @@ export default function ChartEditor() {
         setActiveMobileSelection(null);
       }
     }, 20);
-  }, [activeMobileSelection, chart.lines, getFlatBars, handleBlockEdit, showToast, updateBar]);
+  }, [activeMobileSelection, chart, getFlatBars, handleBlockEdit, showToast, updateBar]);
+
+  // ─── Conditional Returns (Guaranteed after ALL hooks are initialized) ─────────
+  if (authLoading || chartLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center text-white bg-bg">
+        <div className="flex items-center gap-3">
+          <RefreshCw size={20} className="animate-spin text-accent-solid" />
+          <span className="font-semibold text-sm">Loading Chart...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user || !chart) {
+    return (
+      <div className="flex h-screen flex-col items-center justify-center text-white bg-bg gap-4">
+        <p className="text-text-secondary">Chart not found or access denied.</p>
+        <button onClick={() => router.push('/')} className="px-5 py-2.5 bg-accent-solid text-white font-bold rounded-xl shadow-lg hover:brightness-110">
+          Go Home
+        </button>
+      </div>
+    );
+  }
 
   const totalLines = chart.lines.length;
   const totalBars = chart.lines.reduce((sum, line) => sum + line.blocks.reduce((bSum, block) => bSum + block.bars.length, 0), 0);
@@ -678,7 +702,7 @@ export default function ChartEditor() {
               MOBILE PHONE VIEW (< md): Stacked Cards & Touch Targets
               ═══════════════════════════════════════════════════════════════ */}
           <div className="block md:hidden space-y-3">
-            {chart.lines.map((line, li) => (
+            {chart.lines.map((line) => (
               <div key={line.id} className="bg-surface border border-border shadow-card rounded-2xl p-3 flex flex-col gap-2.5">
                 
                 {/* Line Header: Part name, Text annotation & Delete */}
@@ -707,7 +731,7 @@ export default function ChartEditor() {
 
                 {/* Blocks Grid Container */}
                 <div className="flex flex-col gap-2">
-                  {line.blocks.map((block, bi) => {
+                  {line.blocks.map((block) => {
                     const isTwoCol = block.bars.length === 2;
                     return (
                       <div key={block.id} className="flex items-center gap-1.5">
