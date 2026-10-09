@@ -10,7 +10,7 @@ import { parseChordToText } from '@/lib/chord-parser';
 import { getChordNotes } from '@/lib/chord-notes';
 import { moveEntry } from '@/lib/storage';
 import { FolderPickerModal } from '@/components/FolderPickerModal';
-import { X, Plus, LogOut, Download, Copy, RefreshCw, Cloud, CloudOff, Edit2, Folder as FolderIcon, CornerLeftUp, ChevronLeft, ChevronRight, Check } from 'lucide-react';
+import { X, Plus, LogOut, Download, Copy, RefreshCw, Cloud, CloudOff, Edit2, Folder as FolderIcon, CornerLeftUp, ChevronLeft, ChevronRight, Check, Keyboard, Music } from 'lucide-react';
 import { ChartData } from '@/lib/chart-types';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
@@ -36,8 +36,11 @@ export default function ChartEditor() {
     blockId: string;
     barIndex: number;
   } | null>(null);
+  const [isSlashBassMode, setIsSlashBassMode] = useState(false);
+  const [isNativeKeyboard, setIsNativeKeyboard] = useState(false);
   const [mobileToast, setMobileToast] = useState<string | null>(null);
   const toastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const nativeInputRef = useRef<HTMLInputElement | null>(null);
 
   const showToast = useCallback((msg: string) => {
     if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
@@ -461,6 +464,17 @@ export default function ChartEditor() {
     return block?.bars[activeMobileSelection.barIndex] || '';
   }, [chart?.lines, activeMobileSelection]);
 
+  // ─── Smooth auto-scroll to active bar cell ──────────────────────────────────
+  useEffect(() => {
+    if (activeMobileSelection) {
+      const cellId = `bar-cell-${activeMobileSelection.lineId}-${activeMobileSelection.blockId}-${activeMobileSelection.barIndex}`;
+      const elem = document.getElementById(cellId);
+      if (elem) {
+        elem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+  }, [activeMobileSelection]);
+
   const stepMobileBar = useCallback((delta: number) => {
     if (!activeMobileSelection) return;
     const flat = getFlatBars();
@@ -482,6 +496,7 @@ export default function ChartEditor() {
     }
 
     const next = flat[nextIndex];
+    setIsSlashBassMode(false);
     setActiveMobileSelection({
       lineId: next.lineId,
       blockId: next.blockId,
@@ -489,17 +504,27 @@ export default function ChartEditor() {
     });
   }, [activeMobileSelection, getFlatBars, showToast]);
 
-  // Handle Mobile Keypad Key Press
+  // Handle Mobile Keypad Key Press (Smart Builder + Slash Bass Picker)
   const handleKeypadPress = useCallback((key: string) => {
     if (!activeMobileSelection) return;
     let current = getActiveBarValue();
 
-    if (key === '␣') {
-      current += ' ';
+    if (key === '/') {
+      current = current.trim() + '/';
+      setIsSlashBassMode(true);
+      showToast('Pick bass note (C - B)');
+    } else if (isSlashBassMode && ['C', 'D', 'E', 'F', 'G', 'A', 'B'].includes(key)) {
+      current += key;
+      setIsSlashBassMode(false);
+    } else if (key === '␣') {
+      current = current.trim() + ' ';
+      setIsSlashBassMode(false);
     } else if (key === '.') {
-      current = current.trim() + ' .';
+      current = current.trim() ? `${current.trim()} .` : '.';
+      setIsSlashBassMode(false);
     } else if (key === '%') {
       current = '%';
+      setIsSlashBassMode(false);
     } else {
       current += key;
     }
@@ -510,12 +535,13 @@ export default function ChartEditor() {
       activeMobileSelection.barIndex,
       current
     );
-  }, [activeMobileSelection, getActiveBarValue, updateBar]);
+  }, [activeMobileSelection, getActiveBarValue, updateBar, isSlashBassMode, showToast]);
 
   const handleKeypadBackspace = useCallback(() => {
     if (!activeMobileSelection) return;
     const current = getActiveBarValue();
     if (current.length > 0) {
+      setIsSlashBassMode(false);
       updateBar(
         activeMobileSelection.lineId,
         activeMobileSelection.blockId,
@@ -539,6 +565,7 @@ export default function ChartEditor() {
       return { ...l, blocks };
     });
     handleBlockEdit({ lines: newLines });
+    setIsSlashBassMode(false);
     setActiveMobileSelection({ lineId, blockId, barIndex: barIndex + 1 });
     showToast('+1 Bar Inserted');
   }, [activeMobileSelection, chart, handleBlockEdit, showToast]);
@@ -568,6 +595,7 @@ export default function ChartEditor() {
     }).filter(l => l.blocks.length > 0);
 
     handleBlockEdit({ lines: newLines });
+    setIsSlashBassMode(false);
     showToast('Bar deleted');
 
     setTimeout(() => {
@@ -618,7 +646,7 @@ export default function ChartEditor() {
   const activeBlock = activeLine?.blocks.find(b => b.id === activeMobileSelection?.blockId);
 
   return (
-    <div className="min-h-screen bg-bg flex flex-col text-text-primary relative pb-32">
+    <div className={`min-h-screen bg-bg flex flex-col text-text-primary relative ${activeMobileSelection ? 'pb-80 sm:pb-32' : 'pb-32'}`}>
       
       {/* Editor Main Content */}
       <main className="flex-1 overflow-x-hidden p-3 sm:p-8">
@@ -754,13 +782,15 @@ export default function ChartEditor() {
                             return (
                               <button
                                 key={`${block.id}-${barIdx}`}
+                                id={`bar-cell-${line.id}-${block.id}-${barIdx}`}
                                 type="button"
                                 onClick={() => {
+                                  setIsSlashBassMode(false);
                                   setActiveMobileSelection({ lineId: line.id, blockId: block.id, barIndex: barIdx });
                                 }}
                                 className={`h-11 rounded-lg font-mono text-sm font-bold flex items-center justify-center transition-all select-none overflow-hidden px-1 border ${
                                   isSelected 
-                                    ? 'bg-accent-solid/30 border-accent-solid text-white shadow-[0_0_12px_rgba(99,102,241,0.5)] ring-1 ring-accent-solid' 
+                                    ? 'bg-accent-solid/30 border-accent-solid text-white shadow-[0_0_12px_rgba(99,102,241,0.6)] ring-2 ring-accent-solid scale-[1.03]' 
                                     : bar 
                                       ? 'bg-surface-raised border-border text-text-primary' 
                                       : 'bg-surface border-dashed border-border/70 text-text-muted text-base'
@@ -1079,113 +1109,201 @@ export default function ChartEditor() {
       </main>
 
       {/* ═══════════════════════════════════════════════════════════════
-          MOBILE CHORD KEYPAD (BOTTOM SHEET)
+          MOBILE CHORD KEYPAD (BOTTOM SHEET - NO DARKENING OVERLAY)
           ═══════════════════════════════════════════════════════════════ */}
       {activeMobileSelection && (
-        <>
-          {/* Backdrop */}
-          <div 
-            className="fixed inset-0 bg-black/60 backdrop-blur-xs z-40 md:hidden animate-fade-in"
-            onClick={() => setActiveMobileSelection(null)}
-          />
-
-          {/* Keypad Drawer */}
-          <div className="fixed left-0 right-0 bottom-0 bg-[#130d29] border-t border-border-light rounded-t-3xl p-3 pb-[calc(14px+env(safe-area-inset-bottom,12px))] z-50 shadow-2xl md:hidden max-w-lg mx-auto animate-slide-up">
-            
-            {/* Drawer Top Controls */}
-            <div className="flex items-center justify-between gap-2 mb-2">
-              <div className="flex items-center gap-1.5 text-xs font-bold text-text-secondary">
-                <span className="bg-surface-raised text-accent-solid px-2 py-0.5 rounded-full text-[11px]">
-                  {activeLine?.label || 'Section'}
-                </span>
-                <span>Bar {(activeMobileSelection.barIndex || 0) + 1} of {activeBlock?.bars.length || 1}</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <button
-                  onClick={() => stepMobileBar(-1)}
-                  className="px-2.5 py-1 bg-surface-raised border border-border text-text-primary rounded-lg text-xs font-bold flex items-center gap-0.5 active:scale-95"
-                >
-                  <ChevronLeft size={13} /> Prev
-                </button>
-                <button
-                  onClick={() => stepMobileBar(1)}
-                  className="px-2.5 py-1 bg-surface-raised border border-border text-text-primary rounded-lg text-xs font-bold flex items-center gap-0.5 active:scale-95"
-                >
-                  Next <ChevronRight size={13} />
-                </button>
-                <button
-                  onClick={() => setActiveMobileSelection(null)}
-                  className="px-3 py-1 bg-accent-solid text-white rounded-lg text-xs font-bold flex items-center gap-1 active:scale-95 shadow-md"
-                >
-                  <Check size={13} /> Done
-                </button>
-              </div>
+        <div className="fixed left-0 right-0 bottom-0 bg-[#120b24]/95 backdrop-blur-xl border-t border-border-light rounded-t-3xl p-3 pb-[calc(14px+env(safe-area-inset-bottom,12px))] z-50 shadow-[0_-15px_35px_rgba(0,0,0,0.8)] md:hidden max-w-lg mx-auto animate-slide-up">
+          
+          {/* Drawer Top Controls */}
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-text-secondary">
+              <span className="bg-surface-raised text-accent-solid px-2 py-0.5 rounded-full text-[11px]">
+                {activeLine?.label || 'Section'}
+              </span>
+              <span>Bar {(activeMobileSelection.barIndex || 0) + 1} of {activeBlock?.bars.length || 1}</span>
             </div>
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => stepMobileBar(-1)}
+                className="px-2.5 py-1 bg-surface-raised border border-border text-text-primary rounded-lg text-xs font-bold flex items-center gap-0.5 active:scale-95 transition-transform"
+              >
+                <ChevronLeft size={13} /> Prev
+              </button>
+              <button
+                onClick={() => stepMobileBar(1)}
+                className="px-2.5 py-1 bg-surface-raised border border-border text-text-primary rounded-lg text-xs font-bold flex items-center gap-0.5 active:scale-95 transition-transform"
+              >
+                Next <ChevronRight size={13} />
+              </button>
+              <button
+                onClick={() => setActiveMobileSelection(null)}
+                className="px-3 py-1 bg-accent-solid text-white rounded-lg text-xs font-bold flex items-center gap-1 active:scale-95 shadow-md transition-transform"
+              >
+                <Check size={13} /> Done
+              </button>
+            </div>
+          </div>
 
-            {/* Realtime Chord Display & Voicing Note Breakdown */}
-            <div className="bg-surface border border-border rounded-xl px-3 py-2 flex items-center justify-between mb-2 min-h-[44px]">
-              <div className="font-mono text-xl font-black text-white flex items-center tracking-tight">
+          {/* Realtime Chord Display & Mode Toggle */}
+          <div className="bg-surface/90 border border-border rounded-xl px-3 py-1.5 flex items-center justify-between mb-2 min-h-[46px] gap-2">
+            {isNativeKeyboard ? (
+              <div className="flex-1 flex items-center gap-2">
+                <input
+                  ref={nativeInputRef}
+                  autoFocus
+                  value={activeChordVal}
+                  onChange={(e) => updateBar(
+                    activeMobileSelection.lineId,
+                    activeMobileSelection.blockId,
+                    activeMobileSelection.barIndex,
+                    e.target.value
+                  )}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      stepMobileBar(1);
+                    }
+                  }}
+                  placeholder="Type chord (e.g. Cm7, G/B)..."
+                  className="w-full bg-transparent text-white font-mono font-bold text-lg focus:outline-none placeholder:text-text-muted"
+                />
+              </div>
+            ) : (
+              <div className="font-mono text-xl font-black text-white flex items-center tracking-tight flex-1">
                 <span>{activeChordVal ? parseChordToText(activeChordVal) : ''}</span>
                 <span className="w-0.5 h-5 bg-accent-solid ml-1 inline-block animate-pulse" />
+                {isSlashBassMode && (
+                  <span className="ml-2 text-xs font-sans font-bold text-sky-400 bg-sky-950/40 border border-sky-800/40 px-1.5 py-0.5 rounded">
+                    Pick Bass Note ↓
+                  </span>
+                )}
               </div>
+            )}
+
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                onClick={() => {
+                  setIsNativeKeyboard(!isNativeKeyboard);
+                  showToast(isNativeKeyboard ? 'Musical Keypad' : 'Phone Keyboard');
+                }}
+                className={`p-1.5 rounded-lg border text-xs font-bold flex items-center gap-1 transition-colors ${
+                  isNativeKeyboard 
+                    ? 'bg-accent-solid/20 border-accent-solid text-accent-solid' 
+                    : 'bg-surface-raised border-border text-text-secondary hover:text-white'
+                }`}
+                title={isNativeKeyboard ? 'Switch to Musical Keypad' : 'Switch to Phone Keyboard'}
+              >
+                {isNativeKeyboard ? <Music size={14} /> : <Keyboard size={14} />}
+              </button>
               <div className="text-[11px] font-mono font-bold text-emerald-400 bg-emerald-950/40 border border-emerald-800/40 px-2 py-1 rounded-md">
                 {activeChordVoicing?.formattedNotes || (activeChordVal ? 'Notation' : 'Empty bar')}
               </div>
             </div>
+          </div>
 
-            {/* Row 1: Root Note Keys */}
-            <div className="grid grid-cols-7 gap-1 mb-1">
-              {['C', 'D', 'E', 'F', 'G', 'A', 'B'].map((root) => (
+          {/* Keypad View (Shown when not in native text mode) */}
+          {!isNativeKeyboard && (
+            <>
+              {/* Row 1: Root Note Keys (Highlights in slash mode) */}
+              <div className="grid grid-cols-7 gap-1 mb-1">
+                {['C', 'D', 'E', 'F', 'G', 'A', 'B'].map((root) => (
+                  <button
+                    key={root}
+                    onClick={() => handleKeypadPress(root)}
+                    className={`h-10 rounded-lg font-sans text-base font-extrabold flex items-center justify-center active:scale-95 shadow-sm transition-all ${
+                      isSlashBassMode 
+                        ? 'bg-sky-500/20 border-sky-400 text-sky-300 ring-1 ring-sky-400 animate-pulse' 
+                        : 'bg-surface-hover border border-border-light text-white active:bg-accent-solid'
+                    }`}
+                  >
+                    {root}
+                  </button>
+                ))}
+              </div>
+
+              {/* Row 2: Common Qualities & Accidentals */}
+              <div className="grid grid-cols-7 gap-1 mb-1">
+                {['♯', '♭', 'm', '7', 'maj7', 'sus4', 'dim'].map((q) => {
+                  const isAcc = q === '♯' || q === '♭';
+                  return (
+                    <button
+                      key={q}
+                      onClick={() => handleKeypadPress(q)}
+                      className={`h-9 bg-surface-raised border border-border rounded-lg font-mono text-xs font-bold flex items-center justify-center active:bg-surface-hover active:scale-95 transition-transform ${isAcc ? 'text-purple-300 text-sm' : 'text-slate-200'}`}
+                    >
+                      {q}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Row 3: Extended Qualities, Power Chords & Slash */}
+              <div className="grid grid-cols-7 gap-1 mb-2">
+                {['aug', '9', '6', '/', '%', '␣', '.'].map((q) => {
+                  const isSlash = q === '/';
+                  return (
+                    <button
+                      key={q}
+                      onClick={() => handleKeypadPress(q)}
+                      className={`h-9 border rounded-lg font-mono text-xs font-bold flex items-center justify-center active:bg-surface-hover active:scale-95 transition-transform ${
+                        isSlash 
+                          ? 'bg-sky-500/20 border-sky-400 text-sky-300 font-extrabold' 
+                          : 'bg-surface-raised border-border text-slate-200'
+                      }`}
+                    >
+                      {q}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Row 4: Navigation, Editing & Auto-Advance */}
+              <div className="grid grid-cols-5 gap-1.5">
                 <button
-                  key={root}
-                  onClick={() => handleKeypadPress(root)}
-                  className="h-10 bg-surface-hover border border-border-light rounded-lg text-white font-sans text-base font-extrabold flex items-center justify-center active:bg-accent-solid active:scale-95 shadow-sm transition-transform"
+                  onClick={() => setIsNativeKeyboard(true)}
+                  className="h-10 bg-surface-raised border border-border text-text-secondary rounded-lg text-xs font-bold flex items-center justify-center gap-1 active:scale-95 transition-transform"
+                  title="Switch to Keyboard"
                 >
-                  {root}
+                  <Keyboard size={14} /> Text
                 </button>
-              ))}
-            </div>
+                <button
+                  onClick={handleKeypadBackspace}
+                  className="h-10 bg-white/10 border border-border text-white rounded-lg text-xs font-black flex items-center justify-center active:scale-95 transition-transform"
+                  title="Backspace"
+                >
+                  ⌫
+                </button>
+                <button
+                  onClick={handleKeypadInsertBar}
+                  className="h-10 bg-surface-raised border border-border text-text-secondary rounded-lg text-xs font-bold flex items-center justify-center active:scale-95 transition-transform"
+                >
+                  + Bar
+                </button>
+                <button
+                  onClick={handleKeypadDeleteBar}
+                  className="h-10 bg-red-950/30 border border-red-800/40 text-red-400 rounded-lg text-xs font-bold flex items-center justify-center active:scale-95 transition-transform"
+                >
+                  Delete
+                </button>
+                <button
+                  onClick={() => stepMobileBar(1)}
+                  className="h-10 bg-accent-gradient text-white rounded-lg text-xs font-extrabold flex items-center justify-center active:scale-95 shadow-md shadow-accent-glow transition-transform"
+                  title="Next measure"
+                >
+                  Next Bar ›
+                </button>
+              </div>
+            </>
+          )}
 
-            {/* Row 2: Accidentals & Qualities */}
-            <div className="grid grid-cols-7 gap-1 mb-1">
-              {['♯', '♭', 'm', '7', 'maj7', 'sus4', 'dim'].map((q) => {
-                const isAcc = q === '♯' || q === '♭';
-                return (
-                  <button
-                    key={q}
-                    onClick={() => handleKeypadPress(q)}
-                    className={`h-9 bg-surface-raised border border-border rounded-lg font-mono text-xs font-bold flex items-center justify-center active:bg-surface-hover active:scale-95 transition-transform ${isAcc ? 'text-purple-300 text-sm' : 'text-slate-200'}`}
-                  >
-                    {q}
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Row 3: Extensions, Slash & Rhythms */}
-            <div className="grid grid-cols-7 gap-1 mb-2">
-              {['aug', '9', '6', '/', '%', '␣', '.'].map((q) => {
-                const isSpecial = q === '/' || q === '%' || q === '␣';
-                return (
-                  <button
-                    key={q}
-                    onClick={() => handleKeypadPress(q)}
-                    className={`h-9 bg-surface-raised border border-border rounded-lg font-mono text-xs font-bold flex items-center justify-center active:bg-surface-hover active:scale-95 transition-transform ${isSpecial ? 'text-sky-300 font-extrabold' : 'text-slate-200'}`}
-                  >
-                    {q}
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Row 4: Navigation, Editing & Auto-Advance */}
-            <div className="grid grid-cols-4 gap-1.5">
+          {/* Native Keyboard Quick Actions */}
+          {isNativeKeyboard && (
+            <div className="grid grid-cols-4 gap-1.5 mt-2">
               <button
-                onClick={handleKeypadBackspace}
-                className="h-10 bg-white/10 border border-border text-white rounded-lg text-sm font-black flex items-center justify-center active:scale-95 transition-transform"
-                title="Backspace"
+                onClick={() => setIsNativeKeyboard(false)}
+                className="h-10 bg-surface-raised border border-border text-accent-solid rounded-lg text-xs font-bold flex items-center justify-center gap-1 active:scale-95 transition-transform"
               >
-                ⌫
+                <Music size={14} /> Keypad
               </button>
               <button
                 onClick={handleKeypadInsertBar}
@@ -1201,14 +1319,14 @@ export default function ChartEditor() {
               </button>
               <button
                 onClick={() => stepMobileBar(1)}
-                className="h-10 bg-accent-gradient text-white rounded-lg text-xs font-extrabold flex items-center justify-center gap-1 active:scale-95 shadow-md shadow-accent-glow transition-transform"
+                className="h-10 bg-accent-gradient text-white rounded-lg text-xs font-extrabold flex items-center justify-center active:scale-95 shadow-md shadow-accent-glow transition-transform"
               >
                 Next Bar ›
               </button>
             </div>
+          )}
 
-          </div>
-        </>
+        </div>
       )}
 
       {/* Mobile Toast Alert */}
