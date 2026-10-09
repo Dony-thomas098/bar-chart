@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { parseChord } from '@/lib/chord-parser';
+import { parseChord, normalizeChordInput } from '@/lib/chord-parser';
 
 interface Props {
   value: string;
@@ -29,7 +29,7 @@ export function ChordInput({ value, onChange, onKeyDown, className = '' }: Props
       <input
         type="text"
         value={value}
-        onChange={e => onChange(e.target.value)}
+        onChange={e => onChange(normalizeChordInput(e.target.value))}
         onKeyDown={onKeyDown}
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}

@@ -6,7 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { ChordInput } from '@/components/ChordInput';
 import { transposeChart, resetChartTranspose } from '@/lib/transpose';
 import { createDefaultLine, createDefaultBlock, Line, Block } from '@/lib/chart-types';
-import { parseChord, parseChordToText } from '@/lib/chord-parser';
+import { parseChord, parseChordToText, normalizeChordInput } from '@/lib/chord-parser';
 import { getChordNotes } from '@/lib/chord-notes';
 import { moveEntry } from '@/lib/storage';
 import { FolderPickerModal } from '@/components/FolderPickerModal';
@@ -56,17 +56,13 @@ export default function ChartEditor() {
     const headerStr = `${title}      ${timeSig}      ${tempo}`;
 
     const maxLabelLen = Math.max(...(chartData.lines || []).map(l => l.label ? l.label.length : 0), 0);
+    const colWidth = Math.max(10, maxLabelLen);
     let bodyLines: string[] = [];
 
     (chartData.lines || []).forEach(line => {
       let lineTxt = '';
-      if (maxLabelLen > 0) {
-        if (line.label) {
-          lineTxt += `${line.label.padStart(maxLabelLen)}: `;
-        } else {
-          lineTxt += ' '.repeat(maxLabelLen + 2);
-        }
-      }
+      const partStr = line.label ? line.label : '';
+      lineTxt += `${partStr.padStart(colWidth)}  `;
       
       if (line.blocks.length > 0) {
         line.blocks.forEach((block, bIdx) => {
@@ -261,9 +257,13 @@ export default function ChartEditor() {
 
   const formatChordCase = useCallback((val: string) => {
     if (!val) return val;
-    return val.split('/').map(part => {
+    const normalized = normalizeChordInput(val);
+    return normalized.split('/').map(part => {
       if (!part) return part;
-      return part.charAt(0).toUpperCase() + part.slice(1).toLowerCase();
+      if (/^[a-g]/i.test(part)) {
+        return part.charAt(0).toUpperCase() + part.slice(1);
+      }
+      return part;
     }).join('/');
   }, []);
 
@@ -509,6 +509,12 @@ export default function ChartEditor() {
     if (!activeMobileSelection) return;
     let current = getActiveBarValue();
 
+    let toAppend = key;
+    if (key === 'dim') toAppend = '°';
+    else if (key === 'aug') toAppend = '+';
+    else if (key === 'maj7') toAppend = 'Δ7';
+    else if (key === 'm7b5') toAppend = 'ø7';
+
     if (key === '/') {
       current = current.trim() + '/';
       setIsSlashBassMode(true);
@@ -526,7 +532,7 @@ export default function ChartEditor() {
       current = '%';
       setIsSlashBassMode(false);
     } else {
-      current += key;
+      current += toAppend;
     }
 
     updateBar(
@@ -1169,9 +1175,9 @@ export default function ChartEditor() {
                 />
               </div>
             ) : (
-              <div className="font-mono text-xl font-black text-white flex items-center tracking-tight flex-1">
-                <span>{activeChordVal ? parseChordToText(activeChordVal) : ''}</span>
-                <span className="w-0.5 h-5 bg-accent-solid ml-1 inline-block animate-pulse" />
+              <div className="font-mono text-xl font-black text-white flex items-baseline tracking-tight flex-1">
+                <span>{activeChordVal ? parseChord(activeChordVal) : ''}</span>
+                <span className="w-0.5 h-5 bg-accent-solid ml-1 inline-block animate-pulse self-center" />
                 {isSlashBassMode && (
                   <span className="ml-2 text-xs font-sans font-bold text-sky-400 bg-sky-950/40 border border-sky-800/40 px-1.5 py-0.5 rounded">
                     Pick Bass Note ↓
@@ -1221,7 +1227,7 @@ export default function ChartEditor() {
                 ))}
               </div>
 
-              {/* Row 2: Common Qualities & Accidentals */}
+              {/* Row 2: Qualities 1 */}
               <div className="grid grid-cols-7 gap-1 mb-1">
                 {['♯', '♭', 'm', '7', 'maj7', 'sus4', 'dim'].map((q) => {
                   const isAcc = q === '♯' || q === '♭';
@@ -1237,9 +1243,9 @@ export default function ChartEditor() {
                 })}
               </div>
 
-              {/* Row 3: Extended Qualities, Power Chords & Slash */}
+              {/* Row 3: Qualities 2 & Bass */}
               <div className="grid grid-cols-7 gap-1 mb-2">
-                {['aug', '9', '6', '/', '%', '␣', '.'].map((q) => {
+                {['aug', '9', '6', 'sus2', 'add9', '/', '%'].map((q) => {
                   const isSlash = q === '/';
                   return (
                     <button

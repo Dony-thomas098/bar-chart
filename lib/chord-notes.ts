@@ -61,6 +61,9 @@ const CHORD_FORMULAS: Record<string, { name: string; intervals: number[] }> = {
   'M7':    { name: 'Major 7th', intervals: [0, 4, 7, 11] },
   'major7':{ name: 'Major 7th', intervals: [0, 4, 7, 11] },
   '△':     { name: 'Major 7th', intervals: [0, 4, 7, 11] },
+  'Δ':     { name: 'Major 7th', intervals: [0, 4, 7, 11] },
+  '△7':    { name: 'Major 7th', intervals: [0, 4, 7, 11] },
+  'Δ7':    { name: 'Major 7th', intervals: [0, 4, 7, 11] },
   'm7':    { name: 'Minor 7th', intervals: [0, 3, 7, 10] },
   'min7':  { name: 'Minor 7th', intervals: [0, 3, 7, 10] },
   '-7':    { name: 'Minor 7th', intervals: [0, 3, 7, 10] },
@@ -80,17 +83,27 @@ const CHORD_FORMULAS: Record<string, { name: string; intervals: number[] }> = {
   'aug7':  { name: 'Augmented 7th', intervals: [0, 4, 8, 10] },
 
   // Extended
+  '6/9':   { name: '6/9', intervals: [0, 4, 7, 9, 2] },
+  '69':    { name: '6/9', intervals: [0, 4, 7, 9, 2] },
   '9':     { name: 'Dominant 9th', intervals: [0, 4, 7, 10, 2] },
   'maj9':  { name: 'Major 9th', intervals: [0, 4, 7, 11, 2] },
   'M9':    { name: 'Major 9th', intervals: [0, 4, 7, 11, 2] },
+  'Δ9':    { name: 'Major 9th', intervals: [0, 4, 7, 11, 2] },
   'm9':    { name: 'Minor 9th', intervals: [0, 3, 7, 10, 2] },
   'min9':  { name: 'Minor 9th', intervals: [0, 3, 7, 10, 2] },
   '7b9':   { name: '7♭9', intervals: [0, 4, 7, 10, 1] },
   '7#9':   { name: '7♯9', intervals: [0, 4, 7, 10, 3] },
+  '7#11':  { name: '7♯11', intervals: [0, 4, 7, 10, 6] },
+  '7b13':  { name: '7♭13', intervals: [0, 4, 7, 10, 8] },
+  'alt':   { name: 'Altered 7th', intervals: [0, 4, 10, 1, 3] },
+  '7alt':  { name: 'Altered 7th', intervals: [0, 4, 10, 1, 3] },
   '11':    { name: '11th', intervals: [0, 4, 7, 10, 2, 5] },
+  'maj11': { name: 'Major 11th', intervals: [0, 4, 7, 11, 2, 5] },
   'm11':   { name: 'Minor 11th', intervals: [0, 3, 7, 10, 2, 5] },
   '13':    { name: '13th', intervals: [0, 4, 7, 10, 2, 9] },
+  'maj13': { name: 'Major 13th', intervals: [0, 4, 7, 11, 2, 9] },
   'm13':   { name: 'Minor 13th', intervals: [0, 3, 7, 10, 2, 9] },
+  '9sus4': { name: '9th Sus4', intervals: [0, 5, 7, 10, 2] },
 };
 
 function preferFlatsForChord(root: string, quality: string): boolean {

@@ -4,21 +4,22 @@ const SHARPS = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
 const FLATS = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
 
 function getPitchClass(note: string): number {
-  const indexSharp = SHARPS.indexOf(note);
+  const clean = note.replace('♯', '#').replace('♭', 'b');
+  const indexSharp = SHARPS.indexOf(clean);
   if (indexSharp !== -1) return indexSharp;
-  const indexFlat = FLATS.indexOf(note);
+  const indexFlat = FLATS.indexOf(clean);
   if (indexFlat !== -1) return indexFlat;
   
-  if (note === 'Cb') return 11;
-  if (note === 'B#') return 0;
-  if (note === 'E#') return 5;
-  if (note === 'Fb') return 4;
+  if (clean === 'Cb') return 11;
+  if (clean === 'B#') return 0;
+  if (clean === 'E#') return 5;
+  if (clean === 'Fb') return 4;
   
   return -1;
 }
 
 export function transposeSingleChord(raw: string, semitones: number, preferFlats: boolean): string {
-  const match = raw.match(/^([A-G][#b]?)(.*)$/);
+  const match = raw.match(/^([A-G][#b♯♭]?)(.*)$/);
   if (!match) return raw;
   
   const [, root, rest] = match;
