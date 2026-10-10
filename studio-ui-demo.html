@@ -123,14 +123,38 @@
     }
 
     .app-viewport.mobile-frame {
-      max-width: 420px;
-      min-height: 860px;
-      margin: 16px auto;
-      border-radius: 40px;
-      border: 8px solid #1e1e24;
-      box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(255, 255, 255, 0.1);
+      max-width: 440px;
+      min-height: auto;
+      margin: 12px auto;
+      border-radius: 28px;
+      border: 4px solid #1e1e24;
+      box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(255, 255, 255, 0.08);
       overflow: hidden;
       background: var(--bg);
+    }
+
+    @media (max-width: 600px) {
+      .device-switcher-bar {
+        display: none !important;
+      }
+      .dynamic-island-notch {
+        display: none !important;
+      }
+      .app-viewport.mobile-frame {
+        max-width: 100% !important;
+        min-height: 100vh !important;
+        margin: 0 !important;
+        border: none !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+      }
+      .app-content {
+        padding: 10px 8px 90px !important;
+      }
+      .sheet-outer-card {
+        padding: 10px 6px !important;
+        border-radius: 10px !important;
+      }
     }
 
     .dynamic-island-notch {
@@ -916,6 +940,51 @@
       background: rgba(255, 255, 255, 0.05);
     }
 
+    .modal-icons-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 4px;
+    }
+    .modal-icon-pill {
+      font-size: 18px;
+      padding: 6px 10px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .modal-icon-pill:hover, .modal-icon-pill.selected {
+      background: var(--accent-muted);
+      border-color: var(--accent);
+      transform: scale(1.08);
+    }
+    .modal-tab-group {
+      display: flex;
+      gap: 6px;
+      background: rgba(255, 255, 255, 0.04);
+      padding: 3px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+    .modal-tab-btn {
+      flex: 1;
+      padding: 6px 10px;
+      border: none;
+      background: none;
+      color: var(--text-muted);
+      font-size: 12px;
+      font-weight: 700;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .modal-tab-btn.active {
+      background: rgba(255, 255, 255, 0.12);
+      color: white;
+    }
+
     /* Setlist Flow / Detail Screen */
     .gig-banner {
       background: linear-gradient(135deg, rgba(79, 70, 229, 0.15) 0%, rgba(24, 24, 32, 0.9) 100%);
@@ -1041,42 +1110,43 @@
     .sheet-outer-card {
       background: var(--bg-surface);
       border: 1px solid var(--border);
-      border-radius: var(--radius-lg);
-      padding: 24px 28px;
+      border-radius: var(--radius-md);
+      padding: 10px 8px;
       display: flex;
       flex-direction: column;
-      gap: 16px;
-      box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.7);
+      gap: 6px;
+      box-shadow: 0 8px 24px -8px rgba(0, 0, 0, 0.6);
       transition: all 0.25s ease;
-      overflow-x: auto;
+      overflow-x: hidden;
+      width: 100%;
       max-width: 100%;
-      margin-bottom: 40px;
-      scrollbar-width: thin;
+      box-sizing: border-box;
+      margin-bottom: 14px;
     }
 
     /* Paper mode toggle (matches Image 1 white paper theme) */
     .sheet-outer-card.paper-theme {
       background: #ffffff !important;
       color: #0f172a !important;
-      border: 1px solid #e2e8f0 !important;
-      box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05), 0 2px 6px -1px rgba(0, 0, 0, 0.04) !important;
+      border: 1px solid #cbd5e1 !important;
+      box-shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.08), 0 2px 4px -1px rgba(0, 0, 0, 0.05) !important;
     }
 
     .sheet-header-title-row {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      border-bottom: 1.5px solid var(--border);
-      padding-bottom: 14px;
-      margin-bottom: 20px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 6px;
+      margin-bottom: 6px;
       position: relative;
     }
     .sheet-outer-card.paper-theme .sheet-header-title-row {
-      border-bottom: 1.5px solid #e2e8f0;
+      border-bottom: 1px solid #e2e8f0;
     }
 
     .sheet-header-spacer {
-      width: 70px;
+      width: 36px;
       flex-shrink: 0;
     }
 
@@ -1085,15 +1155,15 @@
       display: flex;
       align-items: baseline;
       justify-content: center;
-      gap: 10px;
+      gap: 6px;
     }
 
     .sheet-header-title {
       font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
-      font-size: 24px;
+      font-size: clamp(12.5px, 3.2vw, 14.5px);
       font-weight: 800;
       color: #ffffff;
-      letter-spacing: -0.02em;
+      letter-spacing: -0.01em;
     }
     .sheet-outer-card.paper-theme .sheet-header-title {
       color: #0f172a !important;
@@ -1101,7 +1171,7 @@
 
     .sheet-header-time {
       font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
-      font-size: 16px;
+      font-size: clamp(9.5px, 2.4vw, 11px);
       font-weight: 700;
       color: var(--text-muted);
     }
@@ -1111,10 +1181,10 @@
 
     .sheet-header-tempo {
       font-family: 'JetBrains Mono', monospace;
-      font-size: 13.5px;
+      font-size: clamp(9px, 2.2vw, 10.5px);
       font-weight: 700;
       color: var(--text-muted);
-      width: 70px;
+      width: 38px;
       text-align: right;
       flex-shrink: 0;
     }
@@ -1122,35 +1192,74 @@
       color: #64748b !important;
     }
 
-    /* The Image 1 Grid Line Structure (Flexbox Non-Wrapping) */
+    /* The Image 1 Grid Line Structure (Fluid Fit Across Screen) */
     .sheet-grid-table {
       display: flex;
       flex-direction: column;
-      gap: 16px;
+      gap: 5px;
       font-family: 'Plus Jakarta Sans', sans-serif;
-      min-width: 720px;
       width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
     }
 
     .sheet-line-row {
       display: flex;
       flex-direction: row;
       align-items: center;
-      justify-content: flex-start;
+      justify-content: space-between;
       flex-wrap: nowrap;
       white-space: nowrap;
-      min-height: 38px;
+      min-height: 22px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    .sheet-line-text-wrap {
+      display: flex;
+      align-items: center;
+      width: 100%;
+      margin: 1px 0 6px 0;
+      padding-left: clamp(46px, 12.5vw, 54px);
+      box-sizing: border-box;
+    }
+
+    .sheet-line-text-input {
+      width: 100%;
+      background: transparent;
+      border: none;
+      border-bottom: 1px dashed rgba(148,163,184,0.4);
+      color: inherit;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: clamp(10px, 2vw, 11.5px);
+      padding: 2px 4px;
+      outline: none;
+      transition: border-color 0.15s ease, background 0.15s ease;
+    }
+
+    .sheet-line-text-input::placeholder {
+      color: rgba(148,163,184,0.5);
+      font-style: italic;
+    }
+
+    .sheet-line-text-input:focus {
+      border-bottom-color: #818cf8;
+      background: rgba(129,140,248,0.05);
+      border-radius: 3px;
     }
 
     .sheet-label-cell {
-      width: 110px;
-      min-width: 110px;
+      width: clamp(46px, 12.5vw, 54px);
+      min-width: clamp(46px, 12.5vw, 54px);
+      max-width: clamp(46px, 12.5vw, 54px);
       text-align: right;
-      padding-right: 14px;
+      padding-right: 3px;
       font-weight: 800;
-      font-size: 16px;
+      font-size: clamp(8.5px, 2.2vw, 10px);
       flex-shrink: 0;
       white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     /* Section badge colors matching Image 1 */
@@ -1169,15 +1278,16 @@
       display: flex;
       flex-direction: row;
       align-items: center;
-      justify-content: flex-start;
+      justify-content: space-between;
+      flex: 1;
+      min-width: 0;
       flex-wrap: nowrap;
       white-space: nowrap;
-      flex-shrink: 0;
     }
 
     .sheet-bar-symbol {
       font-family: 'JetBrains Mono', monospace;
-      font-size: 16px;
+      font-size: clamp(8.5px, 2vw, 10px);
       font-weight: 700;
       color: #64748b;
       text-align: center;
@@ -1188,13 +1298,13 @@
       justify-content: center;
     }
     .sheet-bar-symbol.double {
-      width: 26px;
-      min-width: 26px;
-      letter-spacing: -0.04em;
+      width: 8px;
+      min-width: 8px;
+      letter-spacing: -2px;
     }
     .sheet-bar-symbol.single {
-      width: 16px;
-      min-width: 16px;
+      width: 4px;
+      min-width: 4px;
       font-weight: 500;
       color: #94a3b8;
     }
@@ -1206,18 +1316,19 @@
     }
 
     .sheet-chord-measure {
-      width: 66px;
-      min-width: 66px;
+      flex: 1;
+      min-width: 0;
       text-align: center;
-      font-size: 16.5px;
+      font-size: clamp(8.5px, 2.2vw, 11px);
       font-weight: 800;
       color: #ffffff;
-      padding: 4px 2px;
-      border-radius: 4px;
+      padding: 1px 0.5px;
+      border-radius: 3px;
       cursor: pointer;
       transition: all 0.12s ease;
       white-space: nowrap;
-      flex-shrink: 0;
+      overflow: hidden;
+      text-overflow: clip;
     }
     .sheet-outer-card.paper-theme .sheet-chord-measure {
       color: #0f172a !important;
@@ -1230,11 +1341,11 @@
     }
     .sheet-chord-measure sup,
     .sheet-chord-measure .chord-sup {
-      font-size: 0.64em;
-      font-weight: 800;
+      font-size: 0.68em;
+      font-weight: 700;
       vertical-align: super;
       line-height: 1;
-      margin-left: 1px;
+      margin-left: 0.2px;
       color: inherit;
     }
 
@@ -1937,12 +2048,83 @@
     // =========================================================
     // 1. DATA LAYER (Includes Image 1 & Image 2 Reference Songs!)
     // =========================================================
-    const FOLDERS = [
+    let FOLDERS = [
       { id: 'sunday', name: 'Sunday Service', icon: '⛪', count: 6, updated: '2d ago' },
       { id: 'jazz', name: 'Jazz Standards', icon: '🎷', count: 4, updated: '2w ago' },
       { id: 'acoustic', name: 'Acoustic Set', icon: '🎸', count: 2, updated: '5d ago' },
       { id: 'hymns', name: 'Classic Hymns', icon: '📖', count: 2, updated: '1w ago' },
       { id: 'unfiled', name: 'Unfiled Songs', icon: '📂', count: 2, updated: 'Drafts' }
+    ];
+
+    let LYRICS_FOLDERS = [
+      { id: 'worship-lyrics', name: 'Worship Service', icon: '⛪', count: 2, updated: '1d ago' },
+      { id: 'hymnal-lyrics', name: 'Classic Hymns', icon: '📖', count: 1, updated: '3d ago' },
+      { id: 'gospel-lyrics', name: 'Gospel & Praise', icon: '🎤', count: 1, updated: '1w ago' }
+    ];
+
+    let LYRICS_SHEETS = [
+      {
+        id: 1,
+        folderId: 'worship-lyrics',
+        title: 'Way Maker',
+        artist: 'Sinach / Leeland',
+        body: `VERSE 1
+You are here, moving in our midst
+I worship You, I worship You
+You are here, working in this place
+I worship You, I worship You
+
+CHORUS
+Way Maker, Miracle Worker, Promise Keeper
+Light in the darkness, my God, that is who You are
+Way Maker, Miracle Worker, Promise Keeper
+Light in the darkness, my God, that is who You are
+
+VERSE 2
+You are here, touching every heart
+I worship You, I worship You
+You are here, healing every heart
+I worship You, I worship You`
+      },
+      {
+        id: 2,
+        folderId: 'worship-lyrics',
+        title: 'Gratitude',
+        artist: 'Brandon Lake',
+        body: `VERSE 1
+All my words fall short
+I got nothing new
+How could I express
+All my gratitude?
+
+CHORUS
+So I throw up my hands
+And praise You again and again
+'Cause all that I have is a hallelujah
+Hallelujah`
+      },
+      {
+        id: 3,
+        folderId: 'hymnal-lyrics',
+        title: 'Amazing Grace',
+        artist: 'John Newton',
+        body: `VERSE 1
+Amazing grace! How sweet the sound
+That saved a wretch like me!
+I once was lost, but now am found;
+Was blind, but now I see.`
+      },
+      {
+        id: 4,
+        folderId: 'gospel-lyrics',
+        title: 'Goodness of God',
+        artist: 'Bethel Music',
+        body: `VERSE 1
+I love You, Lord, for Your mercy never fails me
+All my days, I've been held in Your hands
+From the moment that I wake up until I lay my head
+Oh, I will sing of the goodness of God`
+      }
     ];
 
     const SONGS = [
@@ -2373,12 +2555,18 @@
     let currentSongId = 7; // Autumn Leaves by default (matches Image 1)
     let openTabs = [7, 101, 1]; // Autumn Leaves, Malaghamarum, Way Maker
 
+    // Lyrics State
+    let currentLyricsFolderId = null;
+    let currentLyricsSheetId = null;
+    let lyricsFontSize = 17;
+    let lyricsAutoScrollTimer = null;
+
     // Setlist Gig Flow State & Filters
     let activeSetlistFilter = 'all'; // 'all' | 'scheduled' | 'draft' | 'archived'
     let activeSetlistFlow = null; // { setlistId, songIndex }
 
     // Mode toggles
-    let chartViewMode = 'sheet'; // 'sheet' (Image 1) or 'edit' (Image 2)
+    let chartViewMode = 'edit'; // Default to interactive editor page
     let paperScoreTheme = true; // true = white paper score like Image 1, false = dark studio
 
     // Transpose
@@ -2431,7 +2619,22 @@
         if (bottomDock) bottomDock.style.display = 'flex';
         renderStarredView();
       } else if (view === 'lyrics') {
-        if (brandSubtitle) brandSubtitle.textContent = 'Lyrics Prompter';
+        if (params.mode === 'folders') {
+          currentLyricsFolderId = null;
+          currentLyricsSheetId = null;
+        } else {
+          if (params.folderId !== undefined) currentLyricsFolderId = params.folderId;
+          if (params.sheetId !== undefined) currentLyricsSheetId = params.sheetId;
+        }
+        if (brandSubtitle) {
+          if (currentLyricsSheetId) brandSubtitle.textContent = 'Lyrics Prompter';
+          else if (currentLyricsFolderId) {
+            const lf = LYRICS_FOLDERS.find(f => f.id === currentLyricsFolderId);
+            brandSubtitle.textContent = lf ? lf.name : 'Lyrics Folder';
+          } else {
+            brandSubtitle.textContent = 'Lyrics Repertoire';
+          }
+        }
         if (bottomDock) bottomDock.style.display = 'flex';
         renderLyricsView();
       }
@@ -2516,56 +2719,28 @@
               </div>
             </div>
 
-            <!-- View Switcher (Image 1 Sheet vs Image 2 Mobile Edit) -->
+            <!-- Quick Action -->
             <div style="display: flex; align-items: center; gap: 6px;">
               <button 
-                class="control-chip-btn ${chartViewMode === 'sheet' ? 'active' : ''}" 
-                onclick="setChartViewMode('sheet')"
-                title="View as Sheet (Image 1)"
+                class="control-chip-btn" 
+                onclick="addNewSection()"
+                title="Add New Section"
               >
-                🎼 Sheet View (Image 1)
+                + Section
               </button>
-              
-              <button 
-                class="control-chip-btn ${chartViewMode === 'edit' ? 'active' : ''}" 
-                onclick="setChartViewMode('edit')"
-                title="View as Mobile Edit Page (Image 2)"
-              >
-                📱 Edit Page (Image 2)
-              </button>
-
-              ${chartViewMode === 'sheet' ? `
-                <button 
-                  class="control-chip-btn ${paperScoreTheme ? 'active' : ''}" 
-                  onclick="togglePaperTheme()"
-                  title="Toggle White Paper Score (Image 1 theme)"
-                >
-                  ${paperScoreTheme ? '🌙 Dark Sheet' : '📄 Paper Score'}
-                </button>
-              ` : ''}
             </div>
           </div>
 
-          <!-- VIEW CONTAINER: Switches between Image 1 and Image 2 -->
+          <!-- CHART CONTAINER -->
           <div id="chartRenderContainer">
-            ${chartViewMode === 'sheet' ? renderImage1SheetHtml(song, displayKey) : renderImage2EditorHtml(song)}
+            ${renderImage2EditorHtml(song)}
           </div>
 
         </div>
 
-        <!-- Render Keypad when in Edit Mode (Image 2) -->
-        ${chartViewMode === 'edit' ? renderImage2KeypadHtml(song) : ''}
+        <!-- Render Keypad -->
+        ${renderImage2KeypadHtml(song)}
       `;
-    }
-
-    function setChartViewMode(mode) {
-      chartViewMode = mode;
-      const bottomDock = document.getElementById('bottomDock');
-      if (bottomDock) {
-        bottomDock.style.display = mode === 'edit' ? 'none' : 'flex';
-      }
-      renderChordReaderView();
-      showToast(mode === 'sheet' ? 'Organized as Sheet Score (Image 1)' : 'Organized as Mobile Editor (Image 2)');
     }
 
     function togglePaperTheme() {
@@ -2613,7 +2788,7 @@
 
           <!-- Aligned Musical Grid: Flexbox Non-Wrapping Track -->
           <div class="sheet-grid-table">
-            ${lines.map(line => {
+            ${lines.map((line, lineIdx) => {
               const hasBars2 = line.bars2 && line.bars2.length > 0;
 
               return `
@@ -2651,6 +2826,15 @@
                     `}
                   </div>
                 </div>
+                <!-- Text line input between chord lines -->
+                <div class="sheet-line-text-wrap">
+                  <input
+                    type="text"
+                    class="sheet-line-text-input"
+                    placeholder="✍ Add lyrics or notes..."
+                    oninput="updateSheetLineText(${lineIdx}, this.value)"
+                  />
+                </div>
               `;
             }).join('')}
           </div>
@@ -2661,6 +2845,14 @@
 
     function onSheetMeasureClick(chord) {
       showToast(`Selected measure chord: ${chord}`);
+    }
+
+    function updateSheetLineText(lineIdx, value) {
+      // Store in current song's sheetLineTexts array
+      const song = songs.find(s => s.id === currentSongId);
+      if (!song) return;
+      if (!song.sheetLineTexts) song.sheetLineTexts = [];
+      song.sheetLineTexts[lineIdx] = value;
     }
 
     // =========================================================
@@ -2810,10 +3002,9 @@
             </div>
           </div>
 
-          <!-- Stats Line (Image 2: 3 LINES • 20 BARS TOTAL | 💡 TAP BAR TO OPEN KEYPAD) -->
+          <!-- Stats Line -->
           <div class="editor-stats-row">
             <span>${totalLines} LINES • ${totalBars} BARS TOTAL</span>
-            <span style="color: #818cf8;">💡 TAP BAR TO OPEN KEYPAD</span>
           </div>
 
           <!-- Section Cards Grid (Image 2) -->
@@ -3017,7 +3208,7 @@
       if (confirm(`Delete entire ${song.sections[secIdx].name}?`)) {
         song.sections.splice(secIdx, 1);
         if (song.sections.length === 0) {
-          song.sections.push({ name: "A Section", notes: "", lines: [["C", "G", "Am", "F"]] });
+          song.sections.push({ name: "A Section", notes: "", lines: [["-", "-", "-", "-"]] });
         }
         selectedCell.sectionIdx = 0;
         selectedCell.lineIdx = 0;
@@ -3032,7 +3223,7 @@
       if (!song.sections || !song.sections[secIdx]) return;
       song.sections[secIdx].lines.splice(lineIdx, 1);
       if (song.sections[secIdx].lines.length === 0) {
-        song.sections[secIdx].lines.push(["C", "C", "C", "C"]);
+        song.sections[secIdx].lines.push(["-", "-", "-", "-"]);
       }
       selectedCell.lineIdx = Math.min(lineIdx, song.sections[secIdx].lines.length - 1);
       selectedCell.barIdx = 0;
@@ -3047,7 +3238,7 @@
       song.sections.push({
         name: `Section ${secNum}`,
         notes: "",
-        lines: [["C", "G", "Am", "F"]]
+        lines: [["-", "-", "-", "-"]]
       });
       renderChordReaderView();
       showToast("New section added");
@@ -3172,7 +3363,7 @@
       const song = SONGS.find(s => s.id === currentSongId) || SONGS[0];
       if (!song.sections) return;
       const line = song.sections[selectedCell.sectionIdx].lines[selectedCell.lineIdx];
-      line.splice(selectedCell.barIdx + 1, 0, 'C');
+      line.splice(selectedCell.barIdx + 1, 0, '-');
       selectedCell.barIdx++;
       renderChordReaderView();
       showToast('+1 Bar inserted');
@@ -3196,7 +3387,7 @@
     function addBarsToSection(secIdx, count) {
       const song = SONGS.find(s => s.id === currentSongId) || SONGS[0];
       if (!song.sections) return;
-      const newBars = Array(count).fill('C');
+      const newBars = Array(count).fill('-');
       song.sections[secIdx].lines.push(newBars);
       renderChordReaderView();
       showToast(`Added ${count} bars to section`);
@@ -3238,7 +3429,17 @@
     // =========================================================
     // 7. VIEWS: FOLDERS, SETLISTS, STARRED, LYRICS
     // =========================================================
+    function updateFolderCounts() {
+      FOLDERS.forEach(f => {
+        f.count = SONGS.filter(s => s.folderId === f.id).length;
+      });
+      LYRICS_FOLDERS.forEach(lf => {
+        lf.count = LYRICS_SHEETS.filter(ls => ls.folderId === lf.id).length;
+      });
+    }
+
     function renderFoldersView() {
+      updateFolderCounts();
       const mount = document.getElementById('viewMountPoint');
       if (!mount) return;
 
@@ -3248,12 +3449,12 @@
             <span class="search-icon">🔍</span>
             <input type="text" placeholder="Search folders or songs..." id="searchInput" oninput="handleSearch(this.value)" />
           </div>
-          <button class="filter-btn" onclick="showToast('Filters opened')">⚙️</button>
+          <button class="filter-btn" onclick="openCreateFolderModal()">+ Folder</button>
         </div>
 
         <div class="section-header-row">
-          <h3 class="section-heading">Folders</h3>
-          <span class="section-action-btn" onclick="showToast('New Folder')">+ New Folder</span>
+          <h3 class="section-heading"><span>📁</span> Song Folders (${FOLDERS.length})</h3>
+          <span class="section-action-btn" onclick="openCreateFolderModal()">+ Create Folder</span>
         </div>
 
         <div class="folders-cards-grid">
@@ -3274,9 +3475,10 @@
             </div>
           `).join('')}
 
-          <div class="folder-card-new-visual" onclick="showToast('Create folder')">
-            <div style="font-size: 24px; opacity: 0.7;">📁+</div>
-            <div style="font-weight: 700; font-size: 13.5px; color: white;">New Folder</div>
+          <div class="folder-card-new-visual" onclick="openCreateFolderModal()">
+            <div style="font-size: 26px;">📁+</div>
+            <div style="font-weight: 700; font-size: 13.5px; color: white;">Create Folder</div>
+            <div style="font-size: 11px; color: var(--text-muted);">Organize your charts</div>
           </div>
         </div>
       `;
@@ -3286,29 +3488,114 @@
       switchView('inside_folder', { folderId });
     }
 
+    let selectedFolderIcon = '📁';
+    function openCreateFolderModal() {
+      const existing = document.getElementById('createFolderModal');
+      if (existing) existing.remove();
+
+      selectedFolderIcon = '📁';
+      const icons = ['📁', '⛪', '🎷', '🎸', '📖', '🎤', '🎹', '🥁', '⚡', '🎺', '🎻', '🎼', '🌟', '🔥'];
+
+      const modal = document.createElement('div');
+      modal.id = 'createFolderModal';
+      modal.className = 'modal-overlay';
+      modal.innerHTML = `
+        <div class="modal-dialog" onclick="event.stopPropagation()">
+          <div class="modal-title">
+            <span>📁 Create New Song Folder</span>
+            <button style="background:none; border:none; color:#94a3b8; font-size:18px; cursor:pointer;" onclick="closeCreateFolderModal()">✕</button>
+          </div>
+          <div>
+            <label style="font-size:11px; color:#94a3b8; font-weight:700; text-transform:uppercase; display:block; margin-bottom:4px;">Folder Name</label>
+            <input type="text" id="newFolderName" class="modal-input" placeholder="e.g. Sunday Morning, Jazz Standards, Live Gigs" autofocus />
+          </div>
+          <div>
+            <label style="font-size:11px; color:#94a3b8; font-weight:700; text-transform:uppercase; display:block; margin-bottom:4px;">Pick Folder Icon</label>
+            <div class="modal-icons-row" id="folderIconPicker">
+              ${icons.map(ic => `
+                <button type="button" class="modal-icon-pill ${ic === selectedFolderIcon ? 'selected' : ''}" onclick="selectFolderIcon('${ic}', this)">${ic}</button>
+              `).join('')}
+            </div>
+          </div>
+          <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:8px;">
+            <button class="btn-flow-nav" onclick="closeCreateFolderModal()">Cancel</button>
+            <button class="btn-flow-nav btn-flow-next" onclick="saveNewFolder()">Create Folder</button>
+          </div>
+        </div>
+      `;
+      modal.onclick = closeCreateFolderModal;
+      document.body.appendChild(modal);
+      setTimeout(() => {
+        const inp = document.getElementById('newFolderName');
+        if (inp) inp.focus();
+      }, 50);
+    }
+
+    function selectFolderIcon(icon, btn) {
+      selectedFolderIcon = icon;
+      document.querySelectorAll('#folderIconPicker .modal-icon-pill').forEach(b => b.classList.remove('selected'));
+      if (btn) btn.classList.add('selected');
+    }
+
+    function closeCreateFolderModal() {
+      const modal = document.getElementById('createFolderModal');
+      if (modal) modal.remove();
+    }
+
+    function saveNewFolder() {
+      const inp = document.getElementById('newFolderName');
+      const name = inp ? inp.value.trim() : '';
+      if (!name) {
+        showToast('Please enter a folder name');
+        return;
+      }
+      const newFolder = {
+        id: 'folder-' + Date.now(),
+        name: name,
+        icon: selectedFolderIcon || '📁',
+        count: 0,
+        updated: 'Just now'
+      };
+      FOLDERS.unshift(newFolder);
+      closeCreateFolderModal();
+      renderFoldersView();
+      showToast(`Created folder "${name}"`);
+    }
+
     function renderInsideFolderView() {
+      updateFolderCounts();
       const mount = document.getElementById('viewMountPoint');
       if (!mount) return;
       const f = FOLDERS.find(folder => folder.id === currentFolderId) || FOLDERS[0];
       const songs = SONGS.filter(s => s.folderId === currentFolderId);
 
       mount.innerHTML = `
-        <div class="view-breadcrumb-header">
-          <button class="btn-back-crumb" onclick="switchView('folders')">← All Folders</button>
-          <div style="display: flex; align-items: center; gap: 8px;">
+        <div class="view-breadcrumb-header" style="justify-content: space-between;">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <button class="btn-back-crumb" onclick="switchView('folders')">← All Folders</button>
             <span style="font-size: 18px;">${f.icon}</span>
             <span style="font-size: 15px; font-weight: 700; color: white;">${escapeHtml(f.name)}</span>
             <span class="folder-count-badge">${songs.length} Songs</span>
           </div>
-          <button class="header-btn" style="width: 32px; height: 32px; font-size: 13px;" onclick="showToast('Options')">⋮</button>
+          <button class="section-action-btn" onclick="openAddSongToFolderModal('${f.id}')">+ Add Song</button>
         </div>
 
         <div class="song-cards-grid">
+          <!-- Add Song Card inside this folder -->
+          <div class="folder-card-new-visual" onclick="openAddSongToFolderModal('${f.id}')" style="min-height: 110px; cursor: pointer;">
+            <div style="font-size: 24px; color: var(--accent);">+ 🎵</div>
+            <div style="font-weight: 700; font-size: 13px; color: white;">Add Song to Folder</div>
+            <div style="font-size: 11px; color: var(--text-muted);">Create new or add existing</div>
+          </div>
+
           ${songs.map(s => `
             <div class="song-card" onclick="openSongChart(${s.id})">
               <div class="song-card-header-row">
                 <span class="song-card-key-pill">KEY ${escapeHtml(s.key)}</span>
-                <button class="song-star-btn ${s.starred ? 'active' : ''}" onclick="event.stopPropagation(); toggleStar(${s.id})">★</button>
+                <div style="display:flex; align-items:center; gap:6px;">
+                  <button class="song-star-btn ${s.starred ? 'active' : ''}" onclick="event.stopPropagation(); toggleStar(${s.id})">★</button>
+                  <button class="header-btn" style="width:24px; height:24px; font-size:11px;" title="Remove from folder" onclick="event.stopPropagation(); removeSongFromFolder(${s.id})">✕</button>
+                </div>
               </div>
               <div>
                 <div class="song-title-text">${escapeHtml(s.title)}</div>
@@ -3322,6 +3609,192 @@
           `).join('')}
         </div>
       `;
+    }
+
+    let activeAddSongTab = 'new';
+    function openAddSongToFolderModal(folderId) {
+      const existing = document.getElementById('addSongFolderModal');
+      if (existing) existing.remove();
+
+      const f = FOLDERS.find(folder => folder.id === folderId) || FOLDERS[0];
+      const otherSongs = SONGS.filter(s => s.folderId !== folderId);
+      activeAddSongTab = 'new';
+
+      const modal = document.createElement('div');
+      modal.id = 'addSongFolderModal';
+      modal.className = 'modal-overlay';
+      modal.innerHTML = `
+        <div class="modal-dialog" onclick="event.stopPropagation()">
+          <div class="modal-title">
+            <span>🎵 Add to "${escapeHtml(f.name)}"</span>
+            <button style="background:none; border:none; color:#94a3b8; font-size:18px; cursor:pointer;" onclick="closeAddSongFolderModal()">✕</button>
+          </div>
+
+          <div class="modal-tab-group">
+            <button class="modal-tab-btn ${activeAddSongTab === 'new' ? 'active' : ''}" id="tabBtnNewSong" onclick="setAddSongTab('new')">+ Create Blank Chart</button>
+            <button class="modal-tab-btn ${activeAddSongTab === 'existing' ? 'active' : ''}" id="tabBtnExistingSong" onclick="setAddSongTab('existing')">Add Existing Song (${otherSongs.length})</button>
+          </div>
+
+          <!-- Tab 1: Create Blank Chart in Folder -->
+          <div id="addSongTabNewContent">
+            <div>
+              <label style="font-size:11px; color:#94a3b8; font-weight:700; text-transform:uppercase; display:block; margin-bottom:4px;">Song Title</label>
+              <input type="text" id="newChartTitle" class="modal-input" placeholder="e.g. In The Presence, Joy Unspeakable" autofocus />
+            </div>
+            <div style="margin-top:8px;">
+              <label style="font-size:11px; color:#94a3b8; font-weight:700; text-transform:uppercase; display:block; margin-bottom:4px;">Artist / Composer</label>
+              <input type="text" id="newChartArtist" class="modal-input" placeholder="e.g. Chris Tomlin, Traditional" value="Worship Band" />
+            </div>
+            <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:8px; margin-top:8px;">
+              <div>
+                <label style="font-size:11px; color:#94a3b8; font-weight:700; text-transform:uppercase; display:block; margin-bottom:4px;">Key</label>
+                <select id="newChartKey" class="modal-input">
+                  <option value="C" selected>C</option>
+                  <option value="D">D</option>
+                  <option value="E">E</option>
+                  <option value="F">F</option>
+                  <option value="G">G</option>
+                  <option value="A">A</option>
+                  <option value="B">B</option>
+                  <option value="E♭">E♭</option>
+                  <option value="A♭">A♭</option>
+                  <option value="B♭">B♭</option>
+                  <option value="Am">Am</option>
+                  <option value="Em">Em</option>
+                  <option value="Gm">Gm</option>
+                </select>
+              </div>
+              <div>
+                <label style="font-size:11px; color:#94a3b8; font-weight:700; text-transform:uppercase; display:block; margin-bottom:4px;">Time</label>
+                <input type="text" id="newChartTime" class="modal-input" value="4/4" />
+              </div>
+              <div>
+                <label style="font-size:11px; color:#94a3b8; font-weight:700; text-transform:uppercase; display:block; margin-bottom:4px;">BPM</label>
+                <input type="number" id="newChartBpm" class="modal-input" value="120" />
+              </div>
+            </div>
+            <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:14px;">
+              <button class="btn-flow-nav" onclick="closeAddSongFolderModal()">Cancel</button>
+              <button class="btn-flow-nav btn-flow-next" onclick="submitCreateSongInFolder('${f.id}')">Create Chart</button>
+            </div>
+          </div>
+
+          <!-- Tab 2: Add Existing Song -->
+          <div id="addSongTabExistingContent" style="display:none;">
+            <label style="font-size:11px; color:#94a3b8; font-weight:700; text-transform:uppercase; display:block; margin-bottom:6px;">Select Songs to Move into "${escapeHtml(f.name)}"</label>
+            <div class="modal-songs-picker" style="max-height: 200px;">
+              ${otherSongs.length === 0 ? '<div style="font-size:12px; color:var(--text-muted); padding:10px;">All existing songs are already in this folder!</div>' : 
+                otherSongs.map(s => `
+                  <div class="modal-song-item" style="justify-content:space-between; padding:6px;">
+                    <div>
+                      <div style="font-weight:700; color:white;">${escapeHtml(s.title)}</div>
+                      <div style="font-size:11px; color:var(--text-muted);">${escapeHtml(s.artist)} • Key ${s.key}</div>
+                    </div>
+                    <button class="section-action-btn" style="padding:3px 8px; font-size:11px;" onclick="addExistingSongToFolder(${s.id}, '${f.id}')">+ Add</button>
+                  </div>
+                `).join('')}
+            </div>
+            <div style="display:flex; justify-content:flex-end; margin-top:10px;">
+              <button class="btn-flow-nav" onclick="closeAddSongFolderModal()">Done</button>
+            </div>
+          </div>
+
+        </div>
+      `;
+      modal.onclick = closeAddSongFolderModal;
+      document.body.appendChild(modal);
+    }
+
+    function setAddSongTab(tab) {
+      activeAddSongTab = tab;
+      const newContent = document.getElementById('addSongTabNewContent');
+      const exContent = document.getElementById('addSongTabExistingContent');
+      const btnNew = document.getElementById('tabBtnNewSong');
+      const btnEx = document.getElementById('tabBtnExistingSong');
+
+      if (tab === 'new') {
+        if (newContent) newContent.style.display = 'block';
+        if (exContent) exContent.style.display = 'none';
+        if (btnNew) btnNew.classList.add('active');
+        if (btnEx) btnEx.classList.remove('active');
+      } else {
+        if (newContent) newContent.style.display = 'none';
+        if (exContent) exContent.style.display = 'block';
+        if (btnNew) btnNew.classList.remove('active');
+        if (btnEx) btnEx.classList.add('active');
+      }
+    }
+
+    function closeAddSongFolderModal() {
+      const modal = document.getElementById('addSongFolderModal');
+      if (modal) modal.remove();
+    }
+
+    function submitCreateSongInFolder(folderId) {
+      const titleInput = document.getElementById('newChartTitle');
+      const artistInput = document.getElementById('newChartArtist');
+      const keyInput = document.getElementById('newChartKey');
+      const timeInput = document.getElementById('newChartTime');
+      const bpmInput = document.getElementById('newChartBpm');
+
+      const title = (titleInput && titleInput.value.trim()) || 'New Song';
+      const artist = (artistInput && artistInput.value.trim()) || 'Composer';
+      const key = (keyInput && keyInput.value) || 'C';
+      const time = (timeInput && timeInput.value.trim()) || '4/4';
+      const bpm = parseInt(bpmInput && bpmInput.value, 10) || 120;
+
+      const newSong = {
+        id: Date.now(),
+        title: title,
+        artist: artist,
+        key: key,
+        bpm: bpm,
+        time: time,
+        capo: 0,
+        folderId: folderId,
+        starred: false,
+        sheetLines: [
+          { label: "A Section:", labelColor: "color-intro", startBar: "||", bars1: ["-", "-", "-", "-"], midBar: "||", bars2: ["-", "-", "-", "-"], endBar: "||" }
+        ],
+        sections: [
+          {
+            name: "A section",
+            notes: "",
+            lines: [
+              ["-", "-", "-", "-"],
+              ["-", "-", "-", "-"]
+            ]
+          }
+        ]
+      };
+
+      SONGS.unshift(newSong);
+      if (!openTabs.includes(newSong.id)) openTabs.push(newSong.id);
+      closeAddSongFolderModal();
+      updateFolderCounts();
+      switchView('chord_reader', { songId: newSong.id });
+      showToast(`Created "${title}" inside folder`);
+    }
+
+    function addExistingSongToFolder(songId, folderId) {
+      const s = SONGS.find(song => song.id === songId);
+      if (s) {
+        s.folderId = folderId;
+        updateFolderCounts();
+        openAddSongToFolderModal(folderId); // Re-render modal list
+        setAddSongTab('existing');
+        showToast(`Moved "${s.title}" to this folder`);
+      }
+    }
+
+    function removeSongFromFolder(songId) {
+      const s = SONGS.find(song => song.id === songId);
+      if (s) {
+        s.folderId = 'unfiled';
+        updateFolderCounts();
+        renderInsideFolderView();
+        showToast(`Removed "${s.title}" from folder`);
+      }
     }
 
     function openSongChart(songId) {
@@ -3598,26 +4071,429 @@
     }
 
     function renderLyricsView() {
+      if (currentLyricsSheetId) {
+        renderLyricsSheetPrompterView(currentLyricsSheetId);
+      } else if (currentLyricsFolderId) {
+        renderInsideLyricsFolderView(currentLyricsFolderId);
+      } else {
+        renderLyricsFoldersView();
+      }
+    }
+
+    function renderLyricsFoldersView() {
+      updateFolderCounts();
       const mount = document.getElementById('viewMountPoint');
       if (!mount) return;
-      const song = SONGS.find(s => s.id === currentSongId) || SONGS[0];
 
       mount.innerHTML = `
+        <div class="search-container">
+          <div class="search-input-wrap">
+            <span class="search-icon">🔍</span>
+            <input type="text" placeholder="Search lyrics sheets..." oninput="handleLyricsSearch(this.value)" />
+          </div>
+          <button class="filter-btn" onclick="openCreateLyricsFolderModal()">+ Folder</button>
+        </div>
+
         <div class="section-header-row">
-          <h3 class="section-heading"><span>📝</span> Stage Lyrics Prompter</h3>
-          <span class="section-action-btn" onclick="openSongChart(${song.id})">Open Chord Chart</span>
+          <h3 class="section-heading"><span>📝</span> Lyrics Folders (${LYRICS_FOLDERS.length})</h3>
+          <span class="section-action-btn" onclick="openCreateLyricsFolderModal()">+ Create Folder</span>
         </div>
-        <div class="view-breadcrumb-header" style="margin-bottom: 12px;">
-          <div style="font-size: 14px; font-weight: 700; color: white;">${escapeHtml(song.title)} - ${escapeHtml(song.artist)}</div>
-          <button class="control-chip-btn" onclick="showToast('Prompter scrolling enabled')">▶ Auto-Scroll</button>
+
+        <div class="folders-cards-grid">
+          ${LYRICS_FOLDERS.map(f => `
+            <div class="visual-folder-card" onclick="openLyricsFolder('${f.id}')">
+              <div class="folder-art-cover" style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(168, 85, 247, 0.2));">
+                <span class="folder-top-pill">${f.count} Sheets</span>
+                <div class="folder-center-icon">${f.icon}</div>
+              </div>
+              <div>
+                <div class="folder-title-text">${escapeHtml(f.name)}</div>
+                <div class="folder-subtitle-text">${f.updated}</div>
+              </div>
+              <div class="folder-footer-row">
+                <span class="folder-count-badge">${f.count} Lyrics</span>
+                <div class="folder-open-arrow">→</div>
+              </div>
+            </div>
+          `).join('')}
+
+          <div class="folder-card-new-visual" onclick="openCreateLyricsFolderModal()">
+            <div style="font-size: 26px;">📁+</div>
+            <div style="font-weight: 700; font-size: 13.5px; color: white;">Create Folder</div>
+            <div style="font-size: 11px; color: var(--text-muted);">Organize stage lyrics</div>
+          </div>
         </div>
-        <div style="background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 24px; font-size: 16px; line-height: 1.8; color: #e2e8f0;">
-          <div style="font-weight: 800; color: #818cf8; margin-bottom: 8px;">VERSE 1</div>
-          <div>Opening verse lyrics line...</div>
-          <div>All my words fall short, I got nothing new...</div>
-          <div style="font-weight: 800; color: #818cf8; margin: 16px 0 8px;">CHORUS</div>
-          <div>Praise the Lord with all my soul...</div>
-          <div>So I throw up my hands and praise You again...</div>
+      `;
+    }
+
+    function openLyricsFolder(folderId) {
+      switchView('lyrics', { folderId, sheetId: null });
+    }
+
+    let selectedLyricsFolderIcon = '📝';
+    function openCreateLyricsFolderModal() {
+      const existing = document.getElementById('createLyricsFolderModal');
+      if (existing) existing.remove();
+
+      selectedLyricsFolderIcon = '📝';
+      const icons = ['📝', '⛪', '📖', '🎤', '🎵', '🎼', '🌟', '🎸', '🎹', '🔥'];
+
+      const modal = document.createElement('div');
+      modal.id = 'createLyricsFolderModal';
+      modal.className = 'modal-overlay';
+      modal.innerHTML = `
+        <div class="modal-dialog" onclick="event.stopPropagation()">
+          <div class="modal-title">
+            <span>📝 Create Lyrics Folder</span>
+            <button style="background:none; border:none; color:#94a3b8; font-size:18px; cursor:pointer;" onclick="closeCreateLyricsFolderModal()">✕</button>
+          </div>
+          <div>
+            <label style="font-size:11px; color:#94a3b8; font-weight:700; text-transform:uppercase; display:block; margin-bottom:4px;">Folder Name</label>
+            <input type="text" id="newLyricsFolderName" class="modal-input" placeholder="e.g. Sunday Worship, Gospel Hymns, Youth Set" autofocus />
+          </div>
+          <div>
+            <label style="font-size:11px; color:#94a3b8; font-weight:700; text-transform:uppercase; display:block; margin-bottom:4px;">Pick Icon</label>
+            <div class="modal-icons-row" id="lyricsFolderIconPicker">
+              ${icons.map(ic => `
+                <button type="button" class="modal-icon-pill ${ic === selectedLyricsFolderIcon ? 'selected' : ''}" onclick="selectLyricsFolderIcon('${ic}', this)">${ic}</button>
+              `).join('')}
+            </div>
+          </div>
+          <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:8px;">
+            <button class="btn-flow-nav" onclick="closeCreateLyricsFolderModal()">Cancel</button>
+            <button class="btn-flow-nav btn-flow-next" onclick="saveNewLyricsFolder()">Create Folder</button>
+          </div>
+        </div>
+      `;
+      modal.onclick = closeCreateLyricsFolderModal;
+      document.body.appendChild(modal);
+      setTimeout(() => {
+        const inp = document.getElementById('newLyricsFolderName');
+        if (inp) inp.focus();
+      }, 50);
+    }
+
+    function selectLyricsFolderIcon(icon, btn) {
+      selectedLyricsFolderIcon = icon;
+      document.querySelectorAll('#lyricsFolderIconPicker .modal-icon-pill').forEach(b => b.classList.remove('selected'));
+      if (btn) btn.classList.add('selected');
+    }
+
+    function closeCreateLyricsFolderModal() {
+      const modal = document.getElementById('createLyricsFolderModal');
+      if (modal) modal.remove();
+    }
+
+    function saveNewLyricsFolder() {
+      const inp = document.getElementById('newLyricsFolderName');
+      const name = inp ? inp.value.trim() : '';
+      if (!name) {
+        showToast('Please enter a folder name');
+        return;
+      }
+      const newFolder = {
+        id: 'lyrics-folder-' + Date.now(),
+        name: name,
+        icon: selectedLyricsFolderIcon || '📝',
+        count: 0,
+        updated: 'Just now'
+      };
+      LYRICS_FOLDERS.unshift(newFolder);
+      closeCreateLyricsFolderModal();
+      renderLyricsFoldersView();
+      showToast(`Created lyrics folder "${name}"`);
+    }
+
+    function renderInsideLyricsFolderView(folderId) {
+      updateFolderCounts();
+      const mount = document.getElementById('viewMountPoint');
+      if (!mount) return;
+      const f = LYRICS_FOLDERS.find(folder => folder.id === folderId) || LYRICS_FOLDERS[0];
+      const sheets = LYRICS_SHEETS.filter(s => s.folderId === folderId);
+
+      mount.innerHTML = `
+        <div class="view-breadcrumb-header" style="justify-content: space-between;">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <button class="btn-back-crumb" onclick="switchView('lyrics', { mode: 'folders' })">← All Lyrics Folders</button>
+            <span style="font-size: 18px;">${f.icon}</span>
+            <span style="font-size: 15px; font-weight: 700; color: white;">${escapeHtml(f.name)}</span>
+            <span class="folder-count-badge">${sheets.length} Sheets</span>
+          </div>
+          <button class="section-action-btn" onclick="openAddLyricsSheetModal('${f.id}')">+ Add Lyrics Sheet</button>
+        </div>
+
+        <div class="song-cards-grid">
+          <!-- Add Lyrics Sheet card -->
+          <div class="folder-card-new-visual" onclick="openAddLyricsSheetModal('${f.id}')" style="min-height: 110px; cursor: pointer;">
+            <div style="font-size: 24px; color: var(--accent);">+ 📝</div>
+            <div style="font-weight: 700; font-size: 13px; color: white;">Add Lyrics Sheet</div>
+            <div style="font-size: 11px; color: var(--text-muted);">Paste or compose lyrics</div>
+          </div>
+
+          ${sheets.map(s => {
+            const firstLines = (s.body || '').split('\n').filter(l => l.trim() && !l.toUpperCase().includes('VERSE') && !l.toUpperCase().includes('CHORUS')).slice(0, 2).join(' • ');
+            return `
+              <div class="song-card" onclick="openLyricsSheetPrompter(${s.id})">
+                <div class="song-card-header-row">
+                  <span class="song-card-key-pill" style="background:rgba(99,102,241,0.2); color:#a5b4fc; border-color:rgba(99,102,241,0.3);">LYRICS</span>
+                  <div style="display:flex; align-items:center; gap:6px;">
+                    <button class="header-btn" style="width:24px; height:24px; font-size:11px;" title="Delete sheet" onclick="event.stopPropagation(); deleteLyricsSheet(${s.id})">✕</button>
+                  </div>
+                </div>
+                <div>
+                  <div class="song-title-text">${escapeHtml(s.title)}</div>
+                  <div class="song-artist-text">${escapeHtml(s.artist)}</div>
+                  <div style="font-size: 11.5px; color: #94a3b8; margin-top: 6px; line-height: 1.3; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;">
+                    ${escapeHtml(firstLines || 'Tap to view lyrics...')}
+                  </div>
+                </div>
+                <div class="song-footer-row">
+                  <span class="folder-count-badge" style="font-size:10.5px;">🎤 Stage Prompter</span>
+                  <div style="color: var(--text-faint); font-weight: 700;">→</div>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+    }
+
+    function openLyricsSheetPrompter(sheetId) {
+      switchView('lyrics', { sheetId });
+    }
+
+    function deleteLyricsSheet(sheetId) {
+      const idx = LYRICS_SHEETS.findIndex(s => s.id === sheetId);
+      if (idx !== -1) {
+        const deleted = LYRICS_SHEETS.splice(idx, 1)[0];
+        updateFolderCounts();
+        renderInsideLyricsFolderView(currentLyricsFolderId);
+        showToast(`Deleted "${deleted.title}"`);
+      }
+    }
+
+    function openAddLyricsSheetModal(folderId) {
+      const existing = document.getElementById('addLyricsSheetModal');
+      if (existing) existing.remove();
+
+      const f = LYRICS_FOLDERS.find(folder => folder.id === folderId) || LYRICS_FOLDERS[0];
+
+      const modal = document.createElement('div');
+      modal.id = 'addLyricsSheetModal';
+      modal.className = 'modal-overlay';
+      modal.innerHTML = `
+        <div class="modal-dialog" onclick="event.stopPropagation()">
+          <div class="modal-title">
+            <span>📝 Add Lyrics to "${escapeHtml(f.name)}"</span>
+            <button style="background:none; border:none; color:#94a3b8; font-size:18px; cursor:pointer;" onclick="closeAddLyricsSheetModal()">✕</button>
+          </div>
+          <div>
+            <label style="font-size:11px; color:#94a3b8; font-weight:700; text-transform:uppercase; display:block; margin-bottom:4px;">Song Title</label>
+            <input type="text" id="newLyricsTitle" class="modal-input" placeholder="e.g. Goodness of God, Build My Life" autofocus />
+          </div>
+          <div style="margin-top:8px;">
+            <label style="font-size:11px; color:#94a3b8; font-weight:700; text-transform:uppercase; display:block; margin-bottom:4px;">Artist</label>
+            <input type="text" id="newLyricsArtist" class="modal-input" placeholder="e.g. Bethel Music, Housefires" value="Worship Band" />
+          </div>
+          <div style="margin-top:8px;">
+            <label style="font-size:11px; color:#94a3b8; font-weight:700; text-transform:uppercase; display:block; margin-bottom:4px;">Lyrics Text (Include VERSE, CHORUS tags)</label>
+            <textarea id="newLyricsBody" class="modal-input" rows="8" style="resize:vertical; font-family:inherit; font-size:12.5px; line-height:1.4;" placeholder="VERSE 1&#10;Your grace is enough...&#10;&#10;CHORUS&#10;Great is Your faithfulness..."></textarea>
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-top:12px;">
+            <button type="button" class="btn-flow-nav" onclick="prefillFromChordSong('${folderId}')" style="font-size:11px;">⚡ Import from Chords</button>
+            <div style="display:flex; gap:8px;">
+              <button class="btn-flow-nav" onclick="closeAddLyricsSheetModal()">Cancel</button>
+              <button class="btn-flow-nav btn-flow-next" onclick="submitCreateLyricsSheet('${f.id}')">Save Lyrics</button>
+            </div>
+          </div>
+        </div>
+      `;
+      modal.onclick = closeAddLyricsSheetModal;
+      document.body.appendChild(modal);
+    }
+
+    function prefillFromChordSong(folderId) {
+      const curSong = SONGS.find(s => s.id === currentSongId) || SONGS[0];
+      const titleInput = document.getElementById('newLyricsTitle');
+      const artistInput = document.getElementById('newLyricsArtist');
+      const bodyInput = document.getElementById('newLyricsBody');
+      if (titleInput) titleInput.value = curSong.title;
+      if (artistInput) artistInput.value = curSong.artist;
+      if (bodyInput) {
+        bodyInput.value = `VERSE 1\n${curSong.title} - Verse lyrics here...\n\nCHORUS\nSing hallelujah, praise the Lord...\n\nVERSE 2\nSecond verse lyrics...`;
+      }
+      showToast(`Imported details from "${curSong.title}"`);
+    }
+
+    function closeAddLyricsSheetModal() {
+      const modal = document.getElementById('addLyricsSheetModal');
+      if (modal) modal.remove();
+    }
+
+    function submitCreateLyricsSheet(folderId) {
+      const titleInput = document.getElementById('newLyricsTitle');
+      const artistInput = document.getElementById('newLyricsArtist');
+      const bodyInput = document.getElementById('newLyricsBody');
+
+      const title = (titleInput && titleInput.value.trim()) || 'Untitled Lyrics';
+      const artist = (artistInput && artistInput.value.trim()) || 'Composer';
+      const body = (bodyInput && bodyInput.value.trim()) || 'VERSE 1\n(Lyrics content...)';
+
+      const newSheet = {
+        id: Date.now(),
+        folderId: folderId,
+        title: title,
+        artist: artist,
+        body: body
+      };
+
+      LYRICS_SHEETS.unshift(newSheet);
+      closeAddLyricsSheetModal();
+      updateFolderCounts();
+      openLyricsSheetPrompter(newSheet.id);
+      showToast(`Added "${title}" to lyrics`);
+    }
+
+    function renderLyricsSheetPrompterView(sheetId) {
+      const mount = document.getElementById('viewMountPoint');
+      if (!mount) return;
+      const sheet = LYRICS_SHEETS.find(s => s.id === sheetId) || LYRICS_SHEETS[0];
+      const folder = LYRICS_FOLDERS.find(f => f.id === sheet.folderId) || LYRICS_FOLDERS[0];
+      const matchingSong = SONGS.find(s => s.title.toLowerCase() === sheet.title.toLowerCase());
+
+      // Format body text with formatted section badges
+      const formattedLines = sheet.body.split('\n').map(line => {
+        const trimmed = line.trim();
+        if (/^(VERSE|CHORUS|BRIDGE|INTRO|OUTRO|PRE-CHORUS|HOOK|TAG|REFRAIN)/i.test(trimmed)) {
+          return `<div style="font-weight: 800; font-size: 13px; color: #818cf8; letter-spacing: 0.08em; margin: 18px 0 6px; padding: 2px 8px; background: rgba(99,102,241,0.15); border-radius: 4px; display: inline-block;">${escapeHtml(trimmed.toUpperCase())}</div>`;
+        }
+        if (!trimmed) {
+          return `<div style="height: 10px;"></div>`;
+        }
+        return `<div>${escapeHtml(trimmed)}</div>`;
+      }).join('');
+
+      mount.innerHTML = `
+        <div class="view-breadcrumb-header" style="justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <button class="btn-back-crumb" onclick="switchView('lyrics', { folderId: '${folder.id}', sheetId: null })">← ${escapeHtml(folder.name)}</button>
+            <span style="font-size: 14px; font-weight: 700; color: white;">${escapeHtml(sheet.title)}</span>
+            <span style="font-size: 12px; color: var(--text-muted);">${escapeHtml(sheet.artist)}</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:6px;">
+            <button class="control-chip-btn" id="btnAutoScroll" onclick="toggleLyricsAutoScroll()">▶ Auto-Scroll</button>
+            <button class="control-chip-btn" onclick="adjustLyricsFontSize(-1)" title="Smaller text">A−</button>
+            <button class="control-chip-btn" onclick="adjustLyricsFontSize(1)" title="Larger text">A+</button>
+            <button class="control-chip-btn" onclick="openEditLyricsModal(${sheet.id})">✎ Edit</button>
+            ${matchingSong ? `<button class="control-chip-btn" onclick="openSongChart(${matchingSong.id})">🎼 Chords</button>` : ''}
+          </div>
+        </div>
+
+        <div id="lyricsPrompterCard" style="background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 28px 24px; font-size: ${lyricsFontSize}px; line-height: 1.85; color: #f1f5f9; min-height: 60vh;">
+          ${formattedLines}
+        </div>
+      `;
+    }
+
+    function toggleLyricsAutoScroll() {
+      const btn = document.getElementById('btnAutoScroll');
+      if (lyricsAutoScrollTimer) {
+        clearInterval(lyricsAutoScrollTimer);
+        lyricsAutoScrollTimer = null;
+        if (btn) btn.textContent = '▶ Auto-Scroll';
+        showToast('Auto-scroll paused');
+      } else {
+        lyricsAutoScrollTimer = setInterval(() => {
+          window.scrollBy({ top: 1, behavior: 'auto' });
+        }, 50);
+        if (btn) btn.textContent = '⏸ Pause Scroll';
+        showToast('Auto-scroll started');
+      }
+    }
+
+    function adjustLyricsFontSize(delta) {
+      lyricsFontSize = Math.max(12, Math.min(32, lyricsFontSize + delta));
+      const card = document.getElementById('lyricsPrompterCard');
+      if (card) card.style.fontSize = `${lyricsFontSize}px`;
+    }
+
+    function openEditLyricsModal(sheetId) {
+      const sheet = LYRICS_SHEETS.find(s => s.id === sheetId);
+      if (!sheet) return;
+
+      const existing = document.getElementById('editLyricsModal');
+      if (existing) existing.remove();
+
+      const modal = document.createElement('div');
+      modal.id = 'editLyricsModal';
+      modal.className = 'modal-overlay';
+      modal.innerHTML = `
+        <div class="modal-dialog" onclick="event.stopPropagation()">
+          <div class="modal-title">
+            <span>✎ Edit Lyrics: "${escapeHtml(sheet.title)}"</span>
+            <button style="background:none; border:none; color:#94a3b8; font-size:18px; cursor:pointer;" onclick="closeEditLyricsModal()">✕</button>
+          </div>
+          <div>
+            <label style="font-size:11px; color:#94a3b8; font-weight:700; text-transform:uppercase; display:block; margin-bottom:4px;">Title</label>
+            <input type="text" id="editLyricsTitle" class="modal-input" value="${escapeHtml(sheet.title)}" />
+          </div>
+          <div style="margin-top:8px;">
+            <label style="font-size:11px; color:#94a3b8; font-weight:700; text-transform:uppercase; display:block; margin-bottom:4px;">Artist</label>
+            <input type="text" id="editLyricsArtist" class="modal-input" value="${escapeHtml(sheet.artist)}" />
+          </div>
+          <div style="margin-top:8px;">
+            <label style="font-size:11px; color:#94a3b8; font-weight:700; text-transform:uppercase; display:block; margin-bottom:4px;">Lyrics Text</label>
+            <textarea id="editLyricsBody" class="modal-input" rows="10" style="resize:vertical; font-family:inherit; font-size:13px; line-height:1.4;">${escapeHtml(sheet.body)}</textarea>
+          </div>
+          <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:10px;">
+            <button class="btn-flow-nav" onclick="closeEditLyricsModal()">Cancel</button>
+            <button class="btn-flow-nav btn-flow-next" onclick="saveEditedLyrics(${sheet.id})">Save Changes</button>
+          </div>
+        </div>
+      `;
+      modal.onclick = closeEditLyricsModal;
+      document.body.appendChild(modal);
+    }
+
+    function closeEditLyricsModal() {
+      const modal = document.getElementById('editLyricsModal');
+      if (modal) modal.remove();
+    }
+
+    function saveEditedLyrics(sheetId) {
+      const sheet = LYRICS_SHEETS.find(s => s.id === sheetId);
+      if (!sheet) return;
+      const titleInput = document.getElementById('editLyricsTitle');
+      const artistInput = document.getElementById('editLyricsArtist');
+      const bodyInput = document.getElementById('editLyricsBody');
+
+      if (titleInput && titleInput.value.trim()) sheet.title = titleInput.value.trim();
+      if (artistInput && artistInput.value.trim()) sheet.artist = artistInput.value.trim();
+      if (bodyInput && bodyInput.value.trim()) sheet.body = bodyInput.value.trim();
+
+      closeEditLyricsModal();
+      renderLyricsSheetPrompterView(sheet.id);
+      showToast('Lyrics updated');
+    }
+
+    function handleLyricsSearch(val) {
+      const q = val.trim().toLowerCase();
+      if (!q) { renderLyricsFoldersView(); return; }
+      const results = LYRICS_SHEETS.filter(s => s.title.toLowerCase().includes(q) || s.artist.toLowerCase().includes(q) || s.body.toLowerCase().includes(q));
+      const mount = document.getElementById('viewMountPoint');
+      mount.innerHTML = `
+        <div class="section-header-row">
+          <h3 class="section-heading">Lyrics Search: "${escapeHtml(val)}" (${results.length} found)</h3>
+          <span class="section-action-btn" onclick="renderLyricsFoldersView()">Back to Folders</span>
+        </div>
+        <div class="song-cards-grid">
+          ${results.map(s => `
+            <div class="song-card" onclick="openLyricsSheetPrompter(${s.id})">
+              <div class="song-card-header-row"><span class="song-card-key-pill">LYRICS</span></div>
+              <div class="song-title-text">${escapeHtml(s.title)}</div>
+              <div class="song-artist-text">${escapeHtml(s.artist)}</div>
+            </div>
+          `).join('')}
         </div>
       `;
     }
@@ -3668,7 +4544,7 @@
           if (bottomDock) bottomDock.style.display = 'none';
           renderChordReaderView();
         }
-        showToast('📱 Mobile Frame (Image 2 Editor Active)');
+        showToast('📱 Mobile Frame');
       } else {
         vp.classList.remove('mobile-frame');
         mobBtn.classList.remove('active');
@@ -3678,7 +4554,36 @@
     }
 
     function openNewChartModal() {
-      showToast('New song chart dialog');
+      const title = prompt("Enter title for new chart:", "New Song");
+      if (!title) return;
+      const newSong = {
+        id: Date.now(),
+        title: title,
+        artist: "Composer",
+        key: "C",
+        bpm: 120,
+        time: "4/4",
+        capo: 0,
+        folderId: currentFolderId || "sunday",
+        starred: false,
+        sheetLines: [
+          { label: "A Section:", labelColor: "color-intro", startBar: "||", bars1: ["-", "-", "-", "-"], midBar: "||", bars2: ["-", "-", "-", "-"], endBar: "||" }
+        ],
+        sections: [
+          {
+            name: "A section",
+            notes: "",
+            lines: [
+              ["-", "-", "-", "-"],
+              ["-", "-", "-", "-"]
+            ]
+          }
+        ]
+      };
+      SONGS.unshift(newSong);
+      if (!openTabs.includes(newSong.id)) openTabs.push(newSong.id);
+      switchView('chord_reader', { songId: newSong.id });
+      showToast(`Created blank chart "${title}"`);
     }
 
     function showToast(msg) {

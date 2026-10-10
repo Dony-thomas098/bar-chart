@@ -1,13 +1,17 @@
-const CACHE_NAME = 'chordcraft-v2';
+const CACHE_NAME = 'chordcraft-v3';
 const PRECACHE_ASSETS = [
   '/',
   '/manifest.json',
-  '/icon.jpg',
-  '/auth',
+  '/icon-192x192.png',
+  '/icon-512x512.png',
+  '/bg.png',
+  '/perform',
+  '/setlists',
   '/lyrics',
   '/printer',
   '/profile',
-  '/settings'
+  '/settings',
+  '/auth'
 ];
 
 // Install: precache key routes and assets
@@ -15,13 +19,13 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       return cache.addAll(PRECACHE_ASSETS).catch((err) => {
-        console.warn('[SW] Precache partial error:', err);
+        console.warn('[SW] Precache partial warning:', err);
       });
     }).then(() => self.skipWaiting())
   );
 });
 
-// Activate: clean old caches
+// Activate: clean old caches and claim clients immediately
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
@@ -34,28 +38,29 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Fetch: Network-first for navigation, Cache-first for assets
+// Fetch: Stale-While-Revalidate for static assets, Network-First for HTML navigation
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Bypass dev mode, HMR, and external API calls like Supabase
+  // Bypass dev mode, HMR, chrome extensions, and Supabase API / database calls
   if (
     request.method !== 'GET' ||
     url.hostname === 'localhost' ||
     url.hostname === '127.0.0.1' ||
     url.pathname.startsWith('/_next/webpack-hmr') ||
-    url.hostname.includes('supabase.co')
+    url.hostname.includes('supabase.co') ||
+    url.protocol.startsWith('chrome-extension')
   ) {
     return;
   }
 
-  // Handle page navigations (HTML)
+  // Handle HTML page navigation
   if (request.mode === 'navigate') {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          if (response.status === 200) {
+          if (response && response.status === 200) {
             const responseClone = response.clone();
             caches.open(CACHE_NAME).then((cache) => cache.put(request, responseClone));
           }
@@ -65,7 +70,11 @@ self.addEventListener('fetch', (event) => {
           const cachedResponse = await caches.match(request);
           if (cachedResponse) return cachedResponse;
           const rootCached = await caches.match('/');
-          return rootCached || new Response('Offline', { status: 503, statusText: 'Offline' });
+          return rootCached || new Response('Offline - ChordCraft is ready when reconnected', {
+            status: 503,
+            statusText: 'Offline',
+            headers: { 'Content-Type': 'text/plain' },
+          });
         })
     );
     return;
@@ -74,23 +83,17 @@ self.addEventListener('fetch', (event) => {
   // Handle static assets (_next, images, css, js, fonts)
   event.respondWith(
     caches.match(request).then((cachedResponse) => {
-      if (cachedResponse) {
-        // Return cache and update in background
-        fetch(request).then((networkResponse) => {
+      const fetchPromise = fetch(request)
+        .then((networkResponse) => {
           if (networkResponse && networkResponse.status === 200) {
-            caches.open(CACHE_NAME).then((cache) => cache.put(request, networkResponse));
+            const responseClone = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, responseClone));
           }
-        }).catch(() => {});
-        return cachedResponse;
-      }
+          return networkResponse;
+        })
+        .catch(() => cachedResponse);
 
-      return fetch(request).then((networkResponse) => {
-        if (networkResponse && networkResponse.status === 200) {
-          const responseClone = networkResponse.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, responseClone));
-        }
-        return networkResponse;
-      });
+      return cachedResponse || fetchPromise;
     })
   );
 });

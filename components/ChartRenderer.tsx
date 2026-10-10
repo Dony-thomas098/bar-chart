@@ -266,12 +266,12 @@ export function ChartRenderer({
         style={selectedFont !== 'system' ? { fontFamily: selectedFont } : {}}
       >
         {/* Header */}
-        <div className="relative flex items-center justify-center mb-8 sm:mb-12 pb-5 border-b border-slate-200 print:border-none w-full text-slate-900 print:text-black print:pt-24 print:mb-8">
-          <div className="flex items-baseline gap-4 sm:gap-6 print:gap-4">
-            <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold print:text-4xl print:!font-bold tracking-tight print:!tracking-normal text-slate-900 print:text-black">{chartData.title || 'Untitled Chart'}</h1>
-            <span className="font-bold text-slate-500 print:text-black print:!font-normal text-xl sm:text-3xl print:!text-2xl">{chartData.time_sig || '4/4'}</span>
+        <div className="relative flex items-center justify-center mb-6 sm:mb-10 pb-4 border-b border-slate-200 print:border-none w-full text-slate-900 print:text-black print:pt-24 print:mb-8">
+          <div className="flex items-baseline gap-3 sm:gap-6 print:gap-4">
+            <h1 className="text-xl sm:text-3xl md:text-4xl font-extrabold print:text-4xl print:!font-bold tracking-tight print:!tracking-normal text-slate-900 print:text-black">{chartData.title || 'Untitled Chart'}</h1>
+            <span className="font-bold text-slate-500 print:text-black print:!font-normal text-sm sm:text-xl print:!text-2xl">{chartData.time_sig || '4/4'}</span>
           </div>
-          <div className="absolute right-0 print:right-24 font-bold text-slate-500 print:text-black print:!font-normal text-lg sm:text-2xl print:!text-xl">
+          <div className="absolute right-0 print:right-24 font-bold text-slate-500 print:text-black print:!font-normal text-xs sm:text-lg print:!text-xl">
             t={chartData.tempo || 120}
           </div>
         </div>
@@ -297,15 +297,15 @@ export function ChartRenderer({
                           e.stopPropagation();
                           setActivePickerKey(activePickerKey === sectionKey ? null : sectionKey);
                         }}
-                        className="relative shrink-0 font-extrabold text-lg sm:text-2xl md:text-3xl print:text-[1em] print:!font-normal print:!font-mono text-right pr-3 sm:pr-6 print:!pr-3 flex items-center justify-end font-sans print:!font-mono print:!min-w-0 select-none cursor-pointer hover:opacity-75 transition-opacity print:text-black"
-                        style={{ width: `${Math.max(7, labelCh)}ch`, minWidth: '6rem', color: customLabelColor || '#0f172a' }}
+                        className="relative shrink-0 font-extrabold text-sm sm:text-xl md:text-2xl print:text-[1em] print:!font-normal print:!font-mono text-right pr-2 sm:pr-5 print:!pr-3 flex items-center justify-end font-sans print:!font-mono print:!min-w-0 select-none cursor-pointer hover:opacity-75 transition-opacity print:text-black"
+                        style={{ width: `${Math.max(6, labelCh)}ch`, minWidth: '4.5rem', color: customLabelColor || '#0f172a' }}
                         title="Click to color this section label"
                       >
                         <ColorPickerPopover itemKey={sectionKey} activePickerKey={activePickerKey} onSetColor={handleSetColor} position={popoverPos} />
                         {line.label.charAt(0).toUpperCase()}{line.label.slice(1).toLowerCase()}:
                       </div>
                     ) : (
-                      <div className="shrink-0 print:!min-w-0" style={{ width: `${Math.max(7, labelCh)}ch`, minWidth: '6rem' }}></div>
+                      <div className="shrink-0 print:!min-w-0" style={{ width: `${Math.max(6, labelCh)}ch`, minWidth: '4.5rem' }}></div>
                     )}
 
                     {/* Right Label (Annotation text after || bar) */}
@@ -318,7 +318,7 @@ export function ChartRenderer({
                             e.stopPropagation();
                             setActivePickerKey(activePickerKey === labelRightKey ? null : labelRightKey);
                           }}
-                          className="relative shrink-0 font-semibold print:text-black text-lg sm:text-2xl print:text-[1em] print:!font-normal print:!font-mono text-left pl-3 sm:pl-6 print:!pl-3 flex items-center ml-auto cursor-pointer hover:opacity-75 transition-opacity"
+                          className="relative shrink-0 font-semibold print:text-black text-sm sm:text-xl print:text-[1em] print:!font-normal print:!font-mono text-left pl-2 sm:pl-5 print:!pl-3 flex items-center ml-auto cursor-pointer hover:opacity-75 transition-opacity"
                           style={{ width: `${labelRightCh}ch`, color: customLabelRightColor || '#64748b' }}
                           title="Click to color this text"
                         >
@@ -341,8 +341,8 @@ export function ChartRenderer({
                       e.stopPropagation();
                       setActivePickerKey(activePickerKey === sectionKey ? null : sectionKey);
                     }}
-                    className="relative shrink-0 font-extrabold text-lg sm:text-2xl md:text-3xl print:text-[1em] print:!font-normal print:!font-mono text-right pr-3 sm:pr-6 print:!pr-3 flex items-center justify-end font-sans print:!font-mono print:!min-w-0 select-none cursor-pointer hover:opacity-75 transition-opacity print:text-black"
-                    style={{ width: `${Math.max(7, labelCh)}ch`, minWidth: '6rem', color: customLabelColor || '#0f172a' }}
+                    className="relative shrink-0 font-extrabold text-sm sm:text-xl md:text-2xl print:text-[1em] print:!font-normal print:!font-mono text-right pr-2 sm:pr-5 print:!pr-3 flex items-center justify-end font-sans print:!font-mono print:!min-w-0 select-none cursor-pointer hover:opacity-75 transition-opacity print:text-black"
+                    style={{ width: `${Math.max(6, labelCh)}ch`, minWidth: '4.5rem', color: customLabelColor || '#0f172a' }}
                     title="Click to color this section label"
                   >
                     <ColorPickerPopover itemKey={sectionKey} activePickerKey={activePickerKey} onSetColor={handleSetColor} position={popoverPos} />
@@ -350,7 +350,7 @@ export function ChartRenderer({
                   </div>
 
                   {/* Chords Container */}
-                  <div className="flex items-center justify-start flex-nowrap shrink-0 text-xl sm:text-3xl md:text-[2rem] print:!text-[1.1em] print:!font-mono print:!font-normal print:!flex-nowrap print:!whitespace-nowrap">
+                  <div className="flex items-center justify-start flex-nowrap shrink-0 text-base sm:text-2xl md:text-[1.75rem] print:!text-[1.1em] print:!font-mono print:!font-normal print:!flex-nowrap print:!whitespace-nowrap">
                     {line.blocks.map((block, bIdx) => {
                       const isFirst = bIdx === 0;
                       let prefix = '';
@@ -404,7 +404,7 @@ export function ChartRenderer({
                                       lastTouchTimestampRef.current[barKey] = now;
                                     }
                                   }}
-                                  className={`relative inline-flex items-center justify-center min-w-[4rem] sm:min-w-[5.8rem] md:min-w-[6.8rem] print:!min-w-0 print:!w-auto px-1 sm:px-2.5 print:!px-1 text-center font-extrabold print:!font-normal print:!font-mono transition-all duration-150 text-lg sm:text-3xl md:text-[2rem] print:!text-[1em] font-mono sm:font-sans print:!font-mono rounded print:!rounded-none select-none ${
+                                  className={`relative inline-flex items-center justify-center min-w-[2.8rem] sm:min-w-[4.8rem] md:min-w-[5.8rem] print:!min-w-0 print:!w-auto px-1 sm:px-2 print:!px-1 text-center font-extrabold print:!font-normal print:!font-mono transition-all duration-150 text-sm sm:text-2xl md:text-[1.75rem] print:!text-[1em] font-mono sm:font-sans print:!font-mono rounded print:!rounded-none select-none ${
                                     isTooltipActive ? 'bg-indigo-50/90 ring-2 ring-indigo-400/50' : 'hover:bg-slate-50/50'
                                   }`}
                                   style={{ color: '#0f172a' }}

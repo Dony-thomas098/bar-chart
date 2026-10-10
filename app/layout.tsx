@@ -3,25 +3,26 @@ import "./globals.css";
 import { AuthProvider } from "@/components/AuthProvider";
 import { OfflineSyncProvider } from "@/components/OfflineSyncContext";
 import { Navigation } from "@/components/Navigation";
+import { InstallPrompt } from "@/components/InstallPrompt";
 import Script from "next/script";
 
 export const metadata: Metadata = {
-  title: "Clypto UI",
-  description: "A tool for creating and editing bar chart notations.",
+  title: "ChordCraft - Bar Chart Notations",
+  description: "A professional tool for creating, editing, and performing bar chart chord progressions.",
   generator: "Next.js",
   manifest: "/manifest.json",
-  keywords: ["music", "chord", "chart", "editor"],
+  keywords: ["music", "chord", "chart", "editor", "musician", "piascore", "setlist"],
   authors: [
     { name: "ChordCraft" }
   ],
   icons: [
-    { rel: "apple-touch-icon", url: "icon-192x192.png" },
-    { rel: "icon", url: "icon-192x192.png" },
+    { rel: "apple-touch-icon", url: "/icon-192x192.png" },
+    { rel: "icon", url: "/icon-192x192.png" },
   ],
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Clypto UI",
+    title: "ChordCraft",
   },
 };
 
@@ -31,6 +32,7 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: "cover",
+  themeColor: "#080414",
 };
 
 export default function RootLayout({
@@ -77,6 +79,7 @@ export default function RootLayout({
           </div>
           {children}
           <Navigation />
+          <InstallPrompt />
           </OfflineSyncProvider>
         </AuthProvider>
         <Script id="register-sw" strategy="afterInteractive">

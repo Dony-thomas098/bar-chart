@@ -92,11 +92,11 @@ export function Header() {
             </Link>
           </div>
 
-          {/* Tab strip (hidden on performance screens) */}
+          {/* Tab strip (desktop/tablet tabs, hidden on mobile in favor of bottom dock) */}
           {!isPerformScreen && (
             <div
               ref={tabsRef}
-              className="flex items-end overflow-x-auto scrollbar-none px-3 gap-1"
+              className="hidden sm:flex items-end overflow-x-auto scrollbar-none px-3 gap-1"
               style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
             >
               {TABS.map(tab => {

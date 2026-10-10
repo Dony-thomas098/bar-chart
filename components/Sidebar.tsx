@@ -5,7 +5,7 @@ import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/lib/supabase';
 import { getRecentCharts, createFolder, saveChart } from '@/lib/storage';
 import { saveLyrics } from '@/lib/lyrics';
-import { X, User, LogOut, Home, Clock, Type, Settings, Plus, Folder as FolderIcon, FileText, Printer, Trash2, Music, Music2, ListMusic, Star } from 'lucide-react';
+import { X, User, LogOut, Home, Clock, Type, Settings, Plus, Folder as FolderIcon, FileText, Printer, Trash2, Music, Music2, ListMusic, Star, Download } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 
@@ -288,6 +288,16 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
               className="w-full flex items-center px-4 py-3 mt-4 bg-surface border border-border shadow-sm rounded-xl text-sm font-bold text-text-primary hover:text-red-400 hover:border-red-500/30 transition-all"
             >
               <Trash2 size={16} className="mr-3 text-text-secondary" /> Trash
+            </button>
+
+            <button 
+              onClick={() => {
+                onClose();
+                window.dispatchEvent(new Event('open-install-prompt'));
+              }}
+              className="w-full flex items-center px-4 py-3 mt-2 bg-indigo-950/40 border border-indigo-500/30 shadow-sm rounded-xl text-sm font-bold text-indigo-300 hover:text-indigo-200 hover:bg-indigo-900/50 transition-all"
+            >
+              <Download size={16} className="mr-3 text-indigo-400" /> Install ChordCraft App
             </button>
           </div>
         </div>
