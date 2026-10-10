@@ -1,0 +1,3705 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>ChordCraft — Professional Studio Interface</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&family=Lora:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      /* Curated Professional Dark Studio Palette */
+      --bg: #09090b;
+      --bg-surface: #121216;
+      --bg-surface-elevated: #181820;
+      --bg-card: rgba(18, 18, 24, 0.85);
+      --bg-card-hover: rgba(26, 26, 34, 0.95);
+      --border: rgba(255, 255, 255, 0.08);
+      --border-hover: rgba(255, 255, 255, 0.16);
+      --accent: #4f46e5;
+      --accent-hover: #4338ca;
+      --accent-muted: rgba(79, 70, 229, 0.15);
+      --accent-border: rgba(79, 70, 229, 0.35);
+      --emerald: #10b981;
+      --amber: #f59e0b;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-faint: #64748b;
+      --radius-xl: 20px;
+      --radius-lg: 16px;
+      --radius-md: 12px;
+      --radius-sm: 8px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: var(--bg);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+      position: relative;
+    }
+
+    .ambient-glow {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      background: radial-gradient(circle at 50% 0%, rgba(79, 70, 229, 0.05) 0%, transparent 60%);
+    }
+
+    /* Top Device Mode Switcher */
+    .device-switcher-bar {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: #09090b;
+      border-bottom: 1px solid var(--border);
+      padding: 8px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 13px;
+    }
+
+    .device-switcher-bar .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-weight: 700;
+      color: #cbd5e1;
+      font-size: 12px;
+      letter-spacing: 0.02em;
+    }
+
+    .device-toggle-group {
+      display: flex;
+      gap: 4px;
+      background: rgba(255, 255, 255, 0.04);
+      padding: 3px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+
+    .device-toggle-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      padding: 4px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .device-toggle-btn.active {
+      background: rgba(255, 255, 255, 0.12);
+      color: white;
+    }
+
+    /* App Viewport Container */
+    .app-viewport {
+      flex: 1;
+      width: 100%;
+      max-width: 100%;
+      margin: 0 auto;
+      transition: max-width 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      z-index: 1;
+    }
+
+    .app-viewport.mobile-frame {
+      max-width: 420px;
+      min-height: 860px;
+      margin: 16px auto;
+      border-radius: 40px;
+      border: 8px solid #1e1e24;
+      box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(255, 255, 255, 0.1);
+      overflow: hidden;
+      background: var(--bg);
+    }
+
+    .dynamic-island-notch {
+      display: none;
+      width: 110px;
+      height: 26px;
+      background: #000;
+      border-radius: 20px;
+      margin: 8px auto 0;
+      position: relative;
+      z-index: 60;
+    }
+    .app-viewport.mobile-frame .dynamic-island-notch {
+      display: block;
+    }
+
+    /* Minimalist App Header */
+    .app-header {
+      position: sticky;
+      top: 0;
+      z-index: 40;
+      background: rgba(9, 9, 11, 0.92);
+      backdrop-filter: blur(16px);
+      padding: 12px 20px 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .header-btn {
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.03);
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 15px;
+      cursor: pointer;
+      position: relative;
+      transition: all 0.15s;
+    }
+    .header-btn:hover {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: var(--border-hover);
+    }
+
+    .header-badge-dot {
+      position: absolute;
+      top: 7px;
+      right: 7px;
+      width: 6px;
+      height: 6px;
+      background: var(--emerald);
+      border-radius: 50%;
+    }
+
+    .brand-center {
+      text-align: center;
+      cursor: pointer;
+    }
+
+    .brand-title {
+      font-size: 17px;
+      font-weight: 800;
+      letter-spacing: -0.01em;
+      color: white;
+    }
+
+    .brand-subtitle {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-faint);
+      font-weight: 700;
+    }
+
+    /* Content Area */
+    .app-content {
+      flex: 1;
+      padding: 16px 20px 115px;
+      overflow-y: auto;
+    }
+
+    /* Search & Filter Bar */
+    .search-container {
+      margin-bottom: 16px;
+      display: flex;
+      gap: 8px;
+    }
+
+    .search-input-wrap {
+      flex: 1;
+      position: relative;
+    }
+
+    .search-input-wrap input {
+      width: 100%;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 10px 14px 10px 38px;
+      color: white;
+      font-size: 13.5px;
+      outline: none;
+      transition: all 0.2s;
+    }
+    .search-input-wrap input:focus {
+      border-color: rgba(255, 255, 255, 0.25);
+      background: var(--bg-surface-elevated);
+    }
+    .search-input-wrap .search-icon {
+      position: absolute;
+      left: 13px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 14px;
+      color: var(--text-faint);
+      pointer-events: none;
+    }
+
+    .filter-btn {
+      width: 42px;
+      height: 42px;
+      border-radius: var(--radius-md);
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 15px;
+      cursor: pointer;
+      transition: all 0.15s;
+      flex-shrink: 0;
+    }
+    .filter-btn:hover {
+      background: var(--bg-surface-elevated);
+      color: white;
+      border-color: var(--border-hover);
+    }
+
+    .section-header-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .section-heading {
+      font-size: 15px;
+      font-weight: 700;
+      color: white;
+      letter-spacing: -0.01em;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .section-action-btn {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      transition: color 0.15s;
+    }
+    .section-action-btn:hover { color: white; }
+
+    /* =========================================================
+       1. FOLDERS CARDS GRID
+       ========================================================= */
+    .folders-cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .visual-folder-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 10px 12px;
+      cursor: pointer;
+      position: relative;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .visual-folder-card:hover {
+      background: var(--bg-card-hover);
+      border-color: var(--border-hover);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px -5px rgba(0, 0, 0, 0.6);
+    }
+
+    .folder-art-cover {
+      width: 100%;
+      height: 54px;
+      border-radius: var(--radius-sm);
+      background: var(--bg-surface);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 8px;
+    }
+
+    .folder-center-icon {
+      font-size: 22px;
+      line-height: 1;
+      opacity: 0.9;
+    }
+
+    .folder-top-pill {
+      position: absolute;
+      top: 6px;
+      left: 6px;
+      font-size: 9.5px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: rgba(0, 0, 0, 0.5);
+      color: #94a3b8;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .folder-title-text {
+      font-size: 13.5px;
+      font-weight: 700;
+      color: white;
+      line-height: 1.25;
+      margin-bottom: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .folder-subtitle-text {
+      font-size: 11px;
+      color: var(--text-faint);
+      font-weight: 500;
+      margin-bottom: 8px;
+    }
+
+    .folder-footer-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-top: 6px;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+      font-size: 10.5px;
+      color: var(--text-muted);
+    }
+
+    .folder-count-badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 600;
+      color: #cbd5e1;
+      background: rgba(255, 255, 255, 0.06);
+      padding: 2px 6px;
+      border-radius: 5px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      font-size: 10px;
+    }
+
+    .folder-open-arrow {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: 700;
+    }
+
+    .folder-card-new-visual {
+      border: 1.5px dashed rgba(255, 255, 255, 0.12);
+      background: rgba(255, 255, 255, 0.02);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 4px;
+      color: var(--text-muted);
+      cursor: pointer;
+      min-height: 110px;
+      border-radius: var(--radius-md);
+      transition: all 0.2s;
+    }
+    .folder-card-new-visual:hover {
+      background: rgba(255, 255, 255, 0.04);
+      border-color: rgba(255, 255, 255, 0.25);
+      color: white;
+      transform: translateY(-2px);
+    }
+
+    /* In-Page Breadcrumb Header */
+    .view-breadcrumb-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 14px;
+      padding: 10px 14px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+    }
+
+    .btn-back-crumb {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: white;
+      font-size: 12.5px;
+      font-weight: 600;
+      padding: 6px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-back-crumb:hover {
+      background: rgba(255, 255, 255, 0.12);
+      transform: translateX(-2px);
+    }
+
+    /* Song Cards Grid */
+    .song-cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .song-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 10px 12px;
+      cursor: pointer;
+      position: relative;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .song-card:hover {
+      background: var(--bg-card-hover);
+      border-color: var(--border-hover);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px -5px rgba(0, 0, 0, 0.6);
+    }
+
+    .song-card-header-row {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    .song-card-key-pill {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10.5px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.08);
+      color: #e2e8f0;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+    }
+
+    .song-star-btn {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: none;
+      border: none;
+      color: var(--text-faint);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      cursor: pointer;
+      transition: color 0.15s;
+    }
+    .song-star-btn.active { color: #fbbf24; }
+
+    .song-title-text {
+      font-size: 13.5px;
+      font-weight: 700;
+      color: white;
+      margin-bottom: 2px;
+      line-height: 1.25;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .song-artist-text {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .song-footer-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-top: 6px;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+      font-size: 10.5px;
+    }
+
+    .song-bpm-pill {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 600;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 10px;
+    }
+
+    .pulse-dot {
+      width: 5px;
+      height: 5px;
+      background: #94a3b8;
+      border-radius: 50%;
+      transition: transform 0.1s, background-color 0.1s;
+    }
+    .pulse-dot.pulsing {
+      background: #818cf8;
+      transform: scale(1.6);
+    }
+
+    /* =========================================================
+       2. SETLISTS & GIG PLANNING STYLES
+       ========================================================= */
+    .filter-pills-row {
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      padding-bottom: 6px;
+      margin-bottom: 14px;
+      scrollbar-width: none;
+    }
+    .filter-pills-row::-webkit-scrollbar { display: none; }
+
+    .pill-filter-item {
+      padding: 5px 12px;
+      border-radius: 20px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s;
+    }
+    .pill-filter-item.active {
+      background: rgba(255, 255, 255, 0.12);
+      color: white;
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .setlists-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    .setlist-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 14px 16px;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .setlist-card:hover {
+      background: var(--bg-card-hover);
+      border-color: var(--border-hover);
+      transform: translateY(-2px);
+      box-shadow: 0 10px 24px -6px rgba(0, 0, 0, 0.6);
+    }
+
+    .setlist-header-row {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .setlist-title-text {
+      font-size: 15px;
+      font-weight: 700;
+      color: white;
+      line-height: 1.3;
+    }
+
+    .setlist-date-text {
+      font-size: 11.5px;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      margin-top: 2px;
+    }
+
+    .status-badge {
+      font-size: 10px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 3px 8px;
+      border-radius: 6px;
+      white-space: nowrap;
+    }
+    .status-badge.scheduled {
+      background: #252243;
+      border: 1px solid rgba(129, 140, 248, 0.45);
+      color: #a5b4fc;
+    }
+    .status-badge.draft {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      color: #94a3b8;
+    }
+    .status-badge.archived {
+      background: rgba(51, 65, 85, 0.25);
+      border: 1px solid rgba(51, 65, 85, 0.4);
+      color: #64748b;
+    }
+
+    .setlist-song-preview-list {
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: var(--radius-sm);
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .setlist-preview-item {
+      font-size: 12px;
+      color: #cbd5e1;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      padding: 1px 0;
+      transition: color 0.15s;
+    }
+    .setlist-preview-item:hover {
+      color: #ffffff;
+    }
+
+    .setlist-preview-title {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      padding-right: 8px;
+    }
+
+    .setlist-key-badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      color: #cbd5e1;
+      flex-shrink: 0;
+    }
+
+    .setlist-preview-more {
+      font-size: 11px;
+      color: #64748b;
+      margin-top: 2px;
+      cursor: pointer;
+      transition: color 0.15s;
+    }
+    .setlist-preview-more:hover {
+      color: #94a3b8;
+      text-decoration: underline;
+    }
+
+    .setlist-card-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-top: 10px;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      font-size: 11.5px;
+      color: var(--text-muted);
+    }
+
+    .setlist-view-flow-link {
+      color: #818cf8;
+      font-weight: 700;
+      font-size: 12px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      transition: all 0.15s;
+    }
+    .setlist-view-flow-link:hover {
+      color: #a5b4fc;
+      transform: translateX(2px);
+    }
+
+    /* Gig Planner Flow Bar (Active in Reader) */
+    .gig-flow-header-banner {
+      background: linear-gradient(135deg, rgba(79, 70, 229, 0.28) 0%, rgba(20, 20, 32, 0.98) 100%);
+      border: 1px solid rgba(129, 140, 248, 0.35);
+      border-radius: var(--radius-md);
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.5);
+      animation: fadeInFlow 0.25s ease;
+    }
+    @keyframes fadeInFlow {
+      from { opacity: 0; transform: translateY(-4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .gig-flow-tag {
+      background: #4f46e5;
+      color: #ffffff;
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      padding: 2.5px 7px;
+      border-radius: 4px;
+      display: inline-block;
+    }
+    .btn-flow-nav {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #ffffff;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 5px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-flow-nav:hover {
+      background: rgba(255, 255, 255, 0.16);
+      border-color: rgba(255, 255, 255, 0.3);
+    }
+    .btn-flow-next {
+      background: #6366f1;
+      border-color: #818cf8;
+    }
+    .btn-flow-next:hover {
+      background: #4f46e5;
+    }
+    .btn-flow-exit {
+      background: transparent;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: #94a3b8;
+      height: 28px;
+      padding: 0 8px;
+      border-radius: 6px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 600;
+      transition: all 0.15s;
+    }
+    .btn-flow-exit:hover {
+      color: #ffffff;
+      border-color: #f43f5e;
+      background: rgba(244, 63, 94, 0.18);
+    }
+
+    /* Modal Styles */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(6px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      padding: 16px;
+      animation: fadeInModal 0.15s ease;
+    }
+    @keyframes fadeInModal {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    .modal-dialog {
+      background: #18181f;
+      border: 1px solid var(--border-hover);
+      border-radius: var(--radius-lg);
+      padding: 22px;
+      width: 100%;
+      max-width: 440px;
+      box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.8);
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+    .modal-title {
+      font-size: 16px;
+      font-weight: 800;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .modal-input {
+      width: 100%;
+      background: #0f0f14;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: white;
+      padding: 8px 10px;
+      font-size: 13px;
+      outline: none;
+    }
+    .modal-input:focus {
+      border-color: var(--accent);
+    }
+    .modal-songs-picker {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      max-height: 160px;
+      overflow-y: auto;
+      padding: 6px;
+      background: #0e0e12;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+    }
+    .modal-song-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: #cbd5e1;
+      padding: 4px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .modal-song-item:hover {
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    /* Setlist Flow / Detail Screen */
+    .gig-banner {
+      background: linear-gradient(135deg, rgba(79, 70, 229, 0.15) 0%, rgba(24, 24, 32, 0.9) 100%);
+      border: 1px solid var(--accent-border);
+      border-radius: var(--radius-md);
+      padding: 16px;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    .gig-banner-info h2 {
+      font-size: 18px;
+      font-weight: 800;
+      color: white;
+      margin-bottom: 4px;
+    }
+
+    .gig-banner-meta {
+      font-size: 12px;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .btn-live-gig {
+      background: var(--accent);
+      color: white;
+      border: none;
+      border-radius: var(--radius-sm);
+      padding: 10px 18px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 4px 14px rgba(79, 70, 229, 0.4);
+      transition: all 0.2s;
+    }
+    .btn-live-gig:hover {
+      background: var(--accent-hover);
+      transform: translateY(-1px);
+    }
+
+    .setlist-flow-queue {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 24px;
+    }
+
+    .flow-song-row {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .flow-song-row:hover {
+      background: var(--bg-card-hover);
+      border-color: var(--border-hover);
+      transform: translateX(2px);
+    }
+
+    .flow-drag-handle {
+      color: var(--text-faint);
+      font-size: 16px;
+      cursor: grab;
+      user-select: none;
+    }
+
+    .flow-song-num {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-muted);
+      width: 20px;
+    }
+
+    .flow-song-body {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .flow-song-title {
+      font-size: 13.5px;
+      font-weight: 700;
+      color: white;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .flow-song-note {
+      font-size: 11px;
+      color: #a5b4fc;
+      margin-top: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .flow-badges-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    /* =========================================================
+       3. MUSICAL CHORD GRID SHEET (IMAGE 1 ORGANIZATION)
+       ========================================================= */
+    .sheet-outer-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 24px 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.7);
+      transition: all 0.25s ease;
+      overflow-x: auto;
+      max-width: 100%;
+      margin-bottom: 40px;
+      scrollbar-width: thin;
+    }
+
+    /* Paper mode toggle (matches Image 1 white paper theme) */
+    .sheet-outer-card.paper-theme {
+      background: #ffffff !important;
+      color: #0f172a !important;
+      border: 1px solid #e2e8f0 !important;
+      box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05), 0 2px 6px -1px rgba(0, 0, 0, 0.04) !important;
+    }
+
+    .sheet-header-title-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1.5px solid var(--border);
+      padding-bottom: 14px;
+      margin-bottom: 20px;
+      position: relative;
+    }
+    .sheet-outer-card.paper-theme .sheet-header-title-row {
+      border-bottom: 1.5px solid #e2e8f0;
+    }
+
+    .sheet-header-spacer {
+      width: 70px;
+      flex-shrink: 0;
+    }
+
+    .sheet-header-center {
+      flex: 1;
+      display: flex;
+      align-items: baseline;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    .sheet-header-title {
+      font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
+      font-size: 24px;
+      font-weight: 800;
+      color: #ffffff;
+      letter-spacing: -0.02em;
+    }
+    .sheet-outer-card.paper-theme .sheet-header-title {
+      color: #0f172a !important;
+    }
+
+    .sheet-header-time {
+      font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text-muted);
+    }
+    .sheet-outer-card.paper-theme .sheet-header-time {
+      color: #64748b !important;
+    }
+
+    .sheet-header-tempo {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13.5px;
+      font-weight: 700;
+      color: var(--text-muted);
+      width: 70px;
+      text-align: right;
+      flex-shrink: 0;
+    }
+    .sheet-outer-card.paper-theme .sheet-header-tempo {
+      color: #64748b !important;
+    }
+
+    /* The Image 1 Grid Line Structure (Flexbox Non-Wrapping) */
+    .sheet-grid-table {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      min-width: 720px;
+      width: 100%;
+    }
+
+    .sheet-line-row {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: flex-start;
+      flex-wrap: nowrap;
+      white-space: nowrap;
+      min-height: 38px;
+    }
+
+    .sheet-label-cell {
+      width: 110px;
+      min-width: 110px;
+      text-align: right;
+      padding-right: 14px;
+      font-weight: 800;
+      font-size: 16px;
+      flex-shrink: 0;
+      white-space: nowrap;
+    }
+
+    /* Section badge colors matching Image 1 */
+    .color-a-section { color: #8b5cf6; }
+    .color-b-section { color: #d97706; }
+    .color-coda      { color: #dc2626; }
+    .color-intro     { color: #0284c7; }
+    .color-brass     { color: #ffffff; }
+    .sheet-outer-card.paper-theme .color-brass { color: #0f172a; }
+    .color-song      { color: #e11d48; }
+    .color-chorus    { color: #d97706; }
+    .color-bg        { color: #059669; }
+    .color-ap        { color: #db2777; }
+
+    .sheet-chords-track {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: flex-start;
+      flex-wrap: nowrap;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .sheet-bar-symbol {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 16px;
+      font-weight: 700;
+      color: #64748b;
+      text-align: center;
+      user-select: none;
+      flex-shrink: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .sheet-bar-symbol.double {
+      width: 26px;
+      min-width: 26px;
+      letter-spacing: -0.04em;
+    }
+    .sheet-bar-symbol.single {
+      width: 16px;
+      min-width: 16px;
+      font-weight: 500;
+      color: #94a3b8;
+    }
+    .sheet-outer-card.paper-theme .sheet-bar-symbol {
+      color: #64748b;
+    }
+    .sheet-outer-card.paper-theme .sheet-bar-symbol.single {
+      color: #94a3b8;
+    }
+
+    .sheet-chord-measure {
+      width: 66px;
+      min-width: 66px;
+      text-align: center;
+      font-size: 16.5px;
+      font-weight: 800;
+      color: #ffffff;
+      padding: 4px 2px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.12s ease;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .sheet-outer-card.paper-theme .sheet-chord-measure {
+      color: #0f172a !important;
+    }
+    .sheet-chord-measure:hover {
+      background: rgba(124, 58, 237, 0.12);
+    }
+    .sheet-chord-measure .chord-root {
+      font-weight: 800;
+    }
+    .sheet-chord-measure sup,
+    .sheet-chord-measure .chord-sup {
+      font-size: 0.64em;
+      font-weight: 800;
+      vertical-align: super;
+      line-height: 1;
+      margin-left: 1px;
+      color: inherit;
+    }
+
+    /* =========================================================
+       4. MOBILE CHORD EDITOR VIEW (IMAGE 2 EXACT REPLICA)
+       ========================================================= */
+    .mobile-editor-shell {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding-bottom: 240px; /* space for keypad */
+    }
+
+    /* Top Tempo & Time Boxes */
+    .editor-top-meta-cards {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 4px;
+    }
+
+    .editor-meta-box {
+      background: #15102a;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: var(--radius-md);
+      padding: 8px 12px;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .meta-box-label {
+      font-size: 9.5px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-faint);
+      margin-bottom: 2px;
+    }
+
+    .meta-box-val {
+      font-size: 15px;
+      font-weight: 800;
+      color: white;
+    }
+
+    /* Stats Line */
+    .editor-stats-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 10.5px;
+      font-weight: 700;
+      color: var(--text-faint);
+      padding: 2px 4px;
+      letter-spacing: 0.04em;
+    }
+
+    /* Section Editor Block */
+    .editor-section-card {
+      background: #130f24;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: var(--radius-lg);
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .editor-section-header-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .editor-section-pill-btn {
+      background: rgba(99, 102, 241, 0.2);
+      border: 1px solid rgba(99, 102, 241, 0.4);
+      color: #a5b4fc;
+      font-size: 12.5px;
+      font-weight: 700;
+      padding: 6px 12px;
+      border-radius: 8px;
+      white-space: nowrap;
+    }
+
+    .editor-section-notes-input {
+      flex: 1;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: #e2e8f0;
+      padding: 7px 10px;
+      font-size: 12px;
+      outline: none;
+    }
+    .editor-section-notes-input:focus {
+      border-color: rgba(99, 102, 241, 0.5);
+    }
+
+    .editor-del-btn {
+      width: 30px;
+      height: 30px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border);
+      color: var(--text-faint);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    .editor-del-btn:hover { color: #f43f5e; }
+
+    /* Measure Line Row */
+    .editor-measure-line-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .editor-line-bracket {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 16px;
+      font-weight: 700;
+      color: #ffffff;
+      padding: 0 2px;
+      user-select: none;
+    }
+
+    .editor-bars-strip {
+      flex: 1;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+    }
+
+    .editor-bar-btn {
+      background: #18132e;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 9px;
+      padding: 10px 4px;
+      text-align: center;
+      font-size: 15px;
+      font-weight: 800;
+      color: #ffffff;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 44px;
+    }
+    .editor-bar-btn:hover {
+      background: #231b42;
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    /* Selected Bar Button (Image 2 Glowing Ring) */
+    .editor-bar-btn.selected {
+      background: #251c4a !important;
+      border: 2px solid #a5b4fc !important;
+      box-shadow: 0 0 14px rgba(165, 180, 252, 0.45) !important;
+      transform: scale(1.02);
+    }
+
+    .editor-bar-btn sup {
+      font-size: 10px;
+      font-weight: 700;
+      color: #cbd5e1;
+      margin-left: 1px;
+    }
+
+    .editor-add-bars-group {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 2px;
+    }
+
+    .editor-add-bars-btn {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      border-radius: 8px;
+      padding: 7px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .editor-add-bars-btn:hover {
+      background: rgba(255, 255, 255, 0.07);
+      color: white;
+    }
+
+    /* =========================================================
+       5. FLOATING BOTTOM CHORD KEYPAD (IMAGE 2 EXACT REPLICA)
+       ========================================================= */
+    .mobile-keypad-panel {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 120;
+      background: #0f0b1e;
+      border-top: 1.5px solid rgba(255, 255, 255, 0.12);
+      box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.85);
+      padding: 10px 14px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      max-width: 100%;
+    }
+
+    .app-viewport.mobile-frame .mobile-keypad-panel {
+      position: absolute;
+      border-radius: 0 0 32px 32px;
+    }
+
+    .keypad-header-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .keypad-location-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 700;
+      color: white;
+    }
+
+    .keypad-pill-tag {
+      background: #271a4d;
+      color: #a5b4fc;
+      border-radius: 6px;
+      padding: 2px 7px;
+      font-size: 10.5px;
+    }
+
+    .keypad-steppers-group {
+      display: flex;
+      gap: 4px;
+    }
+
+    .keypad-stepper-btn {
+      background: #1c1536;
+      border: 1px solid var(--border);
+      color: #cbd5e1;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 11.5px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .keypad-stepper-btn:hover { color: white; background: #271d4a; }
+
+    .keypad-done-btn {
+      background: #4f46e5;
+      color: white;
+      border: none;
+      padding: 4px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    /* Selected Chord Preview Box */
+    .keypad-preview-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #150f28;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 8px;
+      padding: 8px 12px;
+    }
+
+    .keypad-preview-chord {
+      font-size: 19px;
+      font-weight: 800;
+      color: white;
+      letter-spacing: -0.01em;
+      display: flex;
+      align-items: center;
+      gap: 2px;
+    }
+
+    .keypad-cursor {
+      display: inline-block;
+      width: 2px;
+      height: 18px;
+      background: #818cf8;
+      margin-left: 2px;
+      animation: blinkCursor 1s infinite;
+    }
+    @keyframes blinkCursor {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0; }
+    }
+
+    .keypad-notes-pill {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 600;
+      color: #10b981;
+      background: rgba(16, 185, 129, 0.12);
+      border: 1px solid rgba(16, 185, 129, 0.25);
+      padding: 3px 8px;
+      border-radius: 6px;
+    }
+
+    /* The 4-Row Grid */
+    .keypad-buttons-grid-row {
+      display: grid;
+      gap: 4px;
+    }
+
+    .row-roots {
+      grid-template-columns: repeat(7, 1fr);
+    }
+    .row-types {
+      grid-template-columns: repeat(7, 1fr);
+    }
+    .row-exts {
+      grid-template-columns: repeat(7, 1fr);
+    }
+    .row-actions {
+      grid-template-columns: 1fr 1fr 1fr 1.2fr 1.6fr;
+    }
+
+    .kp-btn {
+      background: #1e1738;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: #ffffff;
+      border-radius: 7px;
+      padding: 8px 2px;
+      font-size: 13.5px;
+      font-weight: 700;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.1s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .kp-btn:active {
+      transform: scale(0.95);
+      background: #31235b;
+    }
+
+    .kp-btn.secondary {
+      background: #18122c;
+      color: #cbd5e1;
+      font-size: 12px;
+    }
+
+    .kp-btn.accent-del {
+      background: rgba(244, 63, 94, 0.15);
+      border-color: rgba(244, 63, 94, 0.3);
+      color: #f43f5e;
+      font-size: 12px;
+    }
+
+    .kp-btn.accent-next {
+      background: #4f46e5;
+      color: white;
+      font-size: 12.5px;
+    }
+
+    /* Toast */
+    .toast-popup {
+      position: fixed;
+      top: 60px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-20px);
+      background: #181820;
+      border: 1px solid var(--border-hover);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
+      color: white;
+      padding: 9px 16px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 600;
+      z-index: 250;
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .toast-popup.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* Minimal Bottom Dock */
+    .modern-bottom-dock {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 50;
+      background: rgba(14, 14, 18, 0.96);
+      backdrop-filter: blur(20px);
+      border-top: 1px solid var(--border);
+      padding: 8px 16px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-around;
+      max-width: 100%;
+    }
+    .app-viewport.mobile-frame .modern-bottom-dock {
+      position: absolute;
+      border-radius: 0 0 32px 32px;
+    }
+
+    .dock-nav-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: none;
+      border: none;
+      color: var(--text-faint);
+      cursor: pointer;
+      padding: 4px 10px;
+      transition: all 0.15s;
+    }
+    .dock-nav-item.active { color: white; }
+    .dock-nav-icon { font-size: 19px; margin-bottom: 2px; }
+    .dock-nav-label { font-size: 10.5px; font-weight: 600; }
+
+    .dock-center-action {
+      width: 46px;
+      height: 46px;
+      border-radius: 50%;
+      background: var(--accent);
+      border: 3px solid #0e0e12;
+      color: white;
+      font-size: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transform: translateY(-12px);
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .dock-center-action:hover {
+      background: var(--accent-hover);
+      transform: translateY(-14px);
+    }
+
+    /* Multi-Song Tab Strip */
+    .song-tab-strip {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      overflow-x: auto;
+      scrollbar-width: none;
+      padding-bottom: 2px;
+    }
+    .song-tab-strip::-webkit-scrollbar { display: none; }
+
+    .song-tab-pill {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 6px 10px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s;
+    }
+    .song-tab-pill.active {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.25);
+      color: white;
+    }
+    .song-tab-close {
+      color: var(--text-faint);
+      font-size: 11px;
+      border-radius: 50%;
+      padding: 0 2px;
+    }
+    .song-tab-close:hover { color: white; }
+
+    .song-tab-add-btn {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px dashed var(--border);
+      border-radius: 8px;
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .song-tab-add-btn:hover { color: white; border-color: rgba(255, 255, 255, 0.3); }
+
+    .control-chip-btn {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 6px 12px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-main);
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s;
+    }
+    .control-chip-btn:hover {
+      background: var(--bg-surface-elevated);
+      border-color: var(--border-hover);
+    }
+    .control-chip-btn.active {
+      background: var(--accent-muted);
+      border-color: var(--accent-border);
+      color: white;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="ambient-glow"></div>
+
+  <!-- Device Switcher Demo Bar -->
+  <div class="device-switcher-bar">
+    <div class="badge">
+      ChordCraft Studio Interface
+    </div>
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <span style="color: var(--text-faint); font-size: 12px; font-weight: 600;">Display:</span>
+      <div class="device-toggle-group">
+        <button class="device-toggle-btn active" id="btnDeskView" onclick="setDeviceView('desktop')">💻 Desktop</button>
+        <button class="device-toggle-btn" id="btnMobView" onclick="setDeviceView('mobile')">📱 Mobile</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Viewport -->
+  <div class="app-viewport" id="viewportContainer">
+
+    <div class="dynamic-island-notch"></div>
+
+    <!-- App Header -->
+    <header class="app-header">
+      <button class="header-btn" onclick="showToast('Menu opened')" title="Menu">
+        ☰
+      </button>
+
+      <div class="brand-center" onclick="switchView('folders')">
+        <div class="brand-title">ChordCraft</div>
+        <div class="brand-subtitle" id="brandSubtitle">Studio Library</div>
+      </div>
+
+      <button class="header-btn" onclick="showToast('Cloud database synchronized')" title="Sync Status">
+        🔔
+        <div class="header-badge-dot"></div>
+      </button>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="app-content" id="appMainContent">
+      <div id="viewMountPoint"></div>
+    </main>
+
+    <!-- Minimalist Bottom Navigation Dock -->
+    <nav class="modern-bottom-dock" id="bottomDock">
+      <button class="dock-nav-item active" id="dockBtn-folders" onclick="switchView('folders')">
+        <div class="dock-nav-icon">📁</div>
+        <div class="dock-nav-label">Folders</div>
+      </button>
+
+      <button class="dock-nav-item" id="dockBtn-setlists" onclick="switchView('setlists')">
+        <div class="dock-nav-icon">📋</div>
+        <div class="dock-nav-label">Setlists</div>
+      </button>
+
+      <!-- Center Action Button -->
+      <button class="dock-center-action" onclick="openNewChartModal()" title="Create New">
+        +
+      </button>
+
+      <button class="dock-nav-item" id="dockBtn-lyrics" onclick="switchView('lyrics')">
+        <div class="dock-nav-icon">📝</div>
+        <div class="dock-nav-label">Lyrics</div>
+      </button>
+
+      <button class="dock-nav-item" id="dockBtn-starred" onclick="switchView('starred')">
+        <div class="dock-nav-icon">⭐</div>
+        <div class="dock-nav-label">Starred</div>
+      </button>
+    </nav>
+
+  </div>
+
+  <!-- Interactive Toast Notification -->
+  <div class="toast-popup" id="toastPopup">
+    Action completed
+  </div>
+
+  <script>
+    // =========================================================
+    // 0. MUSIC THEORY & TRANSPOSITION UTILITIES
+    // =========================================================
+    const CHROMATIC_SCALE = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+    const CHROMATIC_FLATS = ['C', 'D♭', 'D', 'E♭', 'E', 'F', 'G♭', 'G', 'A♭', 'A', 'B♭', 'B'];
+
+    function getSemitoneIndex(note) {
+      if (!note) return 0;
+      let clean = note.replace('b', '♭');
+      let idx = CHROMATIC_FLATS.indexOf(clean);
+      if (idx === -1) idx = CHROMATIC_SCALE.indexOf(clean);
+      return idx === -1 ? 0 : idx;
+    }
+
+    function transposeChordRoot(rootStr, semitones) {
+      if (!semitones) return rootStr;
+      let clean = rootStr.replace('m', '').replace('7', '').trim();
+      let isFlat = clean.includes('♭') || clean.includes('b');
+
+      let idx = CHROMATIC_FLATS.indexOf(clean);
+      if (idx === -1) idx = CHROMATIC_SCALE.indexOf(clean);
+      if (idx === -1) {
+        const normalized = clean.replace('b', '♭');
+        idx = CHROMATIC_FLATS.indexOf(normalized);
+      }
+      if (idx === -1) return rootStr;
+
+      let newIdx = (idx + semitones) % 12;
+      if (newIdx < 0) newIdx += 12;
+
+      return isFlat ? CHROMATIC_FLATS[newIdx] : CHROMATIC_SCALE[newIdx];
+    }
+
+    function transposeFullChord(chordStr, semitones) {
+      if (!semitones || !chordStr) return chordStr;
+      return chordStr.replace(/([A-G][b#♭]?)/g, match => transposeChordRoot(match, semitones));
+    }
+
+    function formatSingleChordHtml(raw) {
+      if (!raw || raw === '-' || raw === '_' || raw === '%') return raw || '';
+      if (raw.includes('/')) {
+        const parts = raw.split('/');
+        return `${formatSingleChordHtml(parts[0])}<span style="opacity: 0.55; margin: 0 1px;">/</span>${formatSingleChordHtml(parts[1])}`;
+      }
+      const match = raw.match(/^([A-G])([#b♯♭])?(.*)$/);
+      if (!match) {
+        if (/^[b#♯♭]/.test(raw)) {
+          return `<sup>${raw}</sup>`;
+        }
+        return raw;
+      }
+      const [, root, accidental, rest] = match;
+      const rootStr = root + (accidental || '');
+
+      // Keep minor 'm' (or 'min') on the baseline with chord root (e.g. F#m, C#m, G#m)
+      // Only tensions/addon chords (7, dim, 9, b5, sus4, etc.) show in superscript
+      let baseQuality = '';
+      let superPart = '';
+
+      if (rest) {
+        if (rest.startsWith('min')) {
+          baseQuality = 'm';
+          superPart = rest.slice(3);
+        } else if (rest.startsWith('m') && !rest.startsWith('maj')) {
+          baseQuality = 'm';
+          superPart = rest.slice(1);
+        } else {
+          superPart = rest;
+        }
+      }
+
+      if (superPart) {
+        return `<span class="chord-root">${rootStr}${baseQuality}</span><sup class="chord-sup">${superPart}</sup>`;
+      }
+      return `<span class="chord-root">${rootStr}${baseQuality}</span>`;
+    }
+
+    function formatChordHtml(measureStr) {
+      if (!measureStr || measureStr === '-') return '<span style="opacity: 0.35;">-</span>';
+      return measureStr.trim().split(/\s+/).map(formatSingleChordHtml).join(' ');
+    }
+
+    // =========================================================
+    // 1. DATA LAYER (Includes Image 1 & Image 2 Reference Songs!)
+    // =========================================================
+    const FOLDERS = [
+      { id: 'sunday', name: 'Sunday Service', icon: '⛪', count: 6, updated: '2d ago' },
+      { id: 'jazz', name: 'Jazz Standards', icon: '🎷', count: 4, updated: '2w ago' },
+      { id: 'acoustic', name: 'Acoustic Set', icon: '🎸', count: 2, updated: '5d ago' },
+      { id: 'hymns', name: 'Classic Hymns', icon: '📖', count: 2, updated: '1w ago' },
+      { id: 'unfiled', name: 'Unfiled Songs', icon: '📂', count: 2, updated: 'Drafts' }
+    ];
+
+    const SONGS = [
+      // 1. Reference Song 1 (from User Image 1: Malaghamarum in Key E, 6/8, t=120)
+      { 
+        id: 101, 
+        title: "Malaghamarum", 
+        artist: "Traditional Worship", 
+        key: "E", 
+        bpm: 120, 
+        time: "6/8",
+        capo: 0,
+        folderId: "sunday", 
+        starred: true,
+        // Image 1 format structure: 8 bars per line with exact brackets and middle double-bar
+        sheetLines: [
+          { label: "Intro:", labelColor: "color-intro",  startBar: "||:", bars1: ["E", "E", "B", "B"], midBar: "||", bars2: ["A", "E", "F#m", "E"], endBar: ":||" },
+          { label: "Brass:", labelColor: "color-brass",  startBar: "||",  bars1: ["E", "C#m", "B", "B"], midBar: "||", bars2: ["E", "A", "E/B", "E"], endBar: "||" },
+          { label: "Song:",  labelColor: "color-song",   startBar: "||:", bars1: ["E", "E", "B", "B"], midBar: "||", bars2: ["E", "F#m", "E/B", "E"], endBar: ":||" },
+          { label: "Chorus:", labelColor: "color-chorus", startBar: "||:", bars1: ["E", "B", "A", "A"], midBar: "||", bars2: ["G#m", "C#m", "E", "E"], endBar: ":||" },
+          { label: "Bg:",    labelColor: "color-bg",     startBar: "||:", bars1: ["E", "E", "A", "A"], midBar: "||", bars2: ["C#m", "F#m", "B", "E"], endBar: ":||" },
+          { label: "",       labelColor: "",             startBar: "||",  bars1: ["G#", "G#", "B", "B"], midBar: "||", bars2: ["A", "A", "E", "E"], endBar: "||" },
+          { label: "Ap:",    labelColor: "color-ap",     startBar: "||:", bars1: ["E", "E", "A", "F#m"], midBar: "||", bars2: ["A", "A", "E", "E"], endBar: ":||" },
+          { label: "",       labelColor: "",             startBar: "||:", bars1: ["C#", "C#", "F#m", "F#m"], midBar: "||", bars2: ["A", "A", "E", "E"], endBar: ":||" },
+          { label: "Bg:",    labelColor: "color-bg",     startBar: "||",  bars1: ["E", "E", "E", "E"], midBar: "||", bars2: ["F#m", "F#m", "E", "E"], endBar: "||" },
+          { label: "Chorus:", labelColor: "color-chorus", startBar: "||:", bars1: ["E", "E", "B", "B"], midBar: "||", bars2: ["A", "G#m", "B", "E"], endBar: ":||" }
+        ],
+        // Editor Sections (Image 2 style)
+        sections: [
+          {
+            name: "Intro Section",
+            notes: "Ambient flute & acoustic",
+            lines: [
+              ["E", "E", "B", "B"],
+              ["A", "E", "F#m", "E"]
+            ]
+          },
+          {
+            name: "Brass Section",
+            notes: "Horn fanfare build",
+            lines: [
+              ["E", "C#m", "B", "B"],
+              ["E", "A", "E/B", "E"]
+            ]
+          },
+          {
+            name: "Chorus",
+            notes: "Full band lift",
+            lines: [
+              ["E", "B", "A", "A"],
+              ["G#m", "C#m", "E", "E"]
+            ]
+          }
+        ]
+      },
+
+      // 2. Reference Song: Autumn Leaves (from User Image 1)
+      { 
+        id: 7, 
+        title: "Autumn Leaves", 
+        artist: "Jazz Standard", 
+        key: "Gm", 
+        bpm: 120, 
+        time: "4/4",
+        capo: 0,
+        folderId: "jazz", 
+        starred: true,
+        sheetLines: [
+          { label: "A section:", labelColor: "color-a-section", startBar: "||", bars1: ["Am7", "D7", "GΔ7", "CΔ7"], midBar: "||", bars2: ["F#m7♭5", "B7", "Em7", "Em7"], endBar: "||" },
+          { label: "B section:", labelColor: "color-b-section", startBar: "||", bars1: ["F#m7♭5", "B7♭9", "Em7", "Em7"], midBar: "||", bars2: ["Am7", "D7", "GΔ7", "CΔ7"], endBar: "||" },
+          { label: "Coda:",      labelColor: "color-coda",      startBar: "||", bars1: ["F#m7♭5", "B7♭9", "Em7 ♭7", "Dm7 G7"], midBar: "||", bars2: [], endBar: "" }
+        ],
+        sections: [
+          {
+            name: "A section",
+            notes: "Autumn leaves drift by my window",
+            lines: [
+              ["Am7", "D7", "GΔ7", "CΔ7"],
+              ["F#m7♭5", "B7", "Em7", "Em7"]
+            ]
+          },
+          {
+            name: "B section",
+            notes: "The falling leaves of red and gold",
+            lines: [
+              ["F#m7♭5", "B7♭9", "Em7", "Em7"],
+              ["Am7", "D7", "GΔ7", "CΔ7"]
+            ]
+          },
+          {
+            name: "Coda",
+            notes: "Final resolution",
+            lines: [
+              ["F#m7♭5", "B7♭9", "Em7 ♭7", "Dm7 G7"]
+            ]
+          }
+        ]
+      },
+
+      // 3. Hero Worship Song: Way Maker
+      { 
+        id: 1, 
+        title: "Way Maker", 
+        artist: "Sinach / Leeland", 
+        key: "E♭", 
+        bpm: 68, 
+        time: "4/4",
+        capo: 1,
+        folderId: "sunday", 
+        starred: true,
+        sheetLines: [
+          { label: "Intro:", labelColor: "color-intro", startBar: "||:", bars1: ["E♭", "B♭", "Cm7", "A♭"], midBar: "||", bars2: ["E♭", "B♭", "Cm7", "A♭"], endBar: ":||" },
+          { label: "Verse 1:", labelColor: "color-song", startBar: "||", bars1: ["E♭", "B♭", "Cm7", "A♭"], midBar: "||", bars2: ["E♭", "B♭", "Cm7", "A♭"], endBar: "||" },
+          { label: "Chorus:", labelColor: "color-chorus", startBar: "||:", bars1: ["E♭", "B♭", "Cm7", "A♭"], midBar: "||", bars2: ["E♭", "B♭", "Cm7", "A♭"], endBar: ":||" },
+          { label: "Bridge:", labelColor: "color-bg", startBar: "||:", bars1: ["E♭", "B♭", "Cm7", "A♭"], midBar: "||", bars2: ["E♭", "B♭", "Cm7", "A♭"], endBar: ":||" }
+        ],
+        sections: [
+          {
+            name: "Intro Section",
+            notes: "Pad atmospheric swell",
+            lines: [
+              ["E♭", "B♭", "Cm7", "A♭"]
+            ]
+          },
+          {
+            name: "Verse 1",
+            notes: "You are here moving in our midst",
+            lines: [
+              ["E♭", "B♭", "Cm7", "A♭"]
+            ]
+          },
+          {
+            name: "Chorus",
+            notes: "Way maker, miracle worker",
+            lines: [
+              ["E♭", "B♭", "Cm7", "A♭"],
+              ["E♭", "B♭", "Cm7", "A♭"]
+            ]
+          }
+        ]
+      },
+
+      // 4. Gratitude
+      { 
+        id: 2, 
+        title: "Gratitude", 
+        artist: "Brandon Lake", 
+        key: "B", 
+        bpm: 78, 
+        time: "6/8",
+        capo: 0,
+        folderId: "sunday", 
+        starred: true,
+        sheetLines: [
+          { label: "Intro:", labelColor: "color-intro", startBar: "||:", bars1: ["B", "F♯", "G♯m", "E"], midBar: "||", bars2: ["B", "F♯", "G♯m", "E"], endBar: ":||" },
+          { label: "Verse 1:", labelColor: "color-song", startBar: "||", bars1: ["B", "F♯", "G♯m", "E"], midBar: "||", bars2: ["B", "F♯", "G♯m", "E"], endBar: "||" },
+          { label: "Chorus:", labelColor: "color-chorus", startBar: "||:", bars1: ["B", "F♯", "G♯m", "E"], midBar: "||", bars2: ["B", "F♯", "G♯m", "E"], endBar: ":||" }
+        ],
+        sections: [
+          {
+            name: "A Section",
+            notes: "Acoustic fingerpick lead",
+            lines: [
+              ["B", "F♯", "G♯m", "E"]
+            ]
+          },
+          {
+            name: "Chorus",
+            notes: "So I throw up my hands",
+            lines: [
+              ["B", "F♯", "G♯m", "E"]
+            ]
+          }
+        ]
+      },
+
+      // 5. Goodness of God
+      {
+        id: 3,
+        title: "Goodness of God",
+        artist: "Bethel Music / Jenn Johnson",
+        key: "A♭",
+        bpm: 68,
+        time: "4/4",
+        capo: 1,
+        folderId: "sunday",
+        starred: true,
+        sheetLines: [
+          { label: "Verse 1:", labelColor: "color-intro", startBar: "||", bars1: ["A♭", "D♭", "A♭", "E♭"], midBar: "||", bars2: ["Fm", "D♭", "E♭", "A♭"], endBar: "||" },
+          { label: "Chorus:", labelColor: "color-chorus", startBar: "||:", bars1: ["D♭", "A♭", "D♭", "A♭"], midBar: "||", bars2: ["Fm", "D♭", "E♭", "A♭"], endBar: ":||" }
+        ],
+        sections: [
+          { name: "Verse 1", notes: "I love You Lord", lines: [["A♭", "D♭", "A♭", "E♭"], ["Fm", "D♭", "E♭", "A♭"]] },
+          { name: "Chorus", notes: "All my life You have been faithful", lines: [["D♭", "A♭", "D♭", "A♭"], ["Fm", "D♭", "E♭", "A♭"]] }
+        ]
+      },
+
+      // 6. Build My Life
+      {
+        id: 4,
+        title: "Build My Life",
+        artist: "Housefires / Pat Barrett",
+        key: "G",
+        bpm: 70,
+        time: "4/4",
+        capo: 0,
+        folderId: "sunday",
+        starred: false,
+        sheetLines: [
+          { label: "Verse:", labelColor: "color-intro", startBar: "||", bars1: ["G", "C", "Em", "C"], midBar: "||", bars2: ["G", "C", "Em", "C"], endBar: "||" },
+          { label: "Chorus:", labelColor: "color-chorus", startBar: "||:", bars1: ["C", "Am", "G", "Em"], midBar: "||", bars2: ["C", "Am", "G", "Em"], endBar: ":||" }
+        ],
+        sections: [
+          { name: "Verse", notes: "Worthy of every song", lines: [["G", "C", "Em", "C"], ["G", "C", "Em", "C"]] },
+          { name: "Chorus", notes: "Holy, there is no one like You", lines: [["C", "Am", "G", "Em"], ["C", "Am", "G", "Em"]] }
+        ]
+      },
+
+      // 7. Stand By Me
+      {
+        id: 5,
+        title: "Stand By Me",
+        artist: "Ben E. King",
+        key: "A",
+        bpm: 118,
+        time: "4/4",
+        capo: 2,
+        folderId: "acoustic",
+        starred: true,
+        sheetLines: [
+          { label: "Progression:", labelColor: "color-song", startBar: "||:", bars1: ["A", "A", "F#m", "F#m"], midBar: "||", bars2: ["D", "E7", "A", "A"], endBar: ":||" }
+        ],
+        sections: [
+          { name: "Main Loop", notes: "When the night has come", lines: [["A", "A", "F#m", "F#m"], ["D", "E7", "A", "A"]] }
+        ]
+      },
+
+      // 8. Fast Car
+      {
+        id: 6,
+        title: "Fast Car",
+        artist: "Tracy Chapman",
+        key: "A",
+        bpm: 104,
+        time: "4/4",
+        capo: 2,
+        folderId: "acoustic",
+        starred: false,
+        sheetLines: [
+          { label: "Riff Loop:", labelColor: "color-intro", startBar: "||:", bars1: ["D", "A", "F#m", "E"], midBar: "||", bars2: ["D", "A", "F#m", "E"], endBar: ":||" }
+        ],
+        sections: [
+          { name: "Verse", notes: "You got a fast car", lines: [["D", "A", "F#m", "E"], ["D", "A", "F#m", "E"]] }
+        ]
+      },
+
+      // 9. Fly Me to the Moon
+      {
+        id: 8,
+        title: "Fly Me to the Moon",
+        artist: "Bart Howard / Frank Sinatra",
+        key: "Am",
+        bpm: 120,
+        time: "4/4",
+        capo: 0,
+        folderId: "jazz",
+        starred: true,
+        sheetLines: [
+          { label: "A Section:", labelColor: "color-a-section", startBar: "||:", bars1: ["Am7", "Dm7", "G7", "CΔ7"], midBar: "||", bars2: ["FΔ7", "Bm7♭5", "E7", "Am7"], endBar: ":||" },
+          { label: "B Section:", labelColor: "color-b-section", startBar: "||:", bars1: ["Dm7", "G7", "CΔ7", "Am7"], midBar: "||", bars2: ["Dm7", "E7", "Am7", "A7"], endBar: ":||" }
+        ],
+        sections: [
+          { name: "A Section", notes: "Fly me to the moon", lines: [["Am7", "Dm7", "G7", "CΔ7"], ["FΔ7", "Bm7♭5", "E7", "Am7"]] },
+          { name: "B Section", notes: "In other words, hold my hand", lines: [["Dm7", "G7", "CΔ7", "Am7"], ["Dm7", "E7", "Am7", "A7"]] }
+        ]
+      },
+
+      // 10. Blue Bossa
+      {
+        id: 9,
+        title: "Blue Bossa",
+        artist: "Kenny Dorham",
+        key: "Cm",
+        bpm: 140,
+        time: "4/4",
+        capo: 0,
+        folderId: "jazz",
+        starred: true,
+        sheetLines: [
+          { label: "A Section:", labelColor: "color-a-section", startBar: "||:", bars1: ["Cm7", "Cm7", "Fm7", "Fm7"], midBar: "||", bars2: ["Dm7♭5", "G7", "Cm7", "Cm7"], endBar: ":||" },
+          { label: "B Section:", labelColor: "color-b-section", startBar: "||:", bars1: ["E♭m7", "A♭7", "D♭Δ7", "D♭Δ7"], midBar: "||", bars2: ["Dm7♭5", "G7", "Cm7", "Dm7♭5 G7"], endBar: ":||" }
+        ],
+        sections: [
+          { name: "A Section", notes: "Minor bossa head", lines: [["Cm7", "Cm7", "Fm7", "Fm7"], ["Dm7♭5", "G7", "Cm7", "Cm7"]] },
+          { name: "B Section", notes: "Modulation to Db", lines: [["E♭m7", "A♭7", "D♭Δ7", "D♭Δ7"], ["Dm7♭5", "G7", "Cm7", "Dm7♭5 G7"]] }
+        ]
+      },
+
+      // 11. Glorious Day
+      {
+        id: 10,
+        title: "Glorious Day",
+        artist: "Passion / Kristian Stanfill",
+        key: "D",
+        bpm: 110,
+        time: "4/4",
+        capo: 2,
+        folderId: "sunday",
+        starred: false,
+        sheetLines: [
+          { label: "Intro:", labelColor: "color-intro", startBar: "||", bars1: ["D", "Bm", "G", "D"], midBar: "||", bars2: ["D", "Bm", "G", "D"], endBar: "||" },
+          { label: "Chorus:", labelColor: "color-chorus", startBar: "||:", bars1: ["G", "D", "Bm", "A"], midBar: "||", bars2: ["G", "D", "Bm", "A"], endBar: ":||" }
+        ],
+        sections: [
+          { name: "Verse", notes: "I was buried beneath my shame", lines: [["D", "Bm", "G", "D"]] },
+          { name: "Chorus", notes: "You called my name", lines: [["G", "D", "Bm", "A"]] }
+        ]
+      },
+
+      // 12. Living Hope
+      {
+        id: 11,
+        title: "Living Hope",
+        artist: "Phil Wickham",
+        key: "E♭",
+        bpm: 72,
+        time: "4/4",
+        capo: 1,
+        folderId: "sunday",
+        starred: true,
+        sheetLines: [
+          { label: "Verse 1:", labelColor: "color-intro", startBar: "||", bars1: ["E♭", "B♭", "A♭", "E♭"], midBar: "||", bars2: ["Fm", "E♭", "B♭", "E♭"], endBar: "||" },
+          { label: "Chorus:", labelColor: "color-chorus", startBar: "||:", bars1: ["A♭", "E♭", "B♭", "Cm"], midBar: "||", bars2: ["A♭", "E♭", "B♭", "E♭"], endBar: ":||" }
+        ],
+        sections: [
+          { name: "Verse 1", notes: "How great the chasm", lines: [["E♭", "B♭", "A♭", "E♭"], ["Fm", "E♭", "B♭", "E♭"]] },
+          { name: "Chorus", notes: "Hallelujah, praise the One who set me free", lines: [["A♭", "E♭", "B♭", "Cm"], ["A♭", "E♭", "B♭", "E♭"]] }
+        ]
+      },
+
+      // 13. In Christ Alone
+      {
+        id: 12,
+        title: "In Christ Alone",
+        artist: "Keith Getty & Stuart Townend",
+        key: "D",
+        bpm: 64,
+        time: "3/4",
+        capo: 0,
+        folderId: "hymns",
+        starred: true,
+        sheetLines: [
+          { label: "Verse 1:", labelColor: "color-song", startBar: "||", bars1: ["D", "G", "A", "D"], midBar: "||", bars2: ["G", "D/F#", "Em", "A D"], endBar: "||" }
+        ],
+        sections: [
+          { name: "Verse 1", notes: "In Christ alone my hope is found", lines: [["D", "G", "A", "D"], ["G", "D/F#", "Em", "A D"]] }
+        ]
+      }
+    ];
+
+    // Reference Image Setlists matching Screenshot exactly
+    const SETLISTS = [
+      {
+        id: 'sunday-worship',
+        title: 'Sunday Worship Service',
+        status: 'scheduled',
+        date: 'May 17, 2026',
+        time: '9:30 AM',
+        duration: '24 min',
+        songs: [
+          { id: 1, title: 'Way Maker', key: 'E♭' },
+          { id: 2, title: 'Gratitude', key: 'B' },
+          { id: 3, title: 'Goodness of God', key: 'A♭' },
+          { id: 4, title: 'Build My Life', key: 'G' }
+        ]
+      },
+      {
+        id: 'friday-acoustic',
+        title: 'Friday Acoustic Night',
+        status: 'draft',
+        date: 'May 22, 2026',
+        time: '8:00 PM',
+        duration: '24 min',
+        songs: [
+          { id: 5, title: 'Stand By Me', key: 'A' },
+          { id: 6, title: 'Fast Car', key: 'A' },
+          { id: 8, title: 'Fly Me to the Moon', key: 'Am' },
+          { id: 7, title: 'Autumn Leaves', key: 'Gm' }
+        ]
+      },
+      {
+        id: 'jazz-club',
+        title: 'Jazz Club Evening Session',
+        status: 'draft',
+        date: 'Jun 05, 2026',
+        time: '9:00 PM',
+        duration: '24 min',
+        songs: [
+          { id: 7, title: 'Autumn Leaves', key: 'Gm' },
+          { id: 8, title: 'Fly Me to the Moon', key: 'Am' },
+          { id: 9, title: 'Blue Bossa', key: 'Cm' },
+          { id: 101, title: 'Malaghamarum', key: 'E' }
+        ]
+      },
+      {
+        id: 'easter-sunday',
+        title: 'Easter Sunday Celebration',
+        status: 'archived',
+        date: 'Apr 12, 2026',
+        time: '10:00 AM',
+        duration: '30 min',
+        songs: [
+          { id: 10, title: 'Glorious Day', key: 'D' },
+          { id: 11, title: 'Living Hope', key: 'E♭' },
+          { id: 12, title: 'In Christ Alone', key: 'D' },
+          { id: 1, title: 'Way Maker', key: 'E♭' },
+          { id: 2, title: 'Gratitude', key: 'B' }
+        ]
+      }
+    ];
+
+    // =========================================================
+    // 2. STATE ENGINE
+    // =========================================================
+    let currentView = 'chord_reader'; // default to show the user's requested view immediately!
+    let currentFolderId = null;
+    let currentSetlistId = null;
+    let currentSongId = 7; // Autumn Leaves by default (matches Image 1)
+    let openTabs = [7, 101, 1]; // Autumn Leaves, Malaghamarum, Way Maker
+
+    // Setlist Gig Flow State & Filters
+    let activeSetlistFilter = 'all'; // 'all' | 'scheduled' | 'draft' | 'archived'
+    let activeSetlistFlow = null; // { setlistId, songIndex }
+
+    // Mode toggles
+    let chartViewMode = 'sheet'; // 'sheet' (Image 1) or 'edit' (Image 2)
+    let paperScoreTheme = true; // true = white paper score like Image 1, false = dark studio
+
+    // Transpose
+    let transposeOffset = 0;
+
+    // Editor Selected Cell state
+    let selectedCell = {
+      sectionIdx: 1, // B Section by default like Image 2
+      lineIdx: 0,
+      barIdx: 0
+    };
+
+    function switchView(view, params = {}) {
+      currentView = view;
+
+      document.querySelectorAll('.dock-nav-item').forEach(b => b.classList.remove('active'));
+      const activeBtn = document.getElementById(`dockBtn-${view}`);
+      if (activeBtn) activeBtn.classList.add('active');
+
+      const brandSubtitle = document.getElementById('brandSubtitle');
+      const bottomDock = document.getElementById('bottomDock');
+
+      if (view === 'folders') {
+        currentFolderId = null;
+        if (brandSubtitle) brandSubtitle.textContent = 'Studio Library';
+        if (bottomDock) bottomDock.style.display = 'flex';
+        renderFoldersView();
+      } else if (view === 'inside_folder') {
+        if (params.folderId) currentFolderId = params.folderId;
+        const f = FOLDERS.find(folder => folder.id === currentFolderId);
+        if (brandSubtitle) brandSubtitle.textContent = f ? f.name : 'Folder View';
+        if (bottomDock) bottomDock.style.display = 'flex';
+        renderInsideFolderView();
+      } else if (view === 'setlists') {
+        if (brandSubtitle) brandSubtitle.textContent = 'Gig Planner';
+        if (bottomDock) bottomDock.style.display = 'flex';
+        renderSetlistsView();
+      } else if (view === 'chord_reader') {
+        if (params.songId) {
+          currentSongId = params.songId;
+          if (!openTabs.includes(params.songId)) openTabs.push(params.songId);
+          transposeOffset = 0;
+        }
+        if (brandSubtitle) brandSubtitle.textContent = chartViewMode === 'sheet' ? 'Musical Score Sheet' : 'Mobile Chord Editor';
+        // When in mobile edit view, dock is hidden to make room for keypad
+        if (bottomDock) bottomDock.style.display = chartViewMode === 'edit' ? 'none' : 'flex';
+        renderChordReaderView();
+      } else if (view === 'starred') {
+        if (brandSubtitle) brandSubtitle.textContent = 'Favorites';
+        if (bottomDock) bottomDock.style.display = 'flex';
+        renderStarredView();
+      } else if (view === 'lyrics') {
+        if (brandSubtitle) brandSubtitle.textContent = 'Lyrics Prompter';
+        if (bottomDock) bottomDock.style.display = 'flex';
+        renderLyricsView();
+      }
+
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // =========================================================
+    // 3. CHORD READER & EDITOR MAIN CONTROLLER
+    // =========================================================
+    function renderChordReaderView() {
+      const mount = document.getElementById('viewMountPoint');
+      if (!mount) return;
+
+      const song = SONGS.find(s => s.id === currentSongId) || SONGS[0];
+      const displayKey = transposeChordRoot(song.key, transposeOffset);
+
+      mount.innerHTML = `
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+
+          ${activeSetlistFlow ? (() => {
+            const curSet = SETLISTS.find(s => s.id === activeSetlistFlow.setlistId);
+            if (!curSet) return '';
+            const idx = activeSetlistFlow.songIndex;
+            const isFirst = idx <= 0;
+            const isLast = idx >= curSet.songs.length - 1;
+            return `
+              <!-- Live Setlist Flow Navigation Header -->
+              <div class="gig-flow-header-banner">
+                <div style="display:flex; align-items:center; gap:10px;">
+                  <span class="gig-flow-tag">⚡ SETLIST FLOW</span>
+                  <div>
+                    <div style="font-size:13.5px; font-weight:800; color:white;">${escapeHtml(curSet.title)}</div>
+                    <div style="font-size:11px; color:#a5b4fc;">
+                      Song ${idx + 1} of ${curSet.songs.length}: <strong>${escapeHtml(song.title)}</strong> (Key ${escapeHtml(song.key)})
+                    </div>
+                  </div>
+                </div>
+                <div style="display:flex; align-items:center; gap:6px;">
+                  <button class="btn-flow-nav" onclick="prevSetlistSong()" ${isFirst ? 'disabled style="opacity:0.35; cursor:not-allowed;"' : ''}>
+                    ‹ Prev
+                  </button>
+                  <button class="btn-flow-nav btn-flow-next" onclick="nextSetlistSong()" ${isLast ? 'disabled style="opacity:0.35; cursor:not-allowed;"' : ''}>
+                    Next Song ›
+                  </button>
+                  <button class="btn-flow-exit" onclick="exitSetlistFlow()" title="Exit Flow">
+                    ✕ Exit
+                  </button>
+                </div>
+              </div>
+            `;
+          })() : ''}
+
+          <!-- Multi-Song Tab Strip -->
+          <div class="song-tab-strip">
+            ${openTabs.map(tid => {
+              const tabSong = SONGS.find(s => s.id === tid);
+              if (!tabSong) return '';
+              const isActive = tabSong.id === song.id;
+              return `
+                <div class="song-tab-pill ${isActive ? 'active' : ''}" onclick="switchSongTab(${tabSong.id})">
+                  <span>🎵 ${escapeHtml(tabSong.title)} (${tabSong.key})</span>
+                  <span class="song-tab-close" onclick="event.stopPropagation(); closeSongTab(${tabSong.id})">✕</span>
+                </div>
+              `;
+            }).join('')}
+            <button class="song-tab-add-btn" onclick="openQuickSongPicker()" title="Open song">+</button>
+          </div>
+
+          <!-- Controls Bar -->
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;">
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <button class="btn-back-crumb" onclick="switchView('folders')">
+                ← Library
+              </button>
+
+              <!-- Transpose Stepper -->
+              <div style="display: inline-flex; align-items: center; background: var(--bg-surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden;">
+                <button style="background: none; border: none; color: white; padding: 4px 10px; cursor: pointer; font-weight: 700;" onclick="stepTranspose(-1)">-</button>
+                <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; color: #cbd5e1; padding: 0 4px;">Key ${displayKey}</span>
+                <button style="background: none; border: none; color: white; padding: 4px 10px; cursor: pointer; font-weight: 700;" onclick="stepTranspose(1)">+</button>
+              </div>
+            </div>
+
+            <!-- View Switcher (Image 1 Sheet vs Image 2 Mobile Edit) -->
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <button 
+                class="control-chip-btn ${chartViewMode === 'sheet' ? 'active' : ''}" 
+                onclick="setChartViewMode('sheet')"
+                title="View as Sheet (Image 1)"
+              >
+                🎼 Sheet View (Image 1)
+              </button>
+              
+              <button 
+                class="control-chip-btn ${chartViewMode === 'edit' ? 'active' : ''}" 
+                onclick="setChartViewMode('edit')"
+                title="View as Mobile Edit Page (Image 2)"
+              >
+                📱 Edit Page (Image 2)
+              </button>
+
+              ${chartViewMode === 'sheet' ? `
+                <button 
+                  class="control-chip-btn ${paperScoreTheme ? 'active' : ''}" 
+                  onclick="togglePaperTheme()"
+                  title="Toggle White Paper Score (Image 1 theme)"
+                >
+                  ${paperScoreTheme ? '🌙 Dark Sheet' : '📄 Paper Score'}
+                </button>
+              ` : ''}
+            </div>
+          </div>
+
+          <!-- VIEW CONTAINER: Switches between Image 1 and Image 2 -->
+          <div id="chartRenderContainer">
+            ${chartViewMode === 'sheet' ? renderImage1SheetHtml(song, displayKey) : renderImage2EditorHtml(song)}
+          </div>
+
+        </div>
+
+        <!-- Render Keypad when in Edit Mode (Image 2) -->
+        ${chartViewMode === 'edit' ? renderImage2KeypadHtml(song) : ''}
+      `;
+    }
+
+    function setChartViewMode(mode) {
+      chartViewMode = mode;
+      const bottomDock = document.getElementById('bottomDock');
+      if (bottomDock) {
+        bottomDock.style.display = mode === 'edit' ? 'none' : 'flex';
+      }
+      renderChordReaderView();
+      showToast(mode === 'sheet' ? 'Organized as Sheet Score (Image 1)' : 'Organized as Mobile Editor (Image 2)');
+    }
+
+    function togglePaperTheme() {
+      paperScoreTheme = !paperScoreTheme;
+      renderChordReaderView();
+      showToast(paperScoreTheme ? 'White Paper Score Mode (Image 1 Theme)' : 'Dark Obsidian Sheet Mode');
+    }
+
+    // =========================================================
+    // 4. RENDER: IMAGE 1 SHEET SCORE VIEW
+    // =========================================================
+    function renderImage1SheetHtml(song, displayKey) {
+      let lines = song.sheetLines || [];
+      if (lines.length === 0 && song.sections) {
+        lines = [];
+        song.sections.forEach(sec => {
+          sec.lines.forEach((l, idx) => {
+            lines.push({
+              label: idx === 0 ? sec.name + ":" : "",
+              labelColor: "color-intro",
+              startBar: "||",
+              bars1: l.slice(0, 4),
+              midBar: "||",
+              bars2: l.length > 4 ? l.slice(4, 8) : [],
+              endBar: "||"
+            });
+          });
+        });
+      }
+
+      return `
+        <div class="sheet-outer-card ${paperScoreTheme ? 'paper-theme' : ''}">
+          
+          <!-- Top Title Bar (Exact Image 1 layout: Centered Title & Time, Right Tempo) -->
+          <div class="sheet-header-title-row">
+            <div class="sheet-header-spacer"></div>
+            <div class="sheet-header-center">
+              <span class="sheet-header-title">${escapeHtml(song.title)}</span>
+              <span class="sheet-header-time">${song.time}</span>
+            </div>
+            <div class="sheet-header-tempo">
+              t=${song.bpm}
+            </div>
+          </div>
+
+          <!-- Aligned Musical Grid: Flexbox Non-Wrapping Track -->
+          <div class="sheet-grid-table">
+            ${lines.map(line => {
+              const hasBars2 = line.bars2 && line.bars2.length > 0;
+
+              return `
+                <div class="sheet-line-row">
+                  <!-- Section Label -->
+                  <div class="sheet-label-cell ${line.labelColor || ''}">
+                    ${line.label || ''}
+                  </div>
+
+                  <!-- Chords Track -->
+                  <div class="sheet-chords-track">
+                    <!-- Start Bar Marker -->
+                    <span class="sheet-bar-symbol double">${line.startBar || '||'}</span>
+
+                    <!-- Measures 1 to 4 -->
+                    ${(line.bars1 || []).map((chord, cIdx) => `
+                      <div class="sheet-chord-measure" onclick="onSheetMeasureClick('${chord}')">
+                        ${formatChordHtml(transposeFullChord(chord, transposeOffset))}
+                      </div>
+                      ${cIdx < line.bars1.length - 1 ? `<span class="sheet-bar-symbol single">|</span>` : ''}
+                    `).join('')}
+
+                    <!-- Middle & Suffix Bars -->
+                    ${hasBars2 ? `
+                      <span class="sheet-bar-symbol double">${line.midBar || '||'}</span>
+                      ${line.bars2.map((chord, cIdx) => `
+                        <div class="sheet-chord-measure" onclick="onSheetMeasureClick('${chord}')">
+                          ${formatChordHtml(transposeFullChord(chord, transposeOffset))}
+                        </div>
+                        ${cIdx < line.bars2.length - 1 ? `<span class="sheet-bar-symbol single">|</span>` : ''}
+                      `).join('')}
+                      <span class="sheet-bar-symbol double">${line.endBar || '||'}</span>
+                    ` : `
+                      <span class="sheet-bar-symbol double">${line.endBar || line.midBar || '||'}</span>
+                    `}
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+
+        </div>
+      `;
+    }
+
+    function onSheetMeasureClick(chord) {
+      showToast(`Selected measure chord: ${chord}`);
+    }
+
+    // =========================================================
+    // 5. MUSIC THEORY, CHORD VOICING & NORMALIZATION ENGINE
+    // =========================================================
+    const SEMITONES = { "C": 0, "D": 2, "E": 4, "F": 5, "G": 7, "A": 9, "B": 11 };
+    const CHROMATIC_SHARP = ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"];
+    const CHROMATIC_FLAT  = ["C", "D♭", "D", "E♭", "E", "F", "G♭", "G", "A♭", "A", "B♭", "B"];
+
+    function normalizeChordInput(raw) {
+      if (!raw || raw === "_" || raw === "%" || raw === "." || raw === "-") return raw;
+      return raw
+        .replace(/^([A-G])#/i, '$1♯')
+        .replace(/^([A-G])b/i, '$1♭')
+        .replace(/\/([A-G])#/i, '/$1♯')
+        .replace(/\/([A-G])b/i, '/$1♭')
+        .replace(/maj7/gi, 'Δ7')
+        .replace(/major7/gi, 'Δ7')
+        .replace(/maj9/gi, 'Δ9')
+        .replace(/m7b5/gi, 'ø7')
+        .replace(/m7♭5/gi, 'ø7')
+        .replace(/dim7/gi, '°7')
+        .replace(/dim/gi, '°')
+        .replace(/aug7/gi, '+7')
+        .replace(/aug/gi, '+')
+        .replace(/b(?=[0-9])/g, '♭')
+        .replace(/#(?=[0-9])/g, '♯');
+    }
+
+    function calculateVoicing(rawChord) {
+      if (!rawChord || rawChord === "%" || rawChord === "." || rawChord === "_" || rawChord === "-") {
+        return "";
+      }
+      const firstChord = rawChord.split(/\s+/)[0];
+      const match = firstChord.match(/^([A-G][♯♭#b]?)(.*)$/);
+      if (!match) return "";
+      const root = match[1].replace("#", "♯").replace("b", "♭");
+      const ext = match[2];
+
+      const cleanRoot = root.replace("♯", "").replace("♭", "");
+      let basePitch = SEMITONES[cleanRoot] || 0;
+      if (root.includes("♯")) basePitch = (basePitch + 1) % 12;
+      if (root.includes("♭")) basePitch = (basePitch - 1 + 12) % 12;
+
+      let intervals = [0, 4, 7]; // Major triad
+      if (ext.startsWith("m") && !ext.startsWith("maj")) intervals = [0, 3, 7]; // Minor
+      if (ext.includes("dim") || ext.includes("°")) intervals = [0, 3, 6];
+      if (ext.includes("ø") || ext.includes("m7b5") || ext.includes("m7♭5")) intervals = [0, 3, 6, 10];
+      if (ext.includes("aug") || ext.includes("+")) intervals = [0, 4, 8];
+      if (ext.includes("sus4")) intervals = [0, 5, 7];
+      if (ext.includes("sus2")) intervals = [0, 2, 7];
+      if (ext.includes("add9")) intervals = [0, 4, 7, 2];
+      if (ext.includes("7") && !ext.includes("maj7") && !ext.includes("Δ") && !ext.includes("ø") && !ext.includes("°7")) {
+        intervals.push(10); // Dominant 7th
+      } else if (ext.includes("maj7") || ext.includes("Δ") || ext.includes("△")) {
+        intervals.push(11); // Major 7th
+      } else if (ext.includes("°7") || ext.includes("dim7")) {
+        intervals.push(9); // Diminished 7th
+      }
+      if (ext.includes("6")) intervals.push(9);
+      if (ext.includes("9") && !ext.includes("add9")) intervals.push(2);
+
+      const scale = (root.includes("♭") || ['F','B♭','E♭','A♭'].includes(root)) ? CHROMATIC_FLAT : CHROMATIC_SHARP;
+      const notes = intervals.map(sem => scale[(basePitch + sem) % 12]);
+      return notes.join(" • ");
+    }
+
+    let isSlashBassMode = false;
+    let isDirectTextMode = false;
+
+    // =========================================================
+    // 6. RENDER: IMAGE 2 MOBILE CHORD EDITOR VIEW
+    // =========================================================
+    function renderImage2EditorHtml(song) {
+      if (!song.sections) {
+        song.sections = [
+          {
+            name: "A Section",
+            notes: "Section notes / lyrics...",
+            lines: [
+              ["Am7", "D7", "GΔ7", "CΔ7"],
+              ["F#m7♭5", "B7", "Em7", "Em7"]
+            ]
+          },
+          {
+            name: "B Section",
+            notes: "Section notes / lyrics...",
+            lines: [
+              ["F#m7♭5", "B7♭9", "Em7", "Em7"],
+              ["Am7", "D7", "GΔ7", "CΔ7"]
+            ]
+          },
+          {
+            name: "Coda",
+            notes: "Final resolution",
+            lines: [
+              ["F#m7♭5", "B7b9", "Em7 Eb7", "Dm7 G7"]
+            ]
+          }
+        ];
+      }
+
+      // Calculate total bars
+      let totalBars = 0;
+      let totalLines = 0;
+      song.sections.forEach(s => {
+        totalLines += s.lines.length;
+        s.lines.forEach(l => totalBars += l.length);
+      });
+
+      return `
+        <div class="mobile-editor-shell">
+
+          <!-- Top Song Title & Meta Boxes (Image 2 top) -->
+          <div>
+            <div style="margin-bottom: 8px;">
+              <input 
+                type="text" 
+                value="${escapeHtml(song.title)}" 
+                oninput="updateSongTitle(this.value)"
+                style="width: 100%; background: transparent; border: none; border-bottom: 1px solid rgba(255,255,255,0.15); color: white; font-size: 19px; font-weight: 800; padding: 2px 0; outline: none;" 
+              />
+            </div>
+
+            <div class="editor-top-meta-cards">
+              <div class="editor-meta-box">
+                <span class="meta-box-label">TEMPO</span>
+                <div style="display: flex; align-items: center; gap: 4px;">
+                  <span style="font-size: 11px; font-weight: 700; color: #94a3b8;">BPM</span>
+                  <input 
+                    type="number" 
+                    value="${song.bpm}" 
+                    oninput="updateSongBpm(this.value)"
+                    style="width: 60px; background: transparent; border: none; color: white; font-size: 14px; font-weight: 800; font-family: 'JetBrains Mono', monospace; outline: none;" 
+                  />
+                </div>
+              </div>
+              <div class="editor-meta-box">
+                <span class="meta-box-label">TIME</span>
+                <input 
+                  type="text" 
+                  value="${song.time}" 
+                  oninput="updateSongTime(this.value)"
+                  style="width: 60px; background: transparent; border: none; color: white; font-size: 14px; font-weight: 800; font-family: 'JetBrains Mono', monospace; outline: none;" 
+                />
+              </div>
+            </div>
+          </div>
+
+          <!-- Stats Line (Image 2: 3 LINES • 20 BARS TOTAL | 💡 TAP BAR TO OPEN KEYPAD) -->
+          <div class="editor-stats-row">
+            <span>${totalLines} LINES • ${totalBars} BARS TOTAL</span>
+            <span style="color: #818cf8;">💡 TAP BAR TO OPEN KEYPAD</span>
+          </div>
+
+          <!-- Section Cards Grid (Image 2) -->
+          ${song.sections.map((sec, secIdx) => `
+            <div class="editor-section-card">
+              <!-- Section Header Row -->
+              <div class="editor-section-header-row">
+                <button class="editor-section-pill-btn" onclick="renameSectionPrompt(${secIdx})" title="Tap to rename section">
+                  ${escapeHtml(sec.name)}
+                </button>
+                <input 
+                  type="text" 
+                  class="editor-section-notes-input" 
+                  value="${escapeHtml(sec.notes || '')}" 
+                  placeholder="Section notes / lyrics..." 
+                  oninput="updateSectionNotes(${secIdx}, this.value)"
+                />
+                <button class="editor-del-btn" onclick="deleteSection(${secIdx})" title="Delete entire section">✕</button>
+              </div>
+
+              <!-- Lines of Bars -->
+              ${sec.lines.map((line, lineIdx) => `
+                <div class="editor-measure-line-row">
+                  <span class="editor-line-bracket">||</span>
+                  
+                  <div class="editor-bars-strip">
+                    ${line.map((chord, barIdx) => {
+                      const isSelected = selectedCell.sectionIdx === secIdx && 
+                                         selectedCell.lineIdx === lineIdx && 
+                                         selectedCell.barIdx === barIdx;
+                      return `
+                        <button 
+                          class="editor-bar-btn ${isSelected ? 'selected' : ''}"
+                          onclick="selectEditorBar(${secIdx}, ${lineIdx}, ${barIdx})"
+                          style="${isSelected ? 'border-color: #f59e0b !important; box-shadow: 0 0 0 2px #f59e0b, 0 0 10px rgba(245, 158, 11, 0.45) !important;' : ''}"
+                        >
+                          ${formatChordHtml(chord)}
+                        </button>
+                      `;
+                    }).join('')}
+                  </div>
+
+                  <span class="editor-line-bracket">||</span>
+                  <button class="editor-del-btn" onclick="deleteLineFromSection(${secIdx}, ${lineIdx})" title="Delete this 4-bar line">✕</button>
+                </div>
+              `).join('')}
+
+              <!-- Add Bars Buttons -->
+              <div class="editor-add-bars-group">
+                <button class="editor-add-bars-btn" onclick="addBarsToSection(${secIdx}, 4)">+ 4 Bars</button>
+                <button class="editor-add-bars-btn" onclick="addBarsToSection(${secIdx}, 2)">+ 2 Bars</button>
+              </div>
+            </div>
+          `).join('')}
+
+          <div style="margin-top: 8px;">
+            <button class="editor-add-bars-btn" onclick="addNewSection()" style="width: 100%; height: 38px; border-style: solid; border-color: rgba(255,255,255,0.15);">
+              + Add New Section
+            </button>
+          </div>
+
+        </div>
+      `;
+    }
+
+    // =========================================================
+    // 7. RENDER: IMAGE 2 FLOATING CHORD KEYPAD (4 ROWS)
+    // =========================================================
+    function renderImage2KeypadHtml(song) {
+      const sections = song.sections || [];
+      const currentSec = sections[selectedCell.sectionIdx] || sections[0] || { name: "B Section", lines: [["F#m7♭5"]] };
+      const currentLine = currentSec.lines[selectedCell.lineIdx] || currentSec.lines[0] || ["F#m7♭5"];
+      const currentChord = currentLine[selectedCell.barIdx] || "F#m7♭5";
+      const voicingNotes = calculateVoicing(currentChord) || "F# • A • C • E";
+
+      return `
+        <div class="mobile-keypad-panel">
+          
+          <!-- Keypad Top Header Row -->
+          <div class="keypad-header-row">
+            <div class="keypad-location-badge">
+              <span class="keypad-pill-tag">${escapeHtml(currentSec.name)}</span>
+              <span>Bar ${selectedCell.barIdx + 1} of ${currentLine.length}</span>
+            </div>
+
+            <div class="keypad-steppers-group">
+              <button class="keypad-stepper-btn" onclick="stepEditorBar(-1)">‹ Prev</button>
+              <button class="keypad-stepper-btn" onclick="stepEditorBar(1)">Next ›</button>
+            </div>
+
+            <button class="keypad-done-btn" onclick="setChartViewMode('sheet')">✓ Done</button>
+          </div>
+
+          <!-- Chord Preview & Voicing Row -->
+          <div class="keypad-preview-row">
+            <div class="keypad-preview-chord">
+              <span>${formatChordHtml(currentChord)}</span>
+              <span class="keypad-cursor"></span>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <button 
+                onclick="toggleStudioDirectText()" 
+                style="background: transparent; border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; color: #cbd5e1; padding: 2px 6px; font-size: 13px; cursor: pointer;"
+                title="Toggle text input"
+              >⌨</button>
+              <span class="keypad-notes-pill" id="studioVoicingNotes">${escapeHtml(voicingNotes)}</span>
+            </div>
+          </div>
+
+          <!-- Direct Text Input Bar (Expandable) -->
+          <div id="studioDirectTextBar" style="display: ${isDirectTextMode ? 'flex' : 'none'}; gap: 6px; padding: 4px 0 8px;">
+            <input 
+              type="text" 
+              id="studioDirectInput" 
+              value="${escapeHtml(currentChord)}" 
+              placeholder="Type chord e.g. F#m7b5, Em7 Eb7..."
+              onkeydown="if(event.key==='Enter'){applyStudioDirectText(this.value);}"
+              style="flex: 1; height: 32px; background: rgba(0,0,0,0.5); border: 1px solid #4f46e5; border-radius: 6px; color: white; padding: 0 8px; font-family: 'JetBrains Mono', monospace; font-size: 13px; outline: none;" 
+            />
+            <button 
+              onclick="applyStudioDirectText(document.getElementById('studioDirectInput').value)"
+              style="background: #4f46e5; color: white; border: none; border-radius: 6px; padding: 0 12px; font-size: 12px; font-weight: 700; cursor: pointer;"
+            >Set</button>
+          </div>
+
+          <!-- 4-Row Button Grid (Image 2) -->
+          
+          <!-- Row 1: Root Notes -->
+          <div class="keypad-buttons-grid-row row-roots">
+            ${['C', 'D', 'E', 'F', 'G', 'A', 'B'].map(r => `
+              <button class="kp-btn" onclick="keypadInputRoot('${r}')">${r}</button>
+            `).join('')}
+          </div>
+
+          <!-- Row 2: Accidentals & Common Qualities -->
+          <div class="keypad-buttons-grid-row row-types">
+            ${['♯', '♭', 'm', '7', 'maj7', 'sus4', 'dim'].map(q => `
+              <button class="kp-btn secondary" onclick="keypadInputExt('${q}')">${q}</button>
+            `).join('')}
+          </div>
+
+          <!-- Row 3: Extensions -->
+          <div class="keypad-buttons-grid-row row-exts">
+            ${['aug', '9', '6', 'sus2', 'add9', '/', '%'].map(e => `
+              <button class="kp-btn secondary" onclick="keypadInputExt('${e}')">${e}</button>
+            `).join('')}
+          </div>
+
+          <!-- Row 4: Action Buttons (5 buttons matching Image 3) -->
+          <div class="keypad-buttons-grid-row row-actions">
+            <button class="kp-btn secondary" onclick="toggleStudioDirectText()">⌨ Text</button>
+            <button class="kp-btn secondary" onclick="keypadBackspace()">⌫</button>
+            <button class="kp-btn secondary" onclick="keypadInsertBar()">+ Bar</button>
+            <button class="kp-btn accent-del" onclick="keypadDeleteChord()">Delete</button>
+            <button class="kp-btn accent-next" onclick="stepEditorBar(1)">Next Bar ›</button>
+          </div>
+
+        </div>
+      `;
+    }
+
+    // Keypad & Model Update Functions
+    function updateSongTitle(title) {
+      const song = SONGS.find(s => s.id === currentSongId) || SONGS[0];
+      song.title = title;
+    }
+
+    function updateSongBpm(bpm) {
+      const song = SONGS.find(s => s.id === currentSongId) || SONGS[0];
+      song.bpm = parseInt(bpm) || 120;
+    }
+
+    function updateSongTime(time) {
+      const song = SONGS.find(s => s.id === currentSongId) || SONGS[0];
+      song.time = time;
+    }
+
+    function updateSectionNotes(secIdx, val) {
+      const song = SONGS.find(s => s.id === currentSongId) || SONGS[0];
+      if (song.sections && song.sections[secIdx]) {
+        song.sections[secIdx].notes = val;
+      }
+    }
+
+    function renameSectionPrompt(secIdx) {
+      const song = SONGS.find(s => s.id === currentSongId) || SONGS[0];
+      if (!song.sections || !song.sections[secIdx]) return;
+      const cur = song.sections[secIdx].name;
+      const next = prompt("Edit section name:", cur);
+      if (next !== null && next.trim()) {
+        song.sections[secIdx].name = next.trim();
+        renderChordReaderView();
+        showToast(`Renamed to "${next.trim()}"`);
+      }
+    }
+
+    function deleteSection(secIdx) {
+      const song = SONGS.find(s => s.id === currentSongId) || SONGS[0];
+      if (!song.sections) return;
+      if (confirm(`Delete entire ${song.sections[secIdx].name}?`)) {
+        song.sections.splice(secIdx, 1);
+        if (song.sections.length === 0) {
+          song.sections.push({ name: "A Section", notes: "", lines: [["C", "G", "Am", "F"]] });
+        }
+        selectedCell.sectionIdx = 0;
+        selectedCell.lineIdx = 0;
+        selectedCell.barIdx = 0;
+        renderChordReaderView();
+        showToast("Section removed");
+      }
+    }
+
+    function deleteLineFromSection(secIdx, lineIdx) {
+      const song = SONGS.find(s => s.id === currentSongId) || SONGS[0];
+      if (!song.sections || !song.sections[secIdx]) return;
+      song.sections[secIdx].lines.splice(lineIdx, 1);
+      if (song.sections[secIdx].lines.length === 0) {
+        song.sections[secIdx].lines.push(["C", "C", "C", "C"]);
+      }
+      selectedCell.lineIdx = Math.min(lineIdx, song.sections[secIdx].lines.length - 1);
+      selectedCell.barIdx = 0;
+      renderChordReaderView();
+      showToast("4-Bar line deleted");
+    }
+
+    function addNewSection() {
+      const song = SONGS.find(s => s.id === currentSongId) || SONGS[0];
+      if (!song.sections) song.sections = [];
+      const secNum = song.sections.length + 1;
+      song.sections.push({
+        name: `Section ${secNum}`,
+        notes: "",
+        lines: [["C", "G", "Am", "F"]]
+      });
+      renderChordReaderView();
+      showToast("New section added");
+    }
+
+    function toggleStudioDirectText() {
+      isDirectTextMode = !isDirectTextMode;
+      renderChordReaderView();
+      if (isDirectTextMode) {
+        setTimeout(() => {
+          const inp = document.getElementById('studioDirectInput');
+          if (inp) inp.focus();
+        }, 50);
+      }
+    }
+
+    function applyStudioDirectText(val) {
+      const song = SONGS.find(s => s.id === currentSongId) || SONGS[0];
+      if (!song.sections) return;
+      const cell = song.sections[selectedCell.sectionIdx].lines[selectedCell.lineIdx];
+      cell[selectedCell.barIdx] = normalizeChordInput(val.trim());
+      isDirectTextMode = false;
+      renderChordReaderView();
+      showToast(`Set to ${val || 'Empty'}`);
+    }
+
+    function selectEditorBar(secIdx, lineIdx, barIdx) {
+      selectedCell = { sectionIdx: secIdx, lineIdx, barIdx };
+      isSlashBassMode = false;
+      renderChordReaderView();
+    }
+
+    function stepEditorBar(delta) {
+      const song = SONGS.find(s => s.id === currentSongId) || SONGS[0];
+      const sections = song.sections || [];
+      const currentSec = sections[selectedCell.sectionIdx];
+      if (!currentSec) return;
+      const currentLine = currentSec.lines[selectedCell.lineIdx];
+
+      let newBar = selectedCell.barIdx + delta;
+      if (newBar >= 0 && newBar < currentLine.length) {
+        selectedCell.barIdx = newBar;
+      } else if (delta > 0 && selectedCell.lineIdx + 1 < currentSec.lines.length) {
+        selectedCell.lineIdx++;
+        selectedCell.barIdx = 0;
+      } else if (delta < 0 && selectedCell.lineIdx - 1 >= 0) {
+        selectedCell.lineIdx--;
+        selectedCell.barIdx = currentSec.lines[selectedCell.lineIdx].length - 1;
+      } else if (delta > 0 && selectedCell.sectionIdx + 1 < sections.length) {
+        selectedCell.sectionIdx++;
+        selectedCell.lineIdx = 0;
+        selectedCell.barIdx = 0;
+      } else if (delta < 0 && selectedCell.sectionIdx - 1 >= 0) {
+        selectedCell.sectionIdx--;
+        const prevSec = sections[selectedCell.sectionIdx];
+        selectedCell.lineIdx = prevSec.lines.length - 1;
+        selectedCell.barIdx = prevSec.lines[selectedCell.lineIdx].length - 1;
+      }
+      isSlashBassMode = false;
+      renderChordReaderView();
+    }
+
+    function keypadInputRoot(root) {
+      const song = SONGS.find(s => s.id === currentSongId) || SONGS[0];
+      if (!song.sections) return;
+      const cell = song.sections[selectedCell.sectionIdx].lines[selectedCell.lineIdx];
+      let cur = cell[selectedCell.barIdx] || '';
+
+      if (isSlashBassMode) {
+        cell[selectedCell.barIdx] = cur + root;
+        isSlashBassMode = false;
+      } else if (!cur || cur === '-' || cur === '%') {
+        cell[selectedCell.barIdx] = root;
+      } else {
+        cell[selectedCell.barIdx] = root;
+      }
+      renderChordReaderView();
+      showToast(`Set root: ${root}`);
+    }
+
+    function keypadInputExt(ext) {
+      const song = SONGS.find(s => s.id === currentSongId) || SONGS[0];
+      if (!song.sections) return;
+      const cell = song.sections[selectedCell.sectionIdx].lines[selectedCell.lineIdx];
+      let cur = cell[selectedCell.barIdx] || 'C';
+
+      if (ext === '/') {
+        cell[selectedCell.barIdx] = cur.trim() + '/';
+        isSlashBassMode = true;
+        renderChordReaderView();
+        showToast('Pick bass note (C - B)');
+        return;
+      }
+
+      let toAppend = ext;
+      if (ext === 'maj7') toAppend = 'Δ7';
+      else if (ext === 'dim') toAppend = '°';
+      else if (ext === 'aug') toAppend = '+';
+      else if (ext === 'm7b5') toAppend = 'ø7';
+      else if (ext === 'b') toAppend = '♭';
+      else if (ext === '#') toAppend = '♯';
+
+      cell[selectedCell.barIdx] = normalizeChordInput(cur + toAppend);
+      renderChordReaderView();
+      showToast(`Added: ${toAppend}`);
+    }
+
+    function keypadBackspace() {
+      const song = SONGS.find(s => s.id === currentSongId) || SONGS[0];
+      if (!song.sections) return;
+      const cell = song.sections[selectedCell.sectionIdx].lines[selectedCell.lineIdx];
+      let cur = cell[selectedCell.barIdx] || 'C';
+      if (cur.length > 1) {
+        cell[selectedCell.barIdx] = cur.slice(0, -1);
+      } else {
+        cell[selectedCell.barIdx] = '-';
+      }
+      renderChordReaderView();
+    }
+
+    function keypadInsertBar() {
+      const song = SONGS.find(s => s.id === currentSongId) || SONGS[0];
+      if (!song.sections) return;
+      const line = song.sections[selectedCell.sectionIdx].lines[selectedCell.lineIdx];
+      line.splice(selectedCell.barIdx + 1, 0, 'C');
+      selectedCell.barIdx++;
+      renderChordReaderView();
+      showToast('+1 Bar inserted');
+    }
+
+    function keypadDeleteChord() {
+      const song = SONGS.find(s => s.id === currentSongId) || SONGS[0];
+      if (!song.sections) return;
+      const line = song.sections[selectedCell.sectionIdx].lines[selectedCell.lineIdx];
+      if (line.length > 1) {
+        line.splice(selectedCell.barIdx, 1);
+        selectedCell.barIdx = Math.max(0, selectedCell.barIdx - 1);
+        showToast('Bar deleted');
+      } else {
+        line[0] = '-';
+        showToast('Bar cleared');
+      }
+      renderChordReaderView();
+    }
+
+    function addBarsToSection(secIdx, count) {
+      const song = SONGS.find(s => s.id === currentSongId) || SONGS[0];
+      if (!song.sections) return;
+      const newBars = Array(count).fill('C');
+      song.sections[secIdx].lines.push(newBars);
+      renderChordReaderView();
+      showToast(`Added ${count} bars to section`);
+    }
+
+    function switchSongTab(songId) {
+      currentSongId = songId;
+      transposeOffset = 0;
+      renderChordReaderView();
+    }
+
+    function closeSongTab(songId) {
+      openTabs = openTabs.filter(id => id !== songId);
+      if (openTabs.length === 0) openTabs = [101];
+      if (currentSongId === songId) currentSongId = openTabs[0];
+      renderChordReaderView();
+    }
+
+    function openQuickSongPicker() {
+      const unopen = SONGS.filter(s => !openTabs.includes(s.id));
+      if (unopen.length > 0) {
+        openTabs.push(unopen[0].id);
+        currentSongId = unopen[0].id;
+        renderChordReaderView();
+        showToast(`Opened tab: ${unopen[0].title}`);
+      }
+    }
+
+    function stepTranspose(delta) {
+      transposeOffset += delta;
+      if (transposeOffset > 11) transposeOffset = -11;
+      if (transposeOffset < -11) transposeOffset = 11;
+      const song = SONGS.find(s => s.id === currentSongId);
+      const newKey = transposeChordRoot(song.key, transposeOffset);
+      renderChordReaderView();
+      showToast(`Key transposed to ${newKey} (${transposeOffset >= 0 ? '+' : ''}${transposeOffset} st)`);
+    }
+
+    // =========================================================
+    // 7. VIEWS: FOLDERS, SETLISTS, STARRED, LYRICS
+    // =========================================================
+    function renderFoldersView() {
+      const mount = document.getElementById('viewMountPoint');
+      if (!mount) return;
+
+      mount.innerHTML = `
+        <div class="search-container">
+          <div class="search-input-wrap">
+            <span class="search-icon">🔍</span>
+            <input type="text" placeholder="Search folders or songs..." id="searchInput" oninput="handleSearch(this.value)" />
+          </div>
+          <button class="filter-btn" onclick="showToast('Filters opened')">⚙️</button>
+        </div>
+
+        <div class="section-header-row">
+          <h3 class="section-heading">Folders</h3>
+          <span class="section-action-btn" onclick="showToast('New Folder')">+ New Folder</span>
+        </div>
+
+        <div class="folders-cards-grid">
+          ${FOLDERS.map(f => `
+            <div class="visual-folder-card" onclick="openFolder('${f.id}')">
+              <div class="folder-art-cover">
+                <span class="folder-top-pill">${f.count} Songs</span>
+                <div class="folder-center-icon">${f.icon}</div>
+              </div>
+              <div>
+                <div class="folder-title-text">${escapeHtml(f.name)}</div>
+                <div class="folder-subtitle-text">${f.updated}</div>
+              </div>
+              <div class="folder-footer-row">
+                <span class="folder-count-badge">${f.count} Charts</span>
+                <div class="folder-open-arrow">→</div>
+              </div>
+            </div>
+          `).join('')}
+
+          <div class="folder-card-new-visual" onclick="showToast('Create folder')">
+            <div style="font-size: 24px; opacity: 0.7;">📁+</div>
+            <div style="font-weight: 700; font-size: 13.5px; color: white;">New Folder</div>
+          </div>
+        </div>
+      `;
+    }
+
+    function openFolder(folderId) {
+      switchView('inside_folder', { folderId });
+    }
+
+    function renderInsideFolderView() {
+      const mount = document.getElementById('viewMountPoint');
+      if (!mount) return;
+      const f = FOLDERS.find(folder => folder.id === currentFolderId) || FOLDERS[0];
+      const songs = SONGS.filter(s => s.folderId === currentFolderId);
+
+      mount.innerHTML = `
+        <div class="view-breadcrumb-header">
+          <button class="btn-back-crumb" onclick="switchView('folders')">← All Folders</button>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 18px;">${f.icon}</span>
+            <span style="font-size: 15px; font-weight: 700; color: white;">${escapeHtml(f.name)}</span>
+            <span class="folder-count-badge">${songs.length} Songs</span>
+          </div>
+          <button class="header-btn" style="width: 32px; height: 32px; font-size: 13px;" onclick="showToast('Options')">⋮</button>
+        </div>
+
+        <div class="song-cards-grid">
+          ${songs.map(s => `
+            <div class="song-card" onclick="openSongChart(${s.id})">
+              <div class="song-card-header-row">
+                <span class="song-card-key-pill">KEY ${escapeHtml(s.key)}</span>
+                <button class="song-star-btn ${s.starred ? 'active' : ''}" onclick="event.stopPropagation(); toggleStar(${s.id})">★</button>
+              </div>
+              <div>
+                <div class="song-title-text">${escapeHtml(s.title)}</div>
+                <div class="song-artist-text">${escapeHtml(s.artist)}</div>
+              </div>
+              <div class="song-footer-row">
+                <div class="song-bpm-pill"><div class="pulse-dot"></div> ${s.bpm} BPM</div>
+                <div style="color: var(--text-faint); font-weight: 700;">→</div>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    function openSongChart(songId) {
+      switchView('chord_reader', { songId });
+    }
+
+    function setSetlistFilter(filter) {
+      activeSetlistFilter = filter;
+      renderSetlistsView();
+    }
+
+    function renderSetlistsView() {
+      const mount = document.getElementById('viewMountPoint');
+      if (!mount) return;
+
+      const allCount = SETLISTS.length;
+      const schedCount = SETLISTS.filter(s => s.status === 'scheduled').length;
+      const draftCount = SETLISTS.filter(s => s.status === 'draft').length;
+      const archCount = SETLISTS.filter(s => s.status === 'archived').length;
+
+      const filtered = SETLISTS.filter(s => {
+        if (activeSetlistFilter === 'scheduled') return s.status === 'scheduled';
+        if (activeSetlistFilter === 'draft') return s.status === 'draft';
+        if (activeSetlistFilter === 'archived') return s.status === 'archived';
+        return true;
+      });
+
+      mount.innerHTML = `
+        <div class="section-header-row">
+          <h3 class="section-heading"><span>📋</span> Service Setlists & Gigs</h3>
+          <span class="section-action-btn" onclick="openNewSetlistModal()">+ New Setlist</span>
+        </div>
+
+        <!-- Status Filter Pills Row (All / Scheduled / Drafts / Archived) -->
+        <div class="filter-pills-row">
+          <button class="pill-filter-item ${activeSetlistFilter === 'all' ? 'active' : ''}" onclick="setSetlistFilter('all')">
+            All (${allCount})
+          </button>
+          <button class="pill-filter-item ${activeSetlistFilter === 'scheduled' ? 'active' : ''}" onclick="setSetlistFilter('scheduled')">
+            Scheduled (${schedCount})
+          </button>
+          <button class="pill-filter-item ${activeSetlistFilter === 'draft' ? 'active' : ''}" onclick="setSetlistFilter('draft')">
+            Drafts (${draftCount})
+          </button>
+          <button class="pill-filter-item ${activeSetlistFilter === 'archived' ? 'active' : ''}" onclick="setSetlistFilter('archived')">
+            Archived (${archCount})
+          </button>
+        </div>
+
+        <!-- Setlist Cards Grid matching Screenshot Structure -->
+        <div class="setlists-grid">
+          ${filtered.map(set => `
+            <div class="setlist-card" onclick="openSetlistFlow('${set.id}')">
+              <div class="setlist-header-row">
+                <div>
+                  <div class="setlist-title-text">${escapeHtml(set.title)}</div>
+                  <div class="setlist-date-text">🗓 ${set.date} • ${set.time}</div>
+                </div>
+                <span class="status-badge ${set.status}">${set.status.toUpperCase()}</span>
+              </div>
+
+              <div class="setlist-song-preview-list">
+                ${set.songs.slice(0, 3).map((song, i) => `
+                  <div class="setlist-preview-item" onclick="event.stopPropagation(); openSetlistSong('${set.id}', ${i})">
+                    <span class="setlist-preview-title">${i + 1}. ${escapeHtml(song.title)}</span>
+                    <span class="setlist-key-badge">${escapeHtml(song.key)}</span>
+                  </div>
+                `).join('')}
+                ${set.songs.length > 3 ? `
+                  <div class="setlist-preview-more" onclick="event.stopPropagation(); openSetlistFlow('${set.id}')">
+                    + ${set.songs.length - 3} more songs...
+                  </div>
+                ` : ''}
+              </div>
+
+              <div class="setlist-card-footer">
+                <span>${set.songs.length} Songs • ~${set.duration}</span>
+                <span class="setlist-view-flow-link" onclick="event.stopPropagation(); openSetlistFlow('${set.id}')">
+                  View Flow →
+                </span>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    function openSetlistFlow(setId, songIndex = 0) {
+      const setlist = SETLISTS.find(s => s.id === setId);
+      if (!setlist || !setlist.songs || setlist.songs.length === 0) return;
+      activeSetlistFlow = {
+        setlistId: setId,
+        songIndex: Math.max(0, Math.min(songIndex, setlist.songs.length - 1))
+      };
+      const targetSong = setlist.songs[activeSetlistFlow.songIndex];
+      switchView('chord_reader', { songId: targetSong.id });
+      showToast(`Setlist Flow: ${setlist.title} (${activeSetlistFlow.songIndex + 1}/${setlist.songs.length})`);
+    }
+
+    function openSetlistSong(setId, songIndex) {
+      openSetlistFlow(setId, songIndex);
+    }
+
+    function nextSetlistSong() {
+      if (!activeSetlistFlow) return;
+      const setlist = SETLISTS.find(s => s.id === activeSetlistFlow.setlistId);
+      if (!setlist) return;
+      if (activeSetlistFlow.songIndex < setlist.songs.length - 1) {
+        activeSetlistFlow.songIndex++;
+        const nextSong = setlist.songs[activeSetlistFlow.songIndex];
+        currentSongId = nextSong.id;
+        if (!openTabs.includes(nextSong.id)) openTabs.push(nextSong.id);
+        transposeOffset = 0;
+        renderChordReaderView();
+        showToast(`Next Song: ${nextSong.title} (Key ${nextSong.key})`);
+      }
+    }
+
+    function prevSetlistSong() {
+      if (!activeSetlistFlow) return;
+      const setlist = SETLISTS.find(s => s.id === activeSetlistFlow.setlistId);
+      if (!setlist) return;
+      if (activeSetlistFlow.songIndex > 0) {
+        activeSetlistFlow.songIndex--;
+        const prevSong = setlist.songs[activeSetlistFlow.songIndex];
+        currentSongId = prevSong.id;
+        if (!openTabs.includes(prevSong.id)) openTabs.push(prevSong.id);
+        transposeOffset = 0;
+        renderChordReaderView();
+        showToast(`Prev Song: ${prevSong.title} (Key ${prevSong.key})`);
+      }
+    }
+
+    function exitSetlistFlow() {
+      activeSetlistFlow = null;
+      switchView('setlists');
+      showToast('Exited Setlist Flow');
+    }
+
+    function openNewSetlistModal() {
+      const existing = document.getElementById('newSetlistModal');
+      if (existing) existing.remove();
+
+      const modal = document.createElement('div');
+      modal.id = 'newSetlistModal';
+      modal.className = 'modal-overlay';
+      modal.innerHTML = `
+        <div class="modal-dialog" onclick="event.stopPropagation()">
+          <div class="modal-title">
+            <span>📋 Create New Gig Setlist</span>
+            <button style="background:none; border:none; color:#94a3b8; font-size:18px; cursor:pointer;" onclick="closeNewSetlistModal()">✕</button>
+          </div>
+
+          <div>
+            <label style="font-size:11px; color:#94a3b8; font-weight:700; text-transform:uppercase; display:block; margin-bottom:4px;">Setlist Title</label>
+            <input type="text" id="newSetlistTitle" class="modal-input" placeholder="e.g. Saturday Evening Worship" value="Sunday Evening Service" />
+          </div>
+
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
+            <div>
+              <label style="font-size:11px; color:#94a3b8; font-weight:700; text-transform:uppercase; display:block; margin-bottom:4px;">Date</label>
+              <input type="text" id="newSetlistDate" class="modal-input" value="Jun 14, 2026" />
+            </div>
+            <div>
+              <label style="font-size:11px; color:#94a3b8; font-weight:700; text-transform:uppercase; display:block; margin-bottom:4px;">Time</label>
+              <input type="text" id="newSetlistTime" class="modal-input" value="7:00 PM" />
+            </div>
+          </div>
+
+          <div>
+            <label style="font-size:11px; color:#94a3b8; font-weight:700; text-transform:uppercase; display:block; margin-bottom:4px;">Status</label>
+            <select id="newSetlistStatus" class="modal-input" style="background:#0f0f14;">
+              <option value="scheduled" selected>Scheduled</option>
+              <option value="draft">Draft</option>
+              <option value="archived">Archived</option>
+            </select>
+          </div>
+
+          <div>
+            <label style="font-size:11px; color:#94a3b8; font-weight:700; text-transform:uppercase; display:block; margin-bottom:4px;">Select Songs</label>
+            <div class="modal-songs-picker">
+              ${SONGS.map((s, idx) => `
+                <label class="modal-song-item">
+                  <input type="checkbox" value="${s.id}" ${idx < 3 ? 'checked' : ''} style="accent-color:#6366f1;" />
+                  <span style="font-weight:600; flex:1;">${escapeHtml(s.title)}</span>
+                  <span style="font-family:monospace; font-size:10.5px; color:#a5b4fc;">${escapeHtml(s.key)}</span>
+                </label>
+              `).join('')}
+            </div>
+          </div>
+
+          <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:8px;">
+            <button class="btn-flow-nav" onclick="closeNewSetlistModal()">Cancel</button>
+            <button class="btn-flow-nav btn-flow-next" onclick="saveNewSetlist()">Create Setlist</button>
+          </div>
+        </div>
+      `;
+      modal.onclick = closeNewSetlistModal;
+      document.body.appendChild(modal);
+    }
+
+    function closeNewSetlistModal() {
+      const modal = document.getElementById('newSetlistModal');
+      if (modal) modal.remove();
+    }
+
+    function saveNewSetlist() {
+      const titleInput = document.getElementById('newSetlistTitle');
+      const dateInput = document.getElementById('newSetlistDate');
+      const timeInput = document.getElementById('newSetlistTime');
+      const statusInput = document.getElementById('newSetlistStatus');
+      const checkedBoxes = document.querySelectorAll('.modal-songs-picker input[type="checkbox"]:checked');
+
+      const title = (titleInput && titleInput.value.trim()) || 'Untitled Setlist';
+      const date = (dateInput && dateInput.value.trim()) || 'Jun 2026';
+      const time = (timeInput && timeInput.value.trim()) || '7:00 PM';
+      const status = (statusInput && statusInput.value) || 'scheduled';
+
+      const selectedSongIds = Array.from(checkedBoxes).map(cb => parseInt(cb.value, 10));
+      const pickedSongs = selectedSongIds.map(sid => {
+        const s = SONGS.find(song => song.id === sid);
+        return s ? { id: s.id, title: s.title, key: s.key } : null;
+      }).filter(Boolean);
+
+      if (pickedSongs.length === 0) {
+        pickedSongs.push({ id: SONGS[0].id, title: SONGS[0].title, key: SONGS[0].key });
+      }
+
+      const newSet = {
+        id: 'set-' + Date.now(),
+        title,
+        status,
+        date,
+        time,
+        duration: `${pickedSongs.length * 6} min`,
+        songs: pickedSongs
+      };
+
+      SETLISTS.unshift(newSet);
+      closeNewSetlistModal();
+      renderSetlistsView();
+      showToast(`Created setlist "${title}"`);
+    }
+
+    function renderStarredView() {
+      const mount = document.getElementById('viewMountPoint');
+      if (!mount) return;
+      const starredSongs = SONGS.filter(s => s.starred);
+
+      mount.innerHTML = `
+        <div class="section-header-row">
+          <h3 class="section-heading"><span>⭐</span> Starred Songs (${starredSongs.length})</h3>
+          <span class="section-action-btn" onclick="switchView('folders')">All Folders</span>
+        </div>
+        <div class="song-cards-grid">
+          ${starredSongs.map(s => `
+            <div class="song-card" onclick="openSongChart(${s.id})">
+              <div class="song-card-header-row">
+                <span class="song-card-key-pill">KEY ${escapeHtml(s.key)}</span>
+                <button class="song-star-btn active">★</button>
+              </div>
+              <div>
+                <div class="song-title-text">${escapeHtml(s.title)}</div>
+                <div class="song-artist-text">${escapeHtml(s.artist)}</div>
+              </div>
+              <div class="song-footer-row">
+                <div class="song-bpm-pill"><div class="pulse-dot"></div> ${s.bpm} BPM</div>
+                <div style="color: var(--text-faint); font-weight: 700;">→</div>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    function renderLyricsView() {
+      const mount = document.getElementById('viewMountPoint');
+      if (!mount) return;
+      const song = SONGS.find(s => s.id === currentSongId) || SONGS[0];
+
+      mount.innerHTML = `
+        <div class="section-header-row">
+          <h3 class="section-heading"><span>📝</span> Stage Lyrics Prompter</h3>
+          <span class="section-action-btn" onclick="openSongChart(${song.id})">Open Chord Chart</span>
+        </div>
+        <div class="view-breadcrumb-header" style="margin-bottom: 12px;">
+          <div style="font-size: 14px; font-weight: 700; color: white;">${escapeHtml(song.title)} - ${escapeHtml(song.artist)}</div>
+          <button class="control-chip-btn" onclick="showToast('Prompter scrolling enabled')">▶ Auto-Scroll</button>
+        </div>
+        <div style="background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 24px; font-size: 16px; line-height: 1.8; color: #e2e8f0;">
+          <div style="font-weight: 800; color: #818cf8; margin-bottom: 8px;">VERSE 1</div>
+          <div>Opening verse lyrics line...</div>
+          <div>All my words fall short, I got nothing new...</div>
+          <div style="font-weight: 800; color: #818cf8; margin: 16px 0 8px;">CHORUS</div>
+          <div>Praise the Lord with all my soul...</div>
+          <div>So I throw up my hands and praise You again...</div>
+        </div>
+      `;
+    }
+
+    function toggleStar(id) {
+      const song = SONGS.find(s => s.id === id);
+      if (song) {
+        song.starred = !song.starred;
+        showToast(song.starred ? `★ Starred: ${song.title}` : `Removed star`);
+      }
+    }
+
+    function handleSearch(val) {
+      const q = val.trim().toLowerCase();
+      if (!q) { renderFoldersView(); return; }
+      const results = SONGS.filter(s => s.title.toLowerCase().includes(q) || s.artist.toLowerCase().includes(q));
+      const mount = document.getElementById('viewMountPoint');
+      mount.innerHTML = `
+        <div class="section-header-row">
+          <h3 class="section-heading">Search: "${escapeHtml(val)}" (${results.length} found)</h3>
+          <span class="section-action-btn" onclick="switchView('folders')">Clear</span>
+        </div>
+        <div class="song-cards-grid">
+          ${results.map(s => `
+            <div class="song-card" onclick="openSongChart(${s.id})">
+              <div class="song-card-header-row"><span class="song-card-key-pill">KEY ${s.key}</span></div>
+              <div class="song-title-text">${s.title}</div>
+              <div class="song-artist-text">${s.artist}</div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    function setDeviceView(mode) {
+      const vp = document.getElementById('viewportContainer');
+      const deskBtn = document.getElementById('btnDeskView');
+      const mobBtn = document.getElementById('btnMobView');
+
+      if (mode === 'mobile') {
+        vp.classList.add('mobile-frame');
+        deskBtn.classList.remove('active');
+        mobBtn.classList.add('active');
+        // On mobile view, automatically show the mobile editor (Image 2) if in chord reader
+        if (currentView === 'chord_reader') {
+          chartViewMode = 'edit';
+          const bottomDock = document.getElementById('bottomDock');
+          if (bottomDock) bottomDock.style.display = 'none';
+          renderChordReaderView();
+        }
+        showToast('📱 Mobile Frame (Image 2 Editor Active)');
+      } else {
+        vp.classList.remove('mobile-frame');
+        mobBtn.classList.remove('active');
+        deskBtn.classList.add('active');
+        showToast('💻 Desktop View Mode');
+      }
+    }
+
+    function openNewChartModal() {
+      showToast('New song chart dialog');
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('toastPopup');
+      if (!toast) return;
+      toast.textContent = msg;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 2000);
+    }
+
+    function escapeHtml(str) {
+      return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    // Initial render on DOM load
+    document.addEventListener('DOMContentLoaded', () => {
+      switchView('chord_reader', { songId: 101 });
+    });
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+      switchView('chord_reader', { songId: 101 });
+    }
+  </script>
+</body>
+</html>

@@ -10,12 +10,12 @@ const SUPER_MAP: Record<string, string> = {
   '°': '°', 'ø': 'ø', 'Δ': 'Δ',
   'a': 'ᵃ', 'c': 'ᶜ', 'd': 'ᵈ', 'e': 'ᵉ',
   'f': 'ᶠ', 'g': 'ᵍ', 'h': 'ʰ', 'i': 'ⁱ', 'j': 'ʲ',
-  'k': 'ᵏ', 'l': 'ˡ', 'm': 'ᵐ', 'n': 'ⁿ', 'o': 'ᵒ',
+  'k': 'ᵏ', 'l': 'ˡ', 'm': 'm', 'n': 'ⁿ', 'o': 'ᵒ',
   'p': 'ᵖ', 'r': 'ʳ', 's': 'ˢ', 't': 'ᵗ', 'u': 'ᵘ',
   'v': 'ᵛ', 'w': 'ʷ', 'x': 'ˣ', 'y': 'ʸ', 'z': 'ᶻ',
   'A': 'ᴬ', 'B': 'ᴮ', 'D': 'ᴰ', 'E': 'ᴱ', 'G': 'ᴳ',
   'H': 'ᴴ', 'I': 'ᴵ', 'J': 'ᴶ', 'K': 'ᴷ', 'L': 'ᴸ',
-  'M': 'ᴹ', 'N': 'ᴺ', 'O': 'ᴼ', 'P': 'ᴾ', 'R': 'ᴿ',
+  'M': 'M', 'N': 'ᴺ', 'O': 'ᴼ', 'P': 'ᴾ', 'R': 'ᴿ',
   'T': 'ᵀ', 'U': 'ᵁ', 'V': 'ⱽ', 'W': 'ᵂ',
 };
 
@@ -33,7 +33,7 @@ function toSuperscript(str: string): string {
 
 export function normalizeChordInput(raw: string): string {
   if (!raw || raw === '_' || raw === '%' || raw === '.') return raw;
-  
+
   return raw
     .replace(/^([A-G])#/i, '$1♯')
     .replace(/^([A-G])b/i, '$1♭')
@@ -64,49 +64,53 @@ function parseSingleChord(raw: string): React.ReactNode {
   if (!match) {
     return <span>{raw}</span>;
   }
-  
+
   const [, root, accidental, rest] = match;
   const accChar = accidental === '#' || accidental === '♯' ? '♯' : accidental === 'b' || accidental === '♭' ? '♭' : '';
+  const rootStr = root + accChar;
 
-  let superCluster = accChar;
+  let baseQuality = '';
+  let superCluster = '';
 
   if (rest) {
-    let formattedRest = rest;
-    if (rest.startsWith('sus')) {
-      formattedRest = 'sus' + toSuperscript(rest.slice(3));
-    } else if (rest.startsWith('add')) {
-      formattedRest = 'add' + toSuperscript(rest.slice(3));
-    } else if (rest.startsWith('m') && !rest.startsWith('maj') && !rest.startsWith('min')) {
-      formattedRest = 'm' + toSuperscript(rest.slice(1));
+    if (rest.startsWith('min')) {
+      baseQuality = 'm';
+      const ext = rest.slice(3);
+      superCluster = ext ? toSuperscript(ext) : '';
+    } else if (rest.startsWith('m') && !rest.startsWith('maj')) {
+      baseQuality = 'm';
+      const ext = rest.slice(1);
+      superCluster = ext ? toSuperscript(ext) : '';
     } else if (rest.startsWith('maj')) {
-      formattedRest = 'Δ' + toSuperscript(rest.slice(3));
-    } else if (rest.startsWith('min')) {
-      formattedRest = 'm' + toSuperscript(rest.slice(3));
+      superCluster = 'Δ' + toSuperscript(rest.slice(3));
     } else if (rest.startsWith('dim')) {
-      formattedRest = '°' + toSuperscript(rest.slice(3));
+      superCluster = '°' + toSuperscript(rest.slice(3));
     } else if (rest.startsWith('aug')) {
-      formattedRest = '+' + toSuperscript(rest.slice(3));
+      superCluster = '+' + toSuperscript(rest.slice(3));
+    } else if (rest.startsWith('sus')) {
+      superCluster = 'sus' + toSuperscript(rest.slice(3));
+    } else if (rest.startsWith('add')) {
+      superCluster = 'add' + toSuperscript(rest.slice(3));
     } else {
-      formattedRest = toSuperscript(rest);
+      superCluster = toSuperscript(rest);
     }
-    superCluster += formattedRest;
   }
 
   return (
     <span className="inline-flex items-baseline select-none" style={{ verticalAlign: 'baseline' }}>
-      <span className="font-bold">{root}</span>
-      {superCluster && (
+      <span className="font-bold">{rootStr}{baseQuality}</span>
+      {superCluster ? (
         <sup style={{ fontSize: '0.65em', verticalAlign: 'super', fontWeight: 800, marginLeft: '1px', lineHeight: 1 }}>
           {superCluster}
         </sup>
-      )}
+      ) : null}
     </span>
   );
 }
 
 export function parseChord(raw: string): React.ReactNode {
   if (!raw || raw.trim() === '') return null;
-  
+
   if (raw === '_' || raw === '%' || raw === '.') {
     return <span>{raw}</span>;
   }
@@ -115,17 +119,17 @@ export function parseChord(raw: string): React.ReactNode {
   if (!/^[A-G]/.test(raw)) {
     return <span>{raw}</span>;
   }
-  
+
   const parts = raw.split('/');
   const nodes: React.ReactNode[] = [];
-  
+
   nodes.push(<React.Fragment key="main">{parseSingleChord(parts[0])}</React.Fragment>);
-  
+
   for (let i = 1; i < parts.length; i++) {
     nodes.push(<span key={`slash-${i}`} className="opacity-70 mx-0.5">/</span>);
     nodes.push(<React.Fragment key={`bass-${i}`}>{parseSingleChord(parts[i])}</React.Fragment>);
   }
-  
+
   return <>{nodes}</>;
 }
 
@@ -139,37 +143,43 @@ export function parseSingleChordToText(raw: string): string {
   if (!match) {
     return normalized;
   }
-  
+
   const [, root, accidental, rest] = match;
   const accChar = accidental === '#' || accidental === '♯' ? '♯' : accidental === 'b' || accidental === '♭' ? '♭' : '';
-  
-  let superCluster = accChar;
+  const rootStr = root + accChar;
+
+  let baseQuality = '';
+  let superCluster = '';
   if (rest) {
-    if (rest.startsWith('m') && !rest.startsWith('maj') && !rest.startsWith('min')) {
-      superCluster += 'm' + toSuperscript(rest.slice(1));
+    if (rest.startsWith('min')) {
+      baseQuality = 'm';
+      const ext = rest.slice(3);
+      superCluster = ext ? toSuperscript(ext) : '';
+    } else if (rest.startsWith('m') && !rest.startsWith('maj')) {
+      baseQuality = 'm';
+      const ext = rest.slice(1);
+      superCluster = ext ? toSuperscript(ext) : '';
     } else if (rest.startsWith('maj')) {
-      superCluster += 'Δ' + toSuperscript(rest.slice(3));
-    } else if (rest.startsWith('min')) {
-      superCluster += 'm' + toSuperscript(rest.slice(3));
-    } else if (rest.startsWith('sus')) {
-      superCluster += 'sus' + toSuperscript(rest.slice(3));
+      superCluster = 'Δ' + toSuperscript(rest.slice(3));
     } else if (rest.startsWith('dim')) {
-      superCluster += '°' + toSuperscript(rest.slice(3));
+      superCluster = '°' + toSuperscript(rest.slice(3));
     } else if (rest.startsWith('aug')) {
-      superCluster += '+' + toSuperscript(rest.slice(3));
+      superCluster = '+' + toSuperscript(rest.slice(3));
+    } else if (rest.startsWith('sus')) {
+      superCluster = 'sus' + toSuperscript(rest.slice(3));
     } else if (rest.startsWith('add')) {
-      superCluster += 'add' + toSuperscript(rest.slice(3));
+      superCluster = 'add' + toSuperscript(rest.slice(3));
     } else {
-      superCluster += toSuperscript(rest);
+      superCluster = toSuperscript(rest);
     }
   }
-  
-  return root + superCluster;
+
+  return rootStr + baseQuality + superCluster;
 }
 
 export function parseChordToText(raw: string): string {
   if (!raw || raw.trim() === '') return '';
-  
+
   if (raw === '_' || raw === '%' || raw === '.') {
     return raw;
   }
@@ -177,14 +187,14 @@ export function parseChordToText(raw: string): string {
   if (!/^[A-G]/.test(raw)) {
     return raw;
   }
-  
+
   const parts = raw.split('/');
   let text = parseSingleChordToText(parts[0]);
-  
+
   for (let i = 1; i < parts.length; i++) {
     text += '/' + parseSingleChordToText(parts[i]);
   }
-  
+
   return text;
 }
 

@@ -921,7 +921,7 @@
       '°': '°', 'ø': 'ø', 'Δ': 'Δ',
       'a': 'ᵃ', 'c': 'ᶜ', 'd': 'ᵈ', 'e': 'ᵉ',
       'f': 'ᶠ', 'g': 'ᵍ', 'h': 'ʰ', 'i': 'ⁱ', 'j': 'ʲ',
-      'k': 'ᵏ', 'l': 'ˡ', 'm': 'ᵐ', 'n': 'ⁿ', 'o': 'ᵒ',
+      'k': 'ᵏ', 'l': 'ˡ', 'm': 'm', 'n': 'ⁿ', 'o': 'ᵒ',
       'p': 'ᵖ', 'r': 'ʳ', 's': 'ˢ', 't': 'ᵗ', 'u': 'ᵘ',
       'v': 'ᵛ', 'w': 'ʷ', 'x': 'ˣ', 'y': 'ʸ', 'z': 'ᶻ',
       'A': 'ᴬ', 'B': 'ᴮ', 'D': 'ᴰ', 'E': 'ᴱ', 'G': 'ᴳ',
@@ -968,29 +968,35 @@
 
       const [, root, accidental, rest] = match;
       const accChar = accidental === '#' || accidental === '♯' ? '♯' : accidental === 'b' || accidental === '♭' ? '♭' : '';
+      const rootStr = root + accChar;
 
       const toSup = (s) => formatExt(s).split('').map(c => SUPER_MAP[c] || c).join('');
-      let superCluster = accChar;
+      let baseQuality = '';
+      let superCluster = '';
       if (rest) {
-        if (rest.startsWith('m') && !rest.startsWith('maj') && !rest.startsWith('min')) {
-          superCluster += 'm' + toSup(rest.slice(1));
+        if (rest.startsWith('min')) {
+          baseQuality = 'm';
+          const ext = rest.slice(3);
+          superCluster = ext ? toSup(ext) : '';
+        } else if (rest.startsWith('m') && !rest.startsWith('maj')) {
+          baseQuality = 'm';
+          const ext = rest.slice(1);
+          superCluster = ext ? toSup(ext) : '';
         } else if (rest.startsWith('maj')) {
-          superCluster += 'Δ' + toSup(rest.slice(3));
-        } else if (rest.startsWith('min')) {
-          superCluster += 'm' + toSup(rest.slice(3));
+          superCluster = 'Δ' + toSup(rest.slice(3));
         } else if (rest.startsWith('sus')) {
-          superCluster += 'sus' + toSup(rest.slice(3));
+          superCluster = 'sus' + toSup(rest.slice(3));
         } else if (rest.startsWith('dim')) {
-          superCluster += '°' + toSup(rest.slice(3));
+          superCluster = '°' + toSup(rest.slice(3));
         } else if (rest.startsWith('aug')) {
-          superCluster += '+' + toSup(rest.slice(3));
+          superCluster = '+' + toSup(rest.slice(3));
         } else if (rest.startsWith('add')) {
-          superCluster += 'add' + toSup(rest.slice(3));
+          superCluster = 'add' + toSup(rest.slice(3));
         } else {
-          superCluster += toSup(rest);
+          superCluster = toSup(rest);
         }
       }
-      return root + superCluster;
+      return rootStr + baseQuality + superCluster;
     }
 
     function formatChordToUnicodeText(rawChord) {
@@ -1006,30 +1012,36 @@
 
       const [, root, accidental, rest] = match;
       const accChar = accidental === '#' || accidental === '♯' ? '♯' : accidental === 'b' || accidental === '♭' ? '♭' : '';
+      const rootStr = root + accChar;
 
-      let superCluster = accChar;
+      let baseQuality = '';
+      let superCluster = '';
       if (rest) {
         const toSup = (s) => formatExt(s).split('').map(c => SUPER_MAP[c] || c).join('');
-        if (rest.startsWith('sus')) {
-          superCluster += 'sus' + toSup(rest.slice(3));
+        if (rest.startsWith('min')) {
+          baseQuality = 'm';
+          const ext = rest.slice(3);
+          superCluster = ext ? toSup(ext) : '';
+        } else if (rest.startsWith('m') && !rest.startsWith('maj')) {
+          baseQuality = 'm';
+          const ext = rest.slice(1);
+          superCluster = ext ? toSup(ext) : '';
+        } else if (rest.startsWith('sus')) {
+          superCluster = 'sus' + toSup(rest.slice(3));
         } else if (rest.startsWith('add')) {
-          superCluster += 'add' + toSup(rest.slice(3));
-        } else if (rest.startsWith('m') && !rest.startsWith('maj') && !rest.startsWith('min')) {
-          superCluster += 'm' + toSup(rest.slice(1));
+          superCluster = 'add' + toSup(rest.slice(3));
         } else if (rest.startsWith('maj')) {
-          superCluster += 'Δ' + toSup(rest.slice(3));
-        } else if (rest.startsWith('min')) {
-          superCluster += 'm' + toSup(rest.slice(3));
+          superCluster = 'Δ' + toSup(rest.slice(3));
         } else if (rest.startsWith('dim')) {
-          superCluster += '°' + toSup(rest.slice(3));
+          superCluster = '°' + toSup(rest.slice(3));
         } else if (rest.startsWith('aug')) {
-          superCluster += '+' + toSup(rest.slice(3));
+          superCluster = '+' + toSup(rest.slice(3));
         } else {
-          superCluster += toSup(rest);
+          superCluster = toSup(rest);
         }
       }
 
-      return `<span style="display:inline-flex; align-items:baseline; vertical-align:baseline;"><strong>${root}</strong>${superCluster ? `<sup style="font-size: 0.65em; vertical-align: super; font-weight: 800; margin-left: 1px; line-height: 1;">${superCluster}</sup>` : ''}</span>`;
+      return `<span style="display:inline-flex; align-items:baseline; vertical-align:baseline;"><strong>${rootStr}${baseQuality}</strong>${superCluster ? `<sup style="font-size: 0.65em; vertical-align: super; font-weight: 800; margin-left: 1px; line-height: 1;">${superCluster}</sup>` : ''}</span>`;
     }
 
     function formatChordDisplayHtml(rawChord) {
