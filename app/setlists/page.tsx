@@ -8,7 +8,7 @@ import { supabase } from '@/lib/supabase';
 import { listSetlists, createSetlist, deleteSetlist, duplicateSetlist, updateSetlist, type Setlist } from '@/lib/setlists';
 import {
   ListMusic, Plus, MoreVertical, Trash2, Copy, Pencil, Calendar,
-  Music2, CornerLeftUp, X, Check,
+  Music2, CornerLeftUp, X, Check, Play, Radio,
 } from 'lucide-react';
 
 // ─── New Setlist Modal ────────────────────────────────────────────────────────
@@ -182,12 +182,16 @@ function SetlistCard({
   onRename,
   onDuplicate,
   onDelete,
+  onStartPerform,
+  onSendToPerformQueue,
 }: {
   setlist: Setlist & { songCount?: number };
   onOpen: () => void;
   onRename: () => void;
   onDuplicate: () => void;
   onDelete: () => void;
+  onStartPerform: () => void;
+  onSendToPerformQueue: () => void;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -245,7 +249,20 @@ function SetlistCard({
           {menuOpen && (
             <>
               <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
-              <div className="absolute right-0 top-full mt-1 z-20 min-w-[140px] bg-surface-raised border border-border rounded-xl shadow-popover overflow-hidden">
+              <div className="absolute right-0 top-full mt-1 z-20 min-w-[170px] bg-surface-raised border border-border rounded-xl shadow-popover overflow-hidden">
+                <button 
+                  onClick={e => { e.stopPropagation(); setMenuOpen(false); onStartPerform(); }} 
+                  className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-accent-solid hover:bg-white/5 transition-all"
+                >
+                  <Play size={13} className="text-accent-solid fill-accent-solid" /> Start Performance
+                </button>
+                <button 
+                  onClick={e => { e.stopPropagation(); setMenuOpen(false); onSendToPerformQueue(); }} 
+                  className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-text-primary hover:bg-white/5 transition-all"
+                >
+                  <Radio size={13} className="text-sky-400" /> Send to Perform Queue
+                </button>
+                <div className="h-px bg-border mx-2" />
                 <button onClick={e => { e.stopPropagation(); setMenuOpen(false); onRename(); }} className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-text-primary hover:bg-white/5 transition-all">
                   <Pencil size={13} /> Rename
                 </button>
@@ -300,6 +317,30 @@ export default function SetlistsPage() {
   }, []);
 
   useEffect(() => { if (!authLoading && user) load(); }, [authLoading, user, load]);
+
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
+
+  const showToast = (msg: string) => {
+    setToastMsg(msg);
+    setTimeout(() => setToastMsg(null), 2500);
+  };
+
+  const handleStartPerform = (s: Setlist & { songCount?: number }) => {
+    if (!s.songCount || s.songCount === 0) {
+      showToast('Setlist is empty. Add songs first');
+      return;
+    }
+    sessionStorage.setItem(`setlist-leader-${s.id}`, '1');
+    router.push(`/setlists/${s.id}/perform`);
+  };
+
+  const handleSendToPerformQueue = (s: Setlist & { songCount?: number }) => {
+    if (!s.songCount || s.songCount === 0) {
+      showToast('Setlist is empty. Add songs first');
+      return;
+    }
+    router.push(`/perform?setlistId=${s.id}`);
+  };
 
   const handleCreate = (s: Setlist) => {
     setShowNew(false);
@@ -367,10 +408,19 @@ export default function SetlistsPage() {
               onRename={() => setRenaming(s)}
               onDuplicate={() => handleDuplicate(s.id)}
               onDelete={() => setDeleting(s)}
+              onStartPerform={() => handleStartPerform(s)}
+              onSendToPerformQueue={() => handleSendToPerformQueue(s)}
             />
           ))}
         </div>
       </main>
+
+      {/* Toast Alert */}
+      {toastMsg && (
+        <div className="fixed left-1/2 bottom-8 -translate-x-1/2 z-[300] bg-[#1b1236]/95 border border-border-light text-white text-xs font-bold px-4 py-2.5 rounded-full shadow-2xl flex items-center gap-2 animate-fade-in pointer-events-none">
+          <span>{toastMsg}</span>
+        </div>
+      )}
 
       {/* Modals */}
       {showNew && (

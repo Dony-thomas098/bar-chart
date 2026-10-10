@@ -7,7 +7,9 @@ import {
   Play, Search, Plus, Trash2, CornerLeftUp, GripVertical, X,
   Save, BookOpen, ChevronRight, Music2, FolderOpen,
 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { supabase } from '@/lib/supabase';
+import { listSetlistItems } from '@/lib/setlists';
 import {
   DndContext, closestCenter, KeyboardSensor, PointerSensor,
   useSensor, useSensors,
@@ -82,10 +84,12 @@ function SortableItem({ id, idx, item, onRemove }: { id: string; idx: number; it
   );
 }
 
-// ─── Page ────────────────────────────────────────────────────────────────────
+// ─── Page Content ─────────────────────────────────────────────────────────────
 
-export default function PerformPage() {
+function PerformContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const incomingSetlistId = searchParams.get('setlistId');
 
   // Queue of { id, title, meta }
   const [queue, setQueue] = useState<QueueItem[]>([]);
@@ -110,6 +114,37 @@ export default function PerformPage() {
   useEffect(() => {
     setSavedSetlists(loadSavedSetlists());
   }, []);
+
+  // Auto-populate when launched from Setlists menu (?setlistId=...)
+  useEffect(() => {
+    if (!incomingSetlistId) return;
+    let isCancelled = false;
+    (async () => {
+      try {
+        const { data: setlistData } = await supabase
+          .from('setlists')
+          .select('name')
+          .eq('id', incomingSetlistId)
+          .single();
+        if (!isCancelled && setlistData?.name) {
+          setSetlistName(setlistData.name);
+        }
+
+        const items = await listSetlistItems(incomingSetlistId);
+        if (!isCancelled && items && items.length > 0) {
+          const queueItems: QueueItem[] = items.map(item => ({
+            id: item.item_id,
+            title: item.title || 'Untitled',
+            meta: item.item_type === 'lyrics' ? 'Lyrics' : (item.transpose_override ? `Transpose: ${item.transpose_override > 0 ? '+' : ''}${item.transpose_override}` : ''),
+          }));
+          setQueue(queueItems);
+        }
+      } catch (err) {
+        console.error('Failed to load incoming setlist into perform queue', err);
+      }
+    })();
+    return () => { isCancelled = true; };
+  }, [incomingSetlistId]);
 
   useEffect(() => {
     if (!searchQuery.trim()) { setSearchResults([]); return; }
@@ -325,5 +360,13 @@ export default function PerformPage() {
         </p>
       </main>
     </div>
+  );
+}
+
+export default function PerformPage() {
+  return (
+    <React.Suspense fallback={null}>
+      <PerformContent />
+    </React.Suspense>
   );
 }
