@@ -87,22 +87,22 @@ export function InstallPrompt() {
   }
 
   return (
-    <div className="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-6 sm:bottom-6 z-50 max-w-sm bg-slate-900/95 backdrop-blur-xl border border-indigo-500/30 shadow-2xl rounded-2xl p-4 text-white animate-in slide-in-from-bottom duration-300 no-print">
+    <div className="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-6 sm:bottom-6 z-50 max-w-sm bg-white/75 dark:bg-[#18181d]/75 backdrop-blur-2xl saturate-[180%] border border-white/60 dark:border-white/15 shadow-[0_8px_32px_rgba(31,38,135,0.12),inset_0_1px_0_rgba(255,255,255,0.8)] rounded-2xl p-4 text-[#1c1c1e] dark:text-white animate-in slide-in-from-bottom duration-300 no-print">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
           <img
             src="/icon-192x192.png"
             alt="ChordCraft"
-            className="w-11 h-11 rounded-xl shadow-md object-cover border border-white/10"
+            className="w-11 h-11 rounded-xl shadow-md object-cover border border-black/5 dark:border-white/10"
           />
           <div>
-            <h4 className="font-bold text-sm tracking-wide text-white">Install ChordCraft</h4>
-            <p className="text-xs text-slate-300">Fast offline access & full-screen stage mode</p>
+            <h4 className="font-bold text-sm tracking-wide text-[#1c1c1e] dark:text-white">Install ChordCraft</h4>
+            <p className="text-xs text-text-secondary dark:text-slate-300">Fast offline access & full-screen stage mode</p>
           </div>
         </div>
         <button
           onClick={handleDismiss}
-          className="text-slate-400 hover:text-white p-1 rounded-lg transition-colors"
+          className="text-text-secondary hover:text-[#1c1c1e] dark:hover:text-white p-1 rounded-lg transition-colors cursor-pointer"
           title="Dismiss"
         >
           <X size={16} />
@@ -112,14 +112,14 @@ export function InstallPrompt() {
       <div className="mt-3 flex items-center gap-2">
         <button
           onClick={handleInstallClick}
-          className="flex-1 flex items-center justify-center gap-2 py-2 px-3 bg-indigo-600 hover:bg-indigo-500 active:scale-98 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-indigo-600/30"
+          className="flex-1 flex items-center justify-center gap-2 py-2 px-3 bg-gradient-to-r from-orange-500 to-rose-500 hover:brightness-110 active:scale-98 text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
         >
           <Download size={14} />
           {isIOS ? 'How to Install on iOS' : 'Install App'}
         </button>
         <button
           onClick={handleDismiss}
-          className="py-2 px-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold transition-all"
+          className="py-2 px-3 bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/15 text-text-primary dark:text-slate-300 rounded-xl text-xs font-semibold transition-all cursor-pointer"
         >
           Later
         </button>
