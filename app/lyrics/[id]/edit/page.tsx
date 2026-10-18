@@ -1,6 +1,6 @@
 'use client';
 
-import { useAuth } from '@/components/AuthProvider';
+import { useAuth, canModifySection } from '@/components/AuthProvider';
 import { useLyricsSync } from '@/hooks/useLyricsSync';
 import { useParams, useRouter } from 'next/navigation';
 import { moveEntry } from '@/lib/storage';
@@ -9,16 +9,23 @@ import { CornerLeftUp, Folder as FolderIcon, RefreshCw, Cloud, CloudOff, Copy } 
 import React, { useState } from 'react';
 
 export default function LyricsEditor() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, profile, loading: authLoading } = useAuth();
   const params = useParams();
   const router = useRouter();
   const lyricId = params.id as string;
+  const canEdit = canModifySection(profile?.profession, 'lyrics');
+
+  React.useEffect(() => {
+    if (!authLoading && !canEdit) {
+      router.replace(`/lyrics/${lyricId}`);
+    }
+  }, [authLoading, canEdit, lyricId, router]);
   
   const { lyric, loading: lyricLoading, saveStatus, collaborators, updateLyric, forceSave } = useLyricsSync(lyricId);
   const [copied, setCopied] = useState(false);
   const [isFolderPickerOpen, setIsFolderPickerOpen] = useState(false);
 
-  if (authLoading || lyricLoading) {
+  if (authLoading || lyricLoading || !canEdit) {
     return <div className="flex h-screen items-center justify-center text-white">Loading...</div>;
   }
 
@@ -48,13 +55,13 @@ export default function LyricsEditor() {
         <div className="max-w-4xl mx-auto space-y-8">
           
           {/* Top Bar for buttons */}
-          <div className="w-full flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+          <div className="w-full flex flex-col sm:flex-row justify-end lg:justify-between items-start sm:items-center gap-4 mb-4">
             <button 
               onClick={async () => {
                 await forceSave();
                 router.push(`/lyrics/${lyric.id}`);
               }}
-              className="px-4 py-2 text-sm font-bold tracking-widest uppercase text-text-secondary hover:text-white bg-surface border border-border shadow-md rounded-xl hover:bg-surface-raised flex items-center transition-all"
+              className="hidden lg:flex px-4 py-2 text-sm font-bold tracking-widest uppercase text-text-secondary hover:text-white bg-surface border border-border shadow-md rounded-xl hover:bg-surface-raised items-center transition-all"
             >
               <CornerLeftUp size={16} className="mr-2" /> Back to Viewer
             </button>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useAuth } from '@/components/AuthProvider';
+import { useAuth, canModifySection } from '@/components/AuthProvider';
 import { useChartSync } from '@/hooks/useChartSync';
 import { useParams, useRouter } from 'next/navigation';
 import { ChordInput } from '@/components/ChordInput';
@@ -16,10 +16,17 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 
 export default function ChartEditor() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, profile, loading: authLoading } = useAuth();
   const params = useParams();
   const router = useRouter();
   const chartId = params.id as string;
+  const canEdit = canModifySection(profile?.profession, 'chart');
+
+  useEffect(() => {
+    if (!authLoading && !canEdit) {
+      router.replace(`/chart/${chartId}`);
+    }
+  }, [authLoading, canEdit, chartId, router]);
   
   const { chart, loading: chartLoading, saveStatus, collaborators, updateChart, forceSave } = useChartSync(chartId);
   const searchParams = useSearchParams();
@@ -620,7 +627,7 @@ export default function ChartEditor() {
   }, [activeMobileSelection, chart, getFlatBars, handleBlockEdit, showToast, updateBar]);
 
   // ─── Conditional Returns (Guaranteed after ALL hooks are initialized) ─────────
-  if (authLoading || chartLoading) {
+  if (authLoading || chartLoading || !canEdit) {
     return (
       <div className="flex h-screen items-center justify-center text-white bg-bg">
         <div className="flex items-center gap-3">
@@ -662,64 +669,64 @@ export default function ChartEditor() {
           <div className="flex flex-col items-center justify-center relative mb-2 sm:mb-4">
             
             {/* Top Bar for buttons */}
-            <div className="w-full flex justify-between items-center gap-2 sm:gap-4 mb-4 sm:mb-8">
+            <div className="w-full flex justify-end lg:justify-between items-center gap-2 sm:gap-4 mb-4 sm:mb-8">
               <button 
                 onClick={async () => {
                   await forceSave();
                   router.push(returnTo ?? `/chart/${chart.id}`);
                 }}
-                className="px-3.5 py-2 text-xs sm:text-sm font-bold tracking-wider uppercase text-text-secondary hover:text-white bg-surface border border-border shadow-md rounded-xl hover:bg-surface-raised flex items-center transition-all"
+                className="hidden lg:flex px-4 py-2.5 text-xs font-bold tracking-wider uppercase text-text-primary bg-white/70 dark:bg-white/10 border border-glass shadow-sm rounded-full hover:bg-white items-center transition-all active:scale-95"
               >
                 <CornerLeftUp size={15} className="mr-1.5" /> {returnTo ? 'Performance' : 'Viewer'}
               </button>
 
-              <div className="flex items-center gap-2 sm:gap-4">
+              <div className="flex items-center gap-2 sm:gap-3">
                 <button
                   onClick={() => setIsFolderPickerOpen(true)}
-                  className="px-3.5 py-2 text-xs sm:text-sm font-bold tracking-wider uppercase text-text-secondary hover:text-white bg-surface border border-border shadow-md rounded-xl hover:bg-surface-raised flex items-center transition-all"
+                  className="px-4 py-2.5 text-xs font-bold tracking-wider uppercase text-text-primary bg-white/70 dark:bg-white/10 border border-glass shadow-sm rounded-full hover:bg-white flex items-center transition-all active:scale-95"
                 >
                   <FolderIcon size={15} className="mr-1.5" /> Move
                 </button>
-                <div className="flex items-center text-[10px] sm:text-xs font-bold tracking-wider uppercase bg-surface-raised border border-border shadow-inner rounded-xl px-3 py-2">
+                <div className="flex items-center text-[10px] sm:text-xs font-bold tracking-wider uppercase bg-white/70 dark:bg-white/10 border border-glass shadow-sm rounded-full px-3.5 py-2">
                   {saveStatus === 'saving' && <span className="text-text-secondary flex items-center"><RefreshCw size={13} className="mr-1.5 animate-spin" /> Saving</span>}
-                  {saveStatus === 'saved' && <span className="text-accent-solid flex items-center"><Cloud size={13} className="mr-1.5" /> Saved</span>}
+                  {saveStatus === 'saved' && <span className="text-orange-600 dark:text-orange-400 flex items-center"><Cloud size={13} className="mr-1.5" /> Saved</span>}
                   {saveStatus === 'offline' && <span className="text-red-500 flex items-center"><CloudOff size={13} className="mr-1.5" /> Offline</span>}
                 </div>
               </div>
             </div>
             
             {/* Center aligned inputs (Responsive) */}
-            <div className="flex flex-col sm:flex-row sm:flex-wrap justify-center items-stretch sm:items-end gap-3 sm:gap-12 bg-surface border border-border shadow-card rounded-2xl sm:rounded-3xl p-4 sm:p-8 w-full">
+            <div className="flex flex-col sm:flex-row sm:flex-wrap justify-center items-stretch sm:items-end gap-3 sm:gap-8 bg-surface-glass backdrop-blur-xl border border-glass shadow-glass rounded-[28px] p-5 sm:p-7 w-full">
               <div className="flex-1 min-w-0 sm:min-w-[200px]">
-                <label className="block text-[10px] sm:text-xs font-bold tracking-widest text-text-secondary uppercase mb-1 sm:mb-2 text-left sm:text-center">Title</label>
+                <label className="block text-[10px] sm:text-xs font-bold tracking-wider text-text-secondary uppercase mb-1 sm:mb-2 text-left sm:text-center">Title</label>
                 <input 
                   value={chart.title}
                   onChange={e => updateTitle(e.target.value)}
-                  className="bg-surface-raised border border-border shadow-inner rounded-xl px-3 sm:px-4 py-2.5 sm:py-3 text-base sm:text-2xl font-bold text-text-primary focus:outline-none focus:border-accent-solid text-left sm:text-center w-full transition-all"
+                  className="bg-white/70 dark:bg-white/[0.06] border border-glass shadow-inner-glass rounded-2xl px-4 py-2.5 sm:py-3 text-base sm:text-2xl font-bold text-text-primary focus:outline-none focus:ring-2 focus:ring-orange-500/30 text-left sm:text-center w-full transition-all tracking-tight"
                   placeholder="Untitled progression"
                 />
               </div>
               
               <div className="flex items-center gap-3">
                 <div className="flex-1 sm:flex-initial">
-                  <label className="block text-[10px] sm:text-xs font-bold tracking-widest text-text-secondary uppercase mb-1 sm:mb-2 text-center">Tempo</label>
-                  <div className="flex items-center text-sm sm:text-xl font-bold text-text-primary justify-center bg-surface-raised border border-border shadow-inner rounded-xl px-3 sm:px-4 py-2 sm:py-3 focus-within:border-accent-solid transition-all">
-                    <span className="mr-1.5 text-xs sm:text-base text-text-secondary">BPM</span>
+                  <label className="block text-[10px] sm:text-xs font-bold tracking-wider text-text-secondary uppercase mb-1 sm:mb-2 text-center">Tempo</label>
+                  <div className="flex items-center text-sm sm:text-lg font-bold text-text-primary justify-center bg-white/70 dark:bg-white/[0.06] border border-glass shadow-inner-glass rounded-2xl px-3 sm:px-4 py-2 sm:py-2.5 focus-within:ring-2 focus-within:ring-orange-500/30 transition-all font-mono">
+                    <span className="mr-1.5 text-xs text-text-muted font-sans">BPM</span>
                     <input 
                       type="number" 
                       value={chart.tempo || ''}
                       onChange={e => updateTempo(parseInt(e.target.value) || 120)}
-                      className="bg-transparent w-12 sm:w-16 focus:outline-none text-center"
+                      className="bg-transparent w-12 sm:w-16 focus:outline-none text-center font-mono font-bold"
                     />
                   </div>
                 </div>
 
                 <div className="flex-1 sm:flex-initial">
-                  <label className="block text-[10px] sm:text-xs font-bold tracking-widest text-text-secondary uppercase mb-1 sm:mb-2 text-center">Time</label>
+                  <label className="block text-[10px] sm:text-xs font-bold tracking-wider text-text-secondary uppercase mb-1 sm:mb-2 text-center">Time</label>
                   <input 
                     value={chart.time_sig || ''}
                     onChange={e => updateTimeSig(e.target.value)}
-                    className="bg-surface-raised border border-border shadow-inner rounded-xl px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-xl font-bold text-text-primary focus:outline-none focus:border-accent-solid w-full sm:w-24 text-center transition-all"
+                    className="bg-white/70 dark:bg-white/[0.06] border border-glass shadow-inner-glass rounded-2xl px-3 sm:px-4 py-2 sm:py-2.5 text-sm sm:text-lg font-mono font-bold text-text-primary focus:outline-none focus:ring-2 focus:ring-orange-500/30 w-full sm:w-24 text-center transition-all"
                     placeholder="4/4"
                   />
                 </div>
@@ -728,7 +735,7 @@ export default function ChartEditor() {
             
             <div className="w-full flex justify-between items-center text-[10px] font-bold tracking-wider text-text-secondary uppercase mt-2 px-1">
               <span>{totalLines} lines • {totalBars} bars total</span>
-              <span className="text-accent-solid md:hidden">💡 Tap bar to open keypad</span>
+              <span className="text-orange-600 dark:text-orange-400 md:hidden">💡 Tap bar to open keypad</span>
             </div>
           </div>
 
@@ -737,7 +744,7 @@ export default function ChartEditor() {
               ═══════════════════════════════════════════════════════════════ */}
           <div className="block md:hidden space-y-3">
             {chart.lines.map((line) => (
-              <div key={line.id} className="bg-surface border border-border shadow-card rounded-2xl p-3 flex flex-col gap-2.5">
+              <div key={line.id} className="bg-surface-glass backdrop-blur-xl border border-glass shadow-glass rounded-[24px] p-3.5 flex flex-col gap-3">
                 
                 {/* Line Header: Part name, Text annotation & Delete */}
                 <div className="flex items-center gap-2">
@@ -745,18 +752,18 @@ export default function ChartEditor() {
                     value={line.label}
                     onChange={e => updateLineLabel(line.id, e.target.value)}
                     placeholder="Part (e.g. Intro)"
-                    className="w-28 h-8 px-2.5 bg-surface-raised border border-border shadow-inner rounded-lg text-xs font-bold text-accent-solid focus:outline-none focus:border-accent-solid shrink-0"
+                    className="w-28 h-9 px-2.5 bg-orange-500/10 dark:bg-orange-500/20 border border-orange-300/40 dark:border-orange-500/30 rounded-xl text-xs font-bold text-orange-700 dark:text-orange-300 placeholder:text-orange-400/60 focus:outline-none focus:ring-2 focus:ring-orange-500/30 shrink-0 transition-all"
                   />
                   <input 
                     value={line.labelRight || ''}
                     onChange={e => updateLineLabelRight(line.id, e.target.value)}
                     placeholder="Section notes / lyrics..."
-                    className="flex-1 h-8 px-2.5 bg-surface-raised border border-border shadow-inner rounded-lg text-xs text-text-secondary focus:outline-none focus:border-accent-solid min-w-0"
+                    className="flex-1 h-9 px-2.5 bg-white/70 dark:bg-white/[0.06] border border-glass shadow-inner-glass rounded-xl text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-orange-500/30 min-w-0 transition-all"
                   />
                   <button 
                     onClick={() => removeLine(line.id)}
                     disabled={chart.lines.length <= 1}
-                    className="w-8 h-8 flex items-center justify-center text-text-secondary hover:text-red-400 bg-surface-raised border border-border rounded-lg shrink-0 disabled:opacity-40"
+                    className="w-9 h-9 flex items-center justify-center text-text-muted hover:text-rose-500 bg-white/70 dark:bg-white/[0.06] border border-glass shadow-sm rounded-xl shrink-0 disabled:opacity-30 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-all"
                     title="Remove line"
                   >
                     <X size={14} />
@@ -773,14 +780,18 @@ export default function ChartEditor() {
                         {/* Start repeat button */}
                         <button
                           onClick={() => toggleStartRepeat(line.id, block.id)}
-                          className={`px-1.5 h-10 flex items-center justify-center rounded-md border text-sm font-black transition-colors ${block.startRepeat ? 'border-accent-solid bg-accent-solid/20 text-accent-solid' : 'border-transparent text-text-muted hover:text-text-secondary'}`}
+                          className={`px-1.5 h-12 flex items-center justify-center rounded-xl text-sm font-black transition-colors ${
+                            block.startRepeat 
+                              ? 'bg-orange-500/20 text-orange-600 dark:text-orange-400 border border-orange-300/40' 
+                              : 'text-text-muted hover:text-text-secondary hover:bg-black/5 dark:hover:bg-white/5 border border-transparent'
+                          }`}
                           title="Toggle Start Repeat (||:)"
                         >
                           ||{block.startRepeat && ':'}
                         </button>
 
                         {/* Measure Bars Grid (Responsive wrapping) */}
-                        <div className={`flex-1 grid gap-1.5 ${isTwoCol ? 'grid-cols-2' : 'grid-cols-4'} bg-black/30 p-1.5 rounded-xl border border-border`}>
+                        <div className={`flex-1 grid gap-1.5 ${isTwoCol ? 'grid-cols-2' : 'grid-cols-4'} bg-black/[0.02] dark:bg-white/[0.03] p-1.5 rounded-2xl border border-black/[0.04] dark:border-white/10`}>
                           {block.bars.map((bar, barIdx) => {
                             const isSelected = activeMobileSelection?.lineId === line.id &&
                                                activeMobileSelection?.blockId === block.id &&
@@ -794,12 +805,12 @@ export default function ChartEditor() {
                                   setIsSlashBassMode(false);
                                   setActiveMobileSelection({ lineId: line.id, blockId: block.id, barIndex: barIdx });
                                 }}
-                                className={`h-11 rounded-lg font-mono text-sm font-bold flex items-center justify-center transition-all select-none overflow-hidden px-1 border ${
+                                className={`h-12 rounded-[14px] font-mono text-sm font-bold flex items-center justify-center transition-all select-none overflow-hidden px-1 border ${
                                   isSelected 
-                                    ? 'bg-accent-solid/30 border-accent-solid text-white shadow-[0_0_12px_rgba(99,102,241,0.6)] ring-2 ring-accent-solid scale-[1.03]' 
+                                    ? 'bg-orange-500/15 border-orange-500 text-orange-600 dark:text-orange-400 ring-2 ring-orange-500/40 scale-[1.03] shadow-md' 
                                     : bar 
-                                      ? 'bg-surface-raised border-border text-text-primary' 
-                                      : 'bg-surface border-dashed border-border/70 text-text-muted text-base'
+                                      ? 'bg-white dark:bg-white/10 border-glass text-text-primary shadow-xs' 
+                                      : 'bg-white/80 dark:bg-white/[0.04] border-dashed border-black/[0.12] dark:border-white/15 text-text-muted text-base hover:bg-white dark:hover:bg-white/10'
                                 }`}
                               >
                                 {bar ? parseChord(bar) : '·'}
@@ -811,7 +822,11 @@ export default function ChartEditor() {
                         {/* End repeat button */}
                         <button
                           onClick={() => toggleEndRepeat(line.id, block.id)}
-                          className={`px-1.5 h-10 flex items-center justify-center rounded-md border text-sm font-black transition-colors ${block.endRepeat ? 'border-accent-solid bg-accent-solid/20 text-accent-solid' : 'border-transparent text-text-muted hover:text-text-secondary'}`}
+                          className={`px-1.5 h-12 flex items-center justify-center rounded-xl text-sm font-black transition-colors ${
+                            block.endRepeat 
+                              ? 'bg-orange-500/20 text-orange-600 dark:text-orange-400 border border-orange-300/40' 
+                              : 'text-text-muted hover:text-text-secondary hover:bg-black/5 dark:hover:bg-white/5 border border-transparent'
+                          }`}
                           title="Toggle End Repeat (:||)"
                         >
                           {block.endRepeat && ':'}||
@@ -821,10 +836,10 @@ export default function ChartEditor() {
                         <button
                           onClick={() => removeBlock(line.id, block.id)}
                           disabled={line.blocks.length <= 1}
-                          className="w-7 h-10 flex items-center justify-center text-text-muted hover:text-red-400 disabled:opacity-30 shrink-0"
+                          className="w-7 h-12 flex items-center justify-center text-text-muted hover:text-rose-500 hover:bg-rose-50/50 dark:hover:bg-rose-950/30 rounded-xl disabled:opacity-30 shrink-0 transition-colors"
                           title="Delete measure block"
                         >
-                          <X size={13} />
+                          <X size={14} />
                         </button>
                       </div>
                     );
@@ -832,16 +847,16 @@ export default function ChartEditor() {
                 </div>
 
                 {/* Mobile Line Add Bar Buttons */}
-                <div className="flex gap-2 pt-1 border-t border-border/50">
+                <div className="flex gap-2 pt-1 border-t border-black/[0.05] dark:border-white/[0.08]">
                   <button
                     onClick={() => addBarsToLine(line.id, 4)}
-                    className="flex-1 py-1.5 text-[11px] font-semibold text-text-secondary bg-surface-raised border border-dashed border-border rounded-lg hover:border-accent-solid hover:text-accent-solid transition-colors"
+                    className="flex-1 py-2 text-xs font-bold text-text-secondary bg-white/70 dark:bg-white/[0.04] border border-dashed border-black/[0.1] dark:border-white/15 rounded-xl hover:border-orange-500/50 hover:text-orange-600 dark:hover:text-orange-400 hover:bg-white dark:hover:bg-white/10 transition-all shadow-xs active:scale-98"
                   >
                     + 4 Bars
                   </button>
                   <button
                     onClick={() => addBarsToLine(line.id, 2)}
-                    className="flex-1 py-1.5 text-[11px] font-semibold text-text-secondary bg-surface-raised border border-dashed border-border rounded-lg hover:border-accent-solid hover:text-accent-solid transition-colors"
+                    className="flex-1 py-2 text-xs font-bold text-text-secondary bg-white/70 dark:bg-white/[0.04] border border-dashed border-black/[0.1] dark:border-white/15 rounded-xl hover:border-orange-500/50 hover:text-orange-600 dark:hover:text-orange-400 hover:bg-white dark:hover:bg-white/10 transition-all shadow-xs active:scale-98"
                   >
                     + 2 Bars
                   </button>
@@ -856,21 +871,21 @@ export default function ChartEditor() {
               ═══════════════════════════════════════════════════════════════ */}
           <div className="hidden md:block space-y-6">
             {chart.lines.map((line) => (
-              <div key={line.id} className="flex items-stretch bg-surface border border-border shadow-card rounded-2xl relative group">
+              <div key={line.id} className="flex items-stretch bg-surface-glass backdrop-blur-xl border border-glass shadow-glass rounded-[24px] relative group overflow-hidden">
                 
                 {/* Left controls: Part name & Delete */}
-                <div className="w-40 flex flex-col justify-center p-5 shrink-0 bg-white/5 rounded-l-2xl border-r border-border">
+                <div className="w-44 flex flex-col justify-center p-5 shrink-0 bg-black/[0.02] dark:bg-white/[0.02] rounded-l-[24px] border-r border-glass">
                   <div className="flex items-center justify-between">
                     <input 
                       value={line.label}
                       onChange={e => updateLineLabel(line.id, e.target.value)}
                       placeholder="Part name"
-                      className="bg-surface-raised border border-border shadow-inner rounded-lg px-2 py-1 text-sm font-bold text-text-primary focus:outline-none focus:border-accent-solid w-full mr-2 transition-all"
+                      className="bg-orange-500/10 dark:bg-orange-500/20 border border-orange-300/40 dark:border-orange-500/30 rounded-xl px-2.5 py-1.5 text-xs font-bold text-orange-700 dark:text-orange-300 placeholder:text-orange-400/60 focus:outline-none focus:ring-2 focus:ring-orange-500/30 w-full mr-2 transition-all"
                     />
                     <button 
                       onClick={() => removeLine(line.id)}
                       disabled={chart.lines.length <= 1}
-                      className="text-text-secondary hover:text-red-500 disabled:opacity-50 opacity-0 group-hover:opacity-100 transition-opacity bg-surface border border-border shadow-sm hover:bg-surface-raised rounded-md p-1"
+                      className="text-text-muted hover:text-rose-500 disabled:opacity-30 opacity-0 group-hover:opacity-100 transition-opacity bg-white/70 dark:bg-white/10 border border-glass shadow-sm rounded-lg p-1.5"
                       title="Remove line"
                     >
                       <X size={14} />
@@ -881,7 +896,7 @@ export default function ChartEditor() {
                 {/* Pre-block Add */}
                 <button 
                   onClick={() => addBlock(line.id, true)} 
-                  className="px-4 text-text-secondary hover:text-accent-start transition-all flex items-center justify-center shrink-0 border-r border-border hover:bg-white/5"
+                  className="px-4 text-text-muted hover:text-orange-600 transition-all flex items-center justify-center shrink-0 border-r border-glass hover:bg-black/[0.02] dark:hover:bg-white/[0.02]"
                   title="Add block"
                 >
                   <Plus size={16} />
@@ -892,22 +907,22 @@ export default function ChartEditor() {
                   <div className="flex flex-nowrap gap-x-2">
                     {line.blocks.map((block) => (
                       <React.Fragment key={block.id}>
-                        <div className="flex items-center group/block shrink-0 bg-surface-raised border border-border shadow-inner rounded-xl p-3">
+                        <div className="flex items-center group/block shrink-0 bg-black/[0.02] dark:bg-white/[0.02] border border-glass shadow-inner-glass rounded-2xl p-3">
                           <div 
                             onClick={() => toggleStartRepeat(line.id, block.id)}
-                            className="flex items-center cursor-pointer hover:text-accent-start transition-colors mx-2 group/repeat"
+                            className="flex items-center cursor-pointer hover:text-orange-600 transition-colors mx-2 group/repeat"
                             title="Toggle start repeat"
                           >
-                            <span className="text-2xl font-light text-text-secondary group-hover/repeat:text-accent-start">‖</span>
+                            <span className="text-2xl font-light text-text-secondary group-hover/repeat:text-orange-600">‖</span>
                             {block.startRepeat && (
-                              <span className="text-3xl font-bold text-accent-solid ml-1 leading-none mt-[-4px]">:</span>
+                              <span className="text-3xl font-bold text-orange-600 dark:text-orange-400 ml-1 leading-none mt-[-4px]">:</span>
                             )}
                           </div>
                           
                           <div className="flex items-center space-x-3 relative">
                             {block.bars.map((bar, barIdx) => (
                               <React.Fragment key={`${block.id}-${barIdx}`}>
-                                <div className="w-28 h-14 bg-surface border border-border shadow-sm rounded-lg transition-all focus-within:border-accent-solid focus-within:shadow-[0_0_0_1px_var(--accent-solid)] shrink-0 overflow-hidden">
+                                <div className="w-28 h-14 bg-white dark:bg-white/10 border border-glass shadow-sm rounded-xl transition-all focus-within:ring-2 focus-within:ring-orange-500/40 focus-within:border-orange-500 shrink-0 overflow-hidden">
                                   <ChordInput 
                                     value={bar} 
                                     onChange={(val) => updateBar(line.id, block.id, barIdx, val)}
@@ -949,7 +964,7 @@ export default function ChartEditor() {
                               <button 
                                 onClick={() => removeBlock(line.id, block.id)}
                                 disabled={line.blocks.length <= 1}
-                                className="p-1.5 bg-surface border border-border shadow-sm hover:bg-surface-raised rounded-full text-text-secondary hover:text-red-500 disabled:opacity-50 disabled:shadow-none transition-all"
+                                className="p-1.5 bg-white dark:bg-[#1c1c22] border border-glass shadow-sm hover:bg-rose-50 rounded-full text-text-muted hover:text-rose-500 disabled:opacity-30 transition-all"
                                 title="Remove block"
                               >
                                 <X size={12} />
@@ -959,13 +974,13 @@ export default function ChartEditor() {
                           
                           <div 
                             onClick={() => toggleEndRepeat(line.id, block.id)}
-                            className="flex items-center cursor-pointer hover:text-accent-start transition-colors mx-2 group/repeat"
+                            className="flex items-center cursor-pointer hover:text-orange-600 transition-colors mx-2 group/repeat"
                             title="Toggle end repeat"
                           >
                             {block.endRepeat && (
-                              <span className="text-3xl font-bold text-accent-solid mr-1 leading-none mt-[-4px]">:</span>
+                              <span className="text-3xl font-bold text-orange-600 dark:text-orange-400 mr-1 leading-none mt-[-4px]">:</span>
                             )}
-                            <span className="text-2xl font-light text-text-secondary group-hover/repeat:text-accent-start">‖</span>
+                            <span className="text-2xl font-light text-text-secondary group-hover/repeat:text-orange-600">‖</span>
                           </div>
                         </div>
                         
@@ -973,7 +988,7 @@ export default function ChartEditor() {
                         <div className="flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity px-2 shrink-0">
                           <button 
                             onClick={() => addBarToBlock(line.id, block.id)}
-                            className="p-2 bg-surface border border-border shadow-sm rounded-xl text-text-secondary hover:text-accent-start hover:bg-surface-raised transition-all"
+                            className="p-2 bg-white/80 dark:bg-white/10 border border-glass shadow-sm rounded-xl text-text-muted hover:text-orange-600 hover:bg-white transition-all"
                             title="Add bar"
                           >
                             <Plus size={14} />
@@ -987,20 +1002,20 @@ export default function ChartEditor() {
                 {/* Post-block Add */}
                 <button 
                   onClick={() => addBlock(line.id, false)} 
-                  className="px-4 text-text-secondary hover:text-accent-start transition-all flex items-center justify-center shrink-0 border-l border-border hover:bg-white/5"
+                  className="px-4 text-text-muted hover:text-orange-600 transition-all flex items-center justify-center shrink-0 border-l border-glass hover:bg-black/[0.02] dark:hover:bg-white/[0.02]"
                   title="Add block"
                 >
                   <Plus size={16} />
                 </button>
                 
                 {/* Right controls: Part name (end) */}
-                <div className="w-40 flex flex-col justify-center p-5 shrink-0 bg-white/5 rounded-r-2xl border-l border-border">
+                <div className="w-44 flex flex-col justify-center p-5 shrink-0 bg-black/[0.02] dark:bg-white/[0.02] rounded-r-[24px] border-l border-glass">
                   <div className="flex items-center">
                     <input 
                       value={line.labelRight || ''}
                       onChange={e => updateLineLabelRight(line.id, e.target.value)}
-                      placeholder="Text"
-                      className="bg-surface-raised border border-border shadow-inner rounded-lg px-2 py-1 text-sm font-bold text-text-primary focus:outline-none focus:border-accent-solid w-full transition-all"
+                      placeholder="Section notes"
+                      className="bg-white/70 dark:bg-white/[0.06] border border-glass shadow-inner-glass rounded-xl px-2.5 py-1.5 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-orange-500/30 w-full transition-all"
                     />
                   </div>
                 </div>
@@ -1009,7 +1024,7 @@ export default function ChartEditor() {
                 <div className="absolute -bottom-4 right-8 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button 
                     onClick={() => insertLineAfter(line.id)}
-                    className="flex items-center justify-center p-2 bg-surface border border-border shadow-md rounded-full text-text-secondary hover:text-accent-start hover:bg-surface-raised transition-all backdrop-blur-sm"
+                    className="flex items-center justify-center p-2 bg-white/90 dark:bg-[#1c1c22] border border-glass shadow-md rounded-full text-text-secondary hover:text-orange-600 hover:scale-105 transition-all backdrop-blur-sm"
                     title="Insert line below"
                   >
                     <Plus size={16} />
@@ -1023,76 +1038,76 @@ export default function ChartEditor() {
           <div className="flex flex-wrap items-center gap-3 sm:gap-4 justify-center pt-2">
             <button 
               onClick={addLine}
-              className="flex-1 sm:flex-initial flex items-center justify-center px-4 sm:px-6 py-2.5 sm:py-3 bg-surface border border-border shadow-md text-text-secondary hover:text-accent-start hover:bg-surface-raised rounded-xl transition-all text-xs sm:text-sm font-bold tracking-widest uppercase"
+              className="flex-1 sm:flex-initial flex items-center justify-center px-6 py-3 bg-white/80 dark:bg-white/10 border border-black/[0.08] dark:border-white/10 shadow-sm text-text-primary hover:bg-white dark:hover:bg-white/20 rounded-full transition-all text-xs font-bold tracking-wider uppercase active:scale-95"
             >
-              <Plus size={15} className="mr-1.5" /> Add Line
+              <Plus size={15} className="mr-1.5 text-orange-500 stroke-[2.5]" /> Add Line
             </button>
             
             <button 
               onClick={copyAsText}
-              className="flex-1 sm:flex-initial px-4 sm:px-6 py-2.5 sm:py-3 bg-accent-gradient shadow-md text-white hover:brightness-110 rounded-xl transition-all text-xs sm:text-sm font-bold tracking-widest uppercase"
+              className="flex-1 sm:flex-initial px-7 py-3 bg-gradient-to-b from-[#3a3a40] to-[#1c1c1e] text-white shadow-lg hover:brightness-110 rounded-full transition-all text-xs font-bold tracking-wider uppercase active:scale-95"
             >
               {copied ? 'Copied!' : 'Copy Text'}
             </button>
             
             <button 
               onClick={clearAll}
-              className="px-4 sm:px-6 py-2.5 sm:py-3 bg-surface border border-border shadow-md text-red-400 hover:text-red-300 hover:bg-surface-raised rounded-xl transition-all text-xs sm:text-sm font-bold tracking-widest uppercase"
+              className="px-6 py-3 bg-white/80 dark:bg-white/10 border border-rose-200/70 dark:border-rose-500/20 shadow-sm text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-full transition-all text-xs font-bold tracking-wider uppercase active:scale-95"
             >
               Clear All
             </button>
           </div>
 
           {/* Transpose Controls */}
-          <div className="border-t border-border pt-6 sm:pt-8 flex flex-wrap items-center gap-4 sm:gap-8 justify-center">
-            <span className="text-xs sm:text-sm font-bold tracking-widest text-text-secondary uppercase">Transpose</span>
+          <div className="border-t border-black/[0.06] dark:border-white/[0.08] pt-6 sm:pt-8 flex flex-wrap items-center gap-3 sm:gap-6 justify-center">
+            <span className="text-xs sm:text-sm font-bold tracking-wider text-text-secondary uppercase">Transpose</span>
             
-            <div className="flex items-center space-x-2 bg-surface-raised border border-border shadow-inner rounded-2xl px-2 py-1.5 sm:py-2">
-              <button onClick={() => handleTranspose(-1)} className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center bg-surface border border-border shadow-sm rounded-xl text-text-secondary hover:text-white hover:bg-white/5 transition-all text-base sm:text-lg font-bold">−</button>
-              <span className="font-bold text-accent-start min-w-[100px] sm:min-w-[120px] text-center text-xs sm:text-sm">
+            <div className="flex items-center space-x-2 bg-white/80 dark:bg-white/10 border border-glass shadow-inner-glass rounded-full px-2 py-1 sm:py-1.5">
+              <button onClick={() => handleTranspose(-1)} className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-white dark:bg-white/10 border border-glass shadow-sm rounded-full text-text-primary hover:bg-orange-50 dark:hover:bg-orange-950/30 transition-all text-base sm:text-lg font-bold active:scale-95">−</button>
+              <span className="font-bold text-orange-600 dark:text-orange-400 min-w-[100px] sm:min-w-[110px] text-center text-xs sm:text-sm font-mono">
                 {chart.semitone_offset === 0 ? 'Concert pitch' : `${chart.semitone_offset > 0 ? '+' : ''}${chart.semitone_offset} semitones`}
               </span>
-              <button onClick={() => handleTranspose(1)} className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center bg-surface border border-border shadow-sm rounded-xl text-text-secondary hover:text-white hover:bg-white/5 transition-all text-base sm:text-lg font-bold">+</button>
+              <button onClick={() => handleTranspose(1)} className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-white dark:bg-white/10 border border-glass shadow-sm rounded-full text-text-primary hover:bg-orange-50 dark:hover:bg-orange-950/30 transition-all text-base sm:text-lg font-bold active:scale-95">+</button>
             </div>
             
             {chart.semitone_offset !== 0 && (
-              <button onClick={handleResetTranspose} className="px-4 py-2 text-xs font-bold uppercase tracking-widest text-text-secondary hover:text-accent-start bg-surface border border-border shadow-md rounded-xl hover:bg-surface-raised transition-all">
+              <button onClick={handleResetTranspose} className="px-4 py-2 text-xs font-bold uppercase tracking-wider text-text-secondary hover:text-orange-600 bg-white/80 dark:bg-white/10 border border-glass shadow-sm rounded-full transition-all active:scale-95">
                 Reset
               </button>
             )}
 
             <button 
               onClick={toggleSpelling} 
-              className={`px-4 py-2 text-xs font-bold uppercase tracking-widest rounded-xl transition-all border border-border shadow-md ${chart.prefer_flats ? 'bg-surface-raised text-accent-solid shadow-inner border-accent-solid' : 'bg-surface text-text-secondary hover:text-white hover:bg-surface-raised'}`}
+              className={`px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-full transition-all border shadow-sm ${chart.prefer_flats ? 'bg-orange-500/15 text-orange-600 dark:text-orange-400 border-orange-500/30' : 'bg-white/80 dark:bg-white/10 border-glass text-text-secondary hover:text-text-primary'}`}
             >
               Spelling: {chart.prefer_flats ? '♭' : '♯'}
             </button>
             
             {/* Network Sync Status */}
-            <div className="ml-0 sm:ml-auto flex items-center space-x-4 sm:space-x-6 mt-2 sm:mt-0">
+            <div className="ml-0 sm:ml-auto flex items-center space-x-3 sm:space-x-4 mt-2 sm:mt-0">
               {collaborators.length > 0 && (
                 <div className="flex -space-x-2">
                   {collaborators.map((email, idx) => (
-                    <div key={idx} className="h-7 w-7 sm:h-8 sm:w-8 rounded-full bg-surface-raised border border-accent-solid shadow-inner flex items-center justify-center text-[10px] sm:text-xs font-bold text-accent-start" title={`${email} is editing`}>
+                    <div key={idx} className="h-7 w-7 sm:h-8 sm:w-8 rounded-full bg-orange-500/15 border border-orange-500/30 shadow-inner flex items-center justify-center text-[10px] sm:text-xs font-bold text-orange-600" title={`${email} is editing`}>
                       {email.charAt(0).toUpperCase()}
                     </div>
                   ))}
                 </div>
               )}
               
-              <div className="flex items-center text-[10px] sm:text-xs font-bold uppercase tracking-widest bg-surface-raised border border-border shadow-inner rounded-xl px-3 py-1.5 sm:px-4 sm:py-2">
-                {saveStatus === 'saving' && <><RefreshCw size={13} className="mr-1.5 text-text-secondary animate-spin" /> <span className="text-text-secondary">Saving...</span></>}
-                {saveStatus === 'saved' && <><Cloud size={13} className="mr-1.5 text-accent-solid" /> <span className="text-accent-solid">Saved</span></>}
+              <div className="flex items-center text-[10px] sm:text-xs font-bold tracking-wider uppercase bg-white/80 dark:bg-white/10 border border-glass shadow-sm rounded-full px-3.5 py-1.5">
+                {saveStatus === 'saving' && <><RefreshCw size={13} className="mr-1.5 text-text-secondary animate-spin" /> <span className="text-text-secondary">Saving…</span></>}
+                {saveStatus === 'saved' && <><Cloud size={13} className="mr-1.5 text-orange-600 dark:text-orange-400" /> <span className="text-orange-600 dark:text-orange-400">Saved</span></>}
                 {saveStatus === 'offline' && <><CloudOff size={13} className="mr-1.5 text-red-500" /> <span className="text-red-500">Offline</span></>}
               </div>
             </div>
           </div>
 
           {/* Text Editor */}
-          <div className="border-t border-border pt-8 sm:pt-12 mb-8 sm:mb-12">
+          <div className="border-t border-black/[0.06] dark:border-white/[0.08] pt-8 sm:pt-12 mb-8 sm:mb-12">
             <label className="block text-[10px] sm:text-xs font-bold tracking-widest text-text-secondary uppercase mb-3 text-center">Text Editor &amp; Preview</label>
             <textarea 
-              className="w-full h-48 sm:h-64 bg-surface-raised border border-border shadow-inner rounded-2xl sm:rounded-3xl p-4 sm:p-8 font-mono text-xs sm:text-[15px] text-text-primary font-medium whitespace-pre-wrap resize-y focus:outline-none focus:border-accent-solid transition-all leading-relaxed"
+              className="w-full h-48 sm:h-64 bg-white/70 dark:bg-black/30 border border-glass shadow-inner-glass rounded-[24px] sm:rounded-[28px] p-4 sm:p-8 font-mono text-xs sm:text-[14px] text-text-primary font-medium whitespace-pre-wrap resize-y focus:outline-none focus:ring-2 focus:ring-orange-500/30 transition-all leading-relaxed"
               value={customText || ''}
               onFocus={() => isTypingText.current = true}
               onBlur={() => {
@@ -1118,40 +1133,40 @@ export default function ChartEditor() {
           MOBILE CHORD KEYPAD (BOTTOM SHEET - NO DARKENING OVERLAY)
           ═══════════════════════════════════════════════════════════════ */}
       {activeMobileSelection && (
-        <div className="fixed left-0 right-0 bottom-0 bg-[#120b24]/95 backdrop-blur-xl border-t border-border-light rounded-t-3xl p-3 pb-[calc(14px+env(safe-area-inset-bottom,12px))] z-50 shadow-[0_-15px_35px_rgba(0,0,0,0.8)] md:hidden max-w-lg mx-auto animate-slide-up">
+        <div className="fixed left-0 right-0 bottom-0 bg-surface-glass backdrop-blur-2xl border-t border-glass rounded-t-[24px] p-3.5 pb-[max(16px,env(safe-area-inset-bottom))] z-50 shadow-glass-strong md:hidden max-w-lg mx-auto animate-slide-up">
           
           {/* Drawer Top Controls */}
-          <div className="flex items-center justify-between gap-2 mb-2">
+          <div className="flex items-center justify-between gap-2 mb-2 px-1">
             <div className="flex items-center gap-1.5 text-xs font-bold text-text-secondary">
-              <span className="bg-surface-raised text-accent-solid px-2 py-0.5 rounded-full text-[11px]">
+              <span className="bg-orange-500/15 text-orange-600 dark:text-orange-400 px-2.5 py-0.5 rounded-full text-[11px] border border-orange-500/20">
                 {activeLine?.label || 'Section'}
               </span>
               <span>Bar {(activeMobileSelection.barIndex || 0) + 1} of {activeBlock?.bars.length || 1}</span>
             </div>
             <div className="flex items-center gap-1.5">
               <button
-                onClick={() => stepMobileBar(-1)}
-                className="px-2.5 py-1 bg-surface-raised border border-border text-text-primary rounded-lg text-xs font-bold flex items-center gap-0.5 active:scale-95 transition-transform"
+                onClick={() => { if (typeof navigator !== 'undefined' && 'vibrate' in navigator) navigator.vibrate(8); stepMobileBar(-1); }}
+                className="px-3 py-1.5 bg-white/70 dark:bg-white/10 border border-glass text-text-primary rounded-full text-xs font-bold flex items-center gap-0.5 active:scale-95 transition-all shadow-sm"
               >
                 <ChevronLeft size={13} /> Prev
               </button>
               <button
-                onClick={() => stepMobileBar(1)}
-                className="px-2.5 py-1 bg-surface-raised border border-border text-text-primary rounded-lg text-xs font-bold flex items-center gap-0.5 active:scale-95 transition-transform"
+                onClick={() => { if (typeof navigator !== 'undefined' && 'vibrate' in navigator) navigator.vibrate(8); stepMobileBar(1); }}
+                className="px-3 py-1.5 bg-white/70 dark:bg-white/10 border border-glass text-text-primary rounded-full text-xs font-bold flex items-center gap-0.5 active:scale-95 transition-all shadow-sm"
               >
                 Next <ChevronRight size={13} />
               </button>
               <button
-                onClick={() => setActiveMobileSelection(null)}
-                className="px-3 py-1 bg-accent-solid text-white rounded-lg text-xs font-bold flex items-center gap-1 active:scale-95 shadow-md transition-transform"
+                onClick={() => { if (typeof navigator !== 'undefined' && 'vibrate' in navigator) navigator.vibrate(20); setActiveMobileSelection(null); }}
+                className="px-3.5 py-1.5 bg-btn-dark text-white rounded-full text-xs font-bold flex items-center gap-1 active:scale-95 shadow-btn-dark transition-all"
               >
                 <Check size={13} /> Done
               </button>
             </div>
           </div>
 
-          {/* Realtime Chord Display & Mode Toggle */}
-          <div className="bg-surface/90 border border-border rounded-xl px-3 py-1.5 flex items-center justify-between mb-2 min-h-[46px] gap-2">
+          {/* Realtime Chord Display & Mode Toggle (Peach Voicing Banner #ffedd5) */}
+          <div className="bg-[#ffedd5] dark:bg-orange-950/40 border border-orange-200/70 dark:border-orange-500/20 rounded-2xl px-3.5 py-2 flex items-center justify-between mb-2.5 min-h-[46px] gap-2 shadow-sm">
             {isNativeKeyboard ? (
               <div className="flex-1 flex items-center gap-2">
                 <input
@@ -1171,15 +1186,15 @@ export default function ChartEditor() {
                     }
                   }}
                   placeholder="Type chord (e.g. Cm7, G/B)..."
-                  className="w-full bg-transparent text-white font-mono font-bold text-lg focus:outline-none placeholder:text-text-muted"
+                  className="w-full bg-transparent text-[#9a3412] dark:text-orange-200 font-mono font-bold text-lg focus:outline-none placeholder:text-orange-900/40"
                 />
               </div>
             ) : (
-              <div className="font-mono text-xl font-black text-white flex items-baseline tracking-tight flex-1">
-                <span>{activeChordVal ? parseChord(activeChordVal) : ''}</span>
-                <span className="w-0.5 h-5 bg-accent-solid ml-1 inline-block animate-pulse self-center" />
+              <div className="font-sans text-xl font-extrabold text-[#9a3412] dark:text-orange-300 flex items-baseline tracking-tight flex-1">
+                <span>{activeChordVal ? parseChord(activeChordVal) : '-'}</span>
+                <span className="w-1.5 h-5 bg-orange-500 rounded-full ml-1 inline-block animate-pulse self-center" />
                 {isSlashBassMode && (
-                  <span className="ml-2 text-xs font-sans font-bold text-sky-400 bg-sky-950/40 border border-sky-800/40 px-1.5 py-0.5 rounded">
+                  <span className="ml-2 text-xs font-sans font-bold text-orange-700 bg-orange-200/60 px-2 py-0.5 rounded-full">
                     Pick Bass Note ↓
                   </span>
                 )}
@@ -1192,16 +1207,16 @@ export default function ChartEditor() {
                   setIsNativeKeyboard(!isNativeKeyboard);
                   showToast(isNativeKeyboard ? 'Musical Keypad' : 'Phone Keyboard');
                 }}
-                className={`p-1.5 rounded-lg border text-xs font-bold flex items-center gap-1 transition-colors ${
+                className={`p-1.5 rounded-xl border text-xs font-bold flex items-center gap-1 transition-colors ${
                   isNativeKeyboard 
-                    ? 'bg-accent-solid/20 border-accent-solid text-accent-solid' 
-                    : 'bg-surface-raised border-border text-text-secondary hover:text-white'
+                    ? 'bg-orange-500/20 border-orange-500 text-orange-700 dark:text-orange-300' 
+                    : 'bg-white/80 dark:bg-white/10 border-orange-300/40 text-orange-800 dark:text-orange-200'
                 }`}
                 title={isNativeKeyboard ? 'Switch to Musical Keypad' : 'Switch to Phone Keyboard'}
               >
                 {isNativeKeyboard ? <Music size={14} /> : <Keyboard size={14} />}
               </button>
-              <div className="text-[11px] font-mono font-bold text-emerald-400 bg-emerald-950/40 border border-emerald-800/40 px-2 py-1 rounded-md">
+              <div className="text-[11px] font-mono font-bold text-orange-800 dark:text-orange-300 bg-white/70 dark:bg-white/10 border border-orange-300/40 px-2.5 py-1 rounded-full">
                 {activeChordVoicing?.formattedNotes || (activeChordVal ? 'Notation' : 'Empty bar')}
               </div>
             </div>
@@ -1211,15 +1226,15 @@ export default function ChartEditor() {
           {!isNativeKeyboard && (
             <>
               {/* Row 1: Root Note Keys (Highlights in slash mode) */}
-              <div className="grid grid-cols-7 gap-1 mb-1">
+              <div className="grid grid-cols-7 gap-1.5 mb-1.5">
                 {['C', 'D', 'E', 'F', 'G', 'A', 'B'].map((root) => (
                   <button
                     key={root}
-                    onClick={() => handleKeypadPress(root)}
-                    className={`h-10 rounded-lg font-sans text-base font-extrabold flex items-center justify-center active:scale-95 shadow-sm transition-all ${
+                    onClick={() => { if (typeof navigator !== 'undefined' && 'vibrate' in navigator) navigator.vibrate(10); handleKeypadPress(root); }}
+                    className={`h-10 rounded-[14px] font-sans text-sm font-extrabold flex items-center justify-center active:scale-95 shadow-[0_2px_8px_rgba(0,0,0,0.06)] transition-all ${
                       isSlashBassMode 
-                        ? 'bg-sky-500/20 border-sky-400 text-sky-300 ring-1 ring-sky-400 animate-pulse' 
-                        : 'bg-surface-hover border border-border-light text-white active:bg-accent-solid'
+                        ? 'bg-orange-500/20 border-orange-500 text-orange-600 ring-2 ring-orange-400 animate-pulse' 
+                        : 'bg-white dark:bg-white/10 border border-glass text-text-primary hover:bg-orange-50'
                     }`}
                   >
                     {root}
@@ -1228,14 +1243,14 @@ export default function ChartEditor() {
               </div>
 
               {/* Row 2: Qualities 1 */}
-              <div className="grid grid-cols-7 gap-1 mb-1">
+              <div className="grid grid-cols-7 gap-1.5 mb-1.5">
                 {['♯', '♭', 'm', '7', 'maj7', 'sus4', 'dim'].map((q) => {
                   const isAcc = q === '♯' || q === '♭';
                   return (
                     <button
                       key={q}
-                      onClick={() => handleKeypadPress(q)}
-                      className={`h-9 bg-surface-raised border border-border rounded-lg font-mono text-xs font-bold flex items-center justify-center active:bg-surface-hover active:scale-95 transition-transform ${isAcc ? 'text-purple-300 text-sm' : 'text-slate-200'}`}
+                      onClick={() => { if (typeof navigator !== 'undefined' && 'vibrate' in navigator) navigator.vibrate(10); handleKeypadPress(q); }}
+                      className={`h-9 bg-white/80 dark:bg-white/10 border border-glass rounded-[14px] font-mono text-xs font-bold flex items-center justify-center active:scale-95 transition-transform shadow-sm ${isAcc ? 'text-orange-600 dark:text-orange-400 text-sm font-extrabold' : 'text-text-primary'}`}
                     >
                       {q}
                     </button>
@@ -1244,17 +1259,17 @@ export default function ChartEditor() {
               </div>
 
               {/* Row 3: Qualities 2 & Bass */}
-              <div className="grid grid-cols-7 gap-1 mb-2">
+              <div className="grid grid-cols-7 gap-1.5 mb-2">
                 {['aug', '9', '6', 'sus2', 'add9', '/', '%'].map((q) => {
                   const isSlash = q === '/';
                   return (
                     <button
                       key={q}
-                      onClick={() => handleKeypadPress(q)}
-                      className={`h-9 border rounded-lg font-mono text-xs font-bold flex items-center justify-center active:bg-surface-hover active:scale-95 transition-transform ${
+                      onClick={() => { if (typeof navigator !== 'undefined' && 'vibrate' in navigator) navigator.vibrate(10); handleKeypadPress(q); }}
+                      className={`h-9 border rounded-[14px] font-mono text-xs font-bold flex items-center justify-center active:scale-95 transition-transform shadow-sm ${
                         isSlash 
-                          ? 'bg-sky-500/20 border-sky-400 text-sky-300 font-extrabold' 
-                          : 'bg-surface-raised border-border text-slate-200'
+                          ? 'bg-orange-500/20 border-orange-400 text-orange-600 dark:text-orange-400 font-extrabold' 
+                          : 'bg-white/80 dark:bg-white/10 border-glass text-text-secondary'
                       }`}
                     >
                       {q}
@@ -1267,33 +1282,33 @@ export default function ChartEditor() {
               <div className="grid grid-cols-5 gap-1.5">
                 <button
                   onClick={() => setIsNativeKeyboard(true)}
-                  className="h-10 bg-surface-raised border border-border text-text-secondary rounded-lg text-xs font-bold flex items-center justify-center gap-1 active:scale-95 transition-transform"
+                  className="h-9 bg-white/80 dark:bg-white/10 border border-glass text-text-secondary rounded-[14px] text-xs font-bold flex items-center justify-center gap-1 active:scale-95 transition-transform shadow-sm"
                   title="Switch to Keyboard"
                 >
-                  <Keyboard size={14} /> Text
+                  <Keyboard size={13} /> Text
                 </button>
                 <button
-                  onClick={handleKeypadBackspace}
-                  className="h-10 bg-white/10 border border-border text-white rounded-lg text-xs font-black flex items-center justify-center active:scale-95 transition-transform"
+                  onClick={() => { if (typeof navigator !== 'undefined' && 'vibrate' in navigator) navigator.vibrate(15); handleKeypadBackspace(); }}
+                  className="h-9 bg-white/80 dark:bg-white/10 border border-glass text-text-secondary rounded-[14px] text-xs font-black flex items-center justify-center active:scale-95 transition-transform shadow-sm"
                   title="Backspace"
                 >
                   ⌫
                 </button>
                 <button
-                  onClick={handleKeypadInsertBar}
-                  className="h-10 bg-surface-raised border border-border text-text-secondary rounded-lg text-xs font-bold flex items-center justify-center active:scale-95 transition-transform"
+                  onClick={() => { if (typeof navigator !== 'undefined' && 'vibrate' in navigator) navigator.vibrate(10); handleKeypadInsertBar(); }}
+                  className="h-9 bg-white/80 dark:bg-white/10 border border-glass text-text-secondary rounded-[14px] text-xs font-bold flex items-center justify-center active:scale-95 transition-transform shadow-sm"
                 >
                   + Bar
                 </button>
                 <button
-                  onClick={handleKeypadDeleteBar}
-                  className="h-10 bg-red-950/30 border border-red-800/40 text-red-400 rounded-lg text-xs font-bold flex items-center justify-center active:scale-95 transition-transform"
+                  onClick={() => { if (typeof navigator !== 'undefined' && 'vibrate' in navigator) navigator.vibrate(15); handleKeypadDeleteBar(); }}
+                  className="h-9 bg-rose-50 dark:bg-rose-950/30 border border-rose-200/60 dark:border-rose-500/20 text-rose-600 dark:text-rose-400 rounded-[14px] text-xs font-bold flex items-center justify-center active:scale-95 transition-transform shadow-sm"
                 >
                   Delete
                 </button>
                 <button
-                  onClick={() => stepMobileBar(1)}
-                  className="h-10 bg-accent-gradient text-white rounded-lg text-xs font-extrabold flex items-center justify-center active:scale-95 shadow-md shadow-accent-glow transition-transform"
+                  onClick={() => { if (typeof navigator !== 'undefined' && 'vibrate' in navigator) navigator.vibrate(10); stepMobileBar(1); }}
+                  className="h-9 bg-btn-dark text-white rounded-full text-xs font-bold flex items-center justify-center active:scale-95 shadow-btn-dark transition-transform"
                   title="Next measure"
                 >
                   Next Bar ›
@@ -1307,25 +1322,25 @@ export default function ChartEditor() {
             <div className="grid grid-cols-4 gap-1.5 mt-2">
               <button
                 onClick={() => setIsNativeKeyboard(false)}
-                className="h-10 bg-surface-raised border border-border text-accent-solid rounded-lg text-xs font-bold flex items-center justify-center gap-1 active:scale-95 transition-transform"
+                className="h-9 bg-white/80 dark:bg-white/10 border border-glass text-orange-600 dark:text-orange-400 rounded-[14px] text-xs font-bold flex items-center justify-center gap-1 active:scale-95 transition-transform shadow-sm"
               >
-                <Music size={14} /> Keypad
+                <Music size={13} /> Keypad
               </button>
               <button
                 onClick={handleKeypadInsertBar}
-                className="h-10 bg-surface-raised border border-border text-text-secondary rounded-lg text-xs font-bold flex items-center justify-center active:scale-95 transition-transform"
+                className="h-9 bg-white/80 dark:bg-white/10 border border-glass text-text-secondary rounded-[14px] text-xs font-bold flex items-center justify-center active:scale-95 transition-transform shadow-sm"
               >
                 + Bar
               </button>
               <button
                 onClick={handleKeypadDeleteBar}
-                className="h-10 bg-red-950/30 border border-red-800/40 text-red-400 rounded-lg text-xs font-bold flex items-center justify-center active:scale-95 transition-transform"
+                className="h-9 bg-rose-50 dark:bg-rose-950/30 border border-rose-200/60 dark:border-rose-500/20 text-rose-600 dark:text-rose-400 rounded-[14px] text-xs font-bold flex items-center justify-center active:scale-95 transition-transform shadow-sm"
               >
                 Delete
               </button>
               <button
                 onClick={() => stepMobileBar(1)}
-                className="h-10 bg-accent-gradient text-white rounded-lg text-xs font-extrabold flex items-center justify-center active:scale-95 shadow-md shadow-accent-glow transition-transform"
+                className="h-9 bg-btn-dark text-white rounded-full text-xs font-bold flex items-center justify-center active:scale-95 shadow-btn-dark transition-transform"
               >
                 Next Bar ›
               </button>
@@ -1337,7 +1352,7 @@ export default function ChartEditor() {
 
       {/* Mobile Toast Alert */}
       {mobileToast && (
-        <div className="fixed left-1/2 bottom-24 -translate-x-1/2 z-50 bg-[#1b1236]/95 border border-border-light text-white text-xs font-bold px-4 py-2 rounded-full shadow-2xl flex items-center gap-1.5 animate-fade-in pointer-events-none">
+        <div className="fixed left-1/2 bottom-24 -translate-x-1/2 z-50 bg-white/70 dark:bg-black/60 border border-white/60 dark:border-white/15 text-text-primary dark:text-white text-xs font-bold px-4 py-2.5 rounded-full shadow-[0_8px_32px_rgba(31,38,135,0.12),inset_0_1px_0_rgba(255,255,255,0.8)] backdrop-blur-2xl saturate-[180%] flex items-center gap-1.5 animate-fade-in pointer-events-none">
           <span>{mobileToast}</span>
         </div>
       )}
