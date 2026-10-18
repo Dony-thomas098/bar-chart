@@ -53,16 +53,16 @@ export function FolderPickerModal({ isOpen, onClose, onMoveHere, title = "Move t
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 sm:p-0">
-      <div className="bg-surface w-full max-w-md rounded-3xl shadow-popover border border-border overflow-hidden flex flex-col max-h-[80vh]">
-        <div className="flex justify-between items-center p-6 border-b border-border">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 sm:p-0">
+      <div className="bg-white/60 dark:bg-[#18181c]/60 backdrop-blur-2xl saturate-[180%] w-full max-w-md rounded-3xl shadow-[0_8px_32px_rgba(31,38,135,0.12),inset_0_1px_0_rgba(255,255,255,0.8)] border border-white/60 dark:border-white/15 overflow-hidden flex flex-col max-h-[80vh]">
+        <div className="flex justify-between items-center p-6 border-b border-black/[0.06] dark:border-white/[0.08]">
           <h2 className="text-xl font-bold text-text-primary">{title}</h2>
-          <button onClick={onClose} className="p-2 text-text-secondary bg-surface-raised border border-border shadow-inner rounded-full hover:text-white transition-all">
+          <button onClick={onClose} className="p-2 text-text-secondary bg-white/40 dark:bg-white/10 border border-white/60 dark:border-white/10 shadow-sm rounded-full hover:text-text-primary hover:bg-white/80 transition-all">
             <X size={18} />
           </button>
         </div>
         
-        <div className="p-3 border-b border-border flex items-center bg-bg">
+        <div className="p-3 border-b border-black/[0.06] dark:border-white/[0.08] flex items-center bg-white/20 dark:bg-white/[0.02]">
           {history.length > 1 && (
             <button 
               onClick={navigateUp}

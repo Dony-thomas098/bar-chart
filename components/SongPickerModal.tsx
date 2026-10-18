@@ -86,18 +86,18 @@ export function SongPickerModal({ isOpen, onClose, onAdd, existingIds = [] }: So
     <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
         onClick={onClose}
       />
 
       {/* Modal */}
-      <div className="relative z-10 w-full max-w-lg bg-surface border border-border rounded-t-3xl sm:rounded-3xl shadow-popover flex flex-col max-h-[80vh] sm:max-h-[70vh]">
+      <div className="relative z-10 w-full max-w-lg bg-white/60 dark:bg-[#18181c]/60 backdrop-blur-2xl saturate-[180%] border border-white/60 dark:border-white/15 rounded-t-3xl sm:rounded-3xl shadow-[0_8px_32px_rgba(31,38,135,0.12),inset_0_1px_0_rgba(255,255,255,0.8)] flex flex-col max-h-[80vh] sm:max-h-[70vh]">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-border shrink-0">
+        <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-black/[0.06] dark:border-white/[0.08] shrink-0">
           <h2 className="text-base font-bold text-text-primary">Add Songs</h2>
           <button
             onClick={onClose}
-            className="p-2 text-text-secondary hover:text-white bg-surface-raised rounded-xl transition-all"
+            className="p-2 text-text-secondary hover:text-text-primary bg-white/40 dark:bg-white/10 border border-white/60 dark:border-white/10 rounded-xl transition-all"
           >
             <X size={18} />
           </button>
@@ -111,8 +111,8 @@ export function SongPickerModal({ isOpen, onClose, onAdd, existingIds = [] }: So
               onClick={() => setTab(k)}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold tracking-wide transition-all ${
                 tab === k
-                  ? 'bg-accent-gradient text-white'
-                  : 'text-text-secondary hover:text-white bg-surface-raised border border-border'
+                  ? 'bg-accent-gradient text-white shadow-sm'
+                  : 'text-text-secondary hover:text-text-primary bg-white/40 dark:bg-white/5 border border-white/60 dark:border-white/10'
               }`}
             >
               {k === 'chart' ? <FileText size={13} /> : <Music size={13} />}
@@ -123,7 +123,7 @@ export function SongPickerModal({ isOpen, onClose, onAdd, existingIds = [] }: So
 
         {/* Search and Select All */}
         <div className="px-4 pb-3 shrink-0 flex gap-2">
-          <div className="flex-1 flex items-center gap-2 px-3 py-2 bg-surface-raised border border-border rounded-xl">
+          <div className="flex-1 flex items-center gap-2 px-3 py-2 bg-white/40 dark:bg-white/5 border border-white/60 dark:border-white/10 rounded-xl backdrop-blur-sm">
             <Search size={15} className="text-text-secondary shrink-0" />
             <input
               autoFocus
@@ -139,7 +139,7 @@ export function SongPickerModal({ isOpen, onClose, onAdd, existingIds = [] }: So
           {results.length > 0 && (
             <button
               onClick={handleSelectAll}
-              className="px-3 py-2 text-xs font-bold text-text-secondary bg-surface-raised border border-border rounded-xl hover:text-white transition-all whitespace-nowrap shrink-0"
+              className="px-3 py-2 text-xs font-bold text-text-secondary bg-white/40 dark:bg-white/5 border border-white/60 dark:border-white/10 rounded-xl hover:text-text-primary transition-all whitespace-nowrap shrink-0"
             >
               Select All
             </button>

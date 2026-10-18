@@ -24,7 +24,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import {
   GripVertical, Plus, Printer, Play, MoreVertical, Trash2, Pencil,
-  FileText, Music, CornerLeftUp, X, Minus,
+  FileText, Music, Music2, CornerLeftUp, X, Minus,
 } from 'lucide-react';
 
 // ─── Transpose Stepper Modal ──────────────────────────────────────────────────
@@ -39,7 +39,7 @@ function TransposeModal({ item, onClose, onSave }: {
   return (
     <div className="fixed inset-0 z-[300] flex items-center justify-center">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative z-10 w-full max-w-xs bg-surface border border-border rounded-2xl shadow-popover p-5 flex flex-col gap-4">
+      <div className="relative z-10 w-full max-w-xs bg-white/65 dark:bg-[#18181d]/65 backdrop-blur-2xl saturate-[180%] border border-white/60 dark:border-white/15 rounded-2xl shadow-[0_8px_32px_rgba(31,38,135,0.12),inset_0_1px_0_rgba(255,255,255,0.8)] p-5 flex flex-col gap-4">
         <div>
           <h3 className="text-sm font-bold text-text-primary">Setlist Transpose</h3>
           <p className="text-[10px] text-text-secondary mt-0.5">
@@ -96,7 +96,7 @@ function NoteModal({ item, onClose, onSave }: {
   return (
     <div className="fixed inset-0 z-[300] flex items-center justify-center">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative z-10 w-full max-w-sm bg-surface border border-border rounded-2xl shadow-popover p-5 flex flex-col gap-3">
+      <div className="relative z-10 w-full max-w-sm bg-white/65 dark:bg-[#18181d]/65 backdrop-blur-2xl saturate-[180%] border border-white/60 dark:border-white/15 rounded-2xl shadow-[0_8px_32px_rgba(31,38,135,0.12),inset_0_1px_0_rgba(255,255,255,0.8)] p-5 flex flex-col gap-3">
         <h3 className="text-sm font-bold text-text-primary">Item Note</h3>
         <textarea
           autoFocus
@@ -144,22 +144,17 @@ function SortableItemRow({
   };
 
   return (
-    <div ref={setNodeRef} style={style} className="flex items-center gap-3 p-3 sm:p-4 bg-surface border border-border rounded-xl shadow-sm hover:shadow-md transition-shadow group">
+    <div ref={setNodeRef} style={style} className="glass-card p-3.5 sm:p-4 flex items-center gap-3 group relative select-none">
       {/* Drag handle */}
-      <div {...attributes} {...listeners} className="p-1.5 -ml-1 text-text-secondary cursor-grab active:cursor-grabbing hover:text-white touch-none shrink-0">
+      <div {...attributes} {...listeners} className="p-1 -ml-1 text-text-muted cursor-grab active:cursor-grabbing hover:text-text-primary touch-none shrink-0">
         <GripVertical size={18} />
       </div>
 
-      {/* Position */}
-      <div className="w-8 h-8 rounded-full bg-accent-gradient flex items-center justify-center text-white font-bold text-xs shrink-0">
-        {idx + 1}
-      </div>
-
-      {/* Type icon */}
-      <div className="w-8 h-8 rounded-lg bg-surface-raised border border-border flex items-center justify-center shrink-0">
+      {/* Album / Item Cover Thumb */}
+      <div className="w-10 h-10 rounded-xl overflow-hidden bg-gradient-to-br from-indigo-600 via-purple-600 to-orange-500 shadow-sm border border-black/5 dark:border-white/10 flex items-center justify-center shrink-0">
         {item.item_type === 'chart'
-          ? <FileText size={14} className="text-accent-start" />
-          : <Music size={14} className="text-accent-end" />
+          ? <FileText size={18} className="text-white" />
+          : <Music size={18} className="text-white" />
         }
       </div>
 
@@ -167,14 +162,17 @@ function SortableItemRow({
       <div className="flex-1 min-w-0">
         <p className="text-sm font-bold text-text-primary truncate">{item.title || 'Untitled'}</p>
         <div className="flex items-center gap-2 flex-wrap mt-0.5">
-          {item.transpose_override !== null && item.transpose_override !== undefined && (
-            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-accent-gradient/15 text-accent-start border border-accent-solid/20">
-              {item.transpose_override > 0 ? `+${item.transpose_override}` : item.transpose_override} semitones
+          <span className="text-[10px] text-text-muted font-medium">
+            {item.item_type === 'chart' ? 'Chord Chart' : 'Lyrics Sheet'}
+          </span>
+          {item.transpose_override !== null && item.transpose_override !== undefined && item.transpose_override !== 0 && (
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-500/15 text-orange-700 dark:text-orange-300 border border-orange-500/20">
+              {item.transpose_override > 0 ? `+${item.transpose_override}` : item.transpose_override}
             </span>
           )}
           {item.notes && (
-            <span className="text-[10px] italic text-text-secondary truncate max-w-[200px]">
-              {item.notes}
+            <span className="text-[10px] italic text-text-secondary truncate max-w-[180px]">
+              • {item.notes}
             </span>
           )}
         </div>
@@ -185,34 +183,34 @@ function SortableItemRow({
         <button
           onPointerDown={e => e.stopPropagation()}
           onClick={e => { e.stopPropagation(); setMenuOpen(v => !v); }}
-          className="p-2 text-text-secondary hover:text-white bg-surface-raised border border-border rounded-xl opacity-0 group-hover:opacity-100 transition-all"
+          className="p-1.5 text-text-muted hover:text-text-primary rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-all"
         >
-          <MoreVertical size={15} />
+          <MoreVertical size={16} />
         </button>
         {menuOpen && (
           <>
             <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
-            <div className="absolute right-0 top-full mt-1 z-20 min-w-[160px] bg-surface-raised border border-border rounded-xl shadow-popover overflow-hidden">
+            <div className="absolute right-0 top-full mt-1 z-20 min-w-[170px] bg-white/55 dark:bg-[#1c1c22]/55 backdrop-blur-2xl saturate-[180%] border border-white/60 dark:border-white/15 rounded-2xl shadow-[0_8px_32px_rgba(31,38,135,0.12),inset_0_1px_0_rgba(255,255,255,0.8)] py-1.5 animate-in fade-in zoom-in-95 duration-150">
               {item.item_type === 'chart' && (
                 <button
                   onClick={() => { setMenuOpen(false); onSetTranspose(item); }}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-text-primary hover:bg-white/5 transition-all"
+                  className="w-full flex items-center gap-2 px-3.5 py-2 text-xs font-bold text-text-primary hover:bg-orange-500/10 hover:text-orange-600 dark:hover:text-orange-400 transition-colors"
                 >
-                  <Pencil size={13} className="text-accent-start" /> Set transpose
+                  <Pencil size={13} className="text-orange-500" /> Set transpose
                 </button>
               )}
               <button
                 onClick={() => { setMenuOpen(false); onSetNote(item); }}
-                className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-text-primary hover:bg-white/5 transition-all"
+                className="w-full flex items-center gap-2 px-3.5 py-2 text-xs font-bold text-text-primary hover:bg-orange-500/10 hover:text-orange-600 dark:hover:text-orange-400 transition-colors"
               >
                 <Pencil size={13} /> {item.notes ? 'Edit note' : 'Add note'}
               </button>
-              <div className="h-px bg-border mx-2" />
+              <div className="h-px bg-border mx-2 my-1" />
               <button
                 onClick={() => { setMenuOpen(false); onRemove(item); }}
-                className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-red-400 hover:bg-red-500/10 transition-all"
+                className="w-full flex items-center gap-2 px-3.5 py-2 text-xs font-bold text-rose-500 hover:bg-rose-500/10 transition-colors"
               >
-                <Trash2 size={13} /> Remove from setlist
+                <Trash2 size={13} /> Remove
               </button>
             </div>
           </>
@@ -435,7 +433,7 @@ export default function SetlistDetailPage() {
       <div className="min-h-screen flex flex-col">
         <Header />
         <div className="flex-1 flex items-center justify-center">
-          <div className="w-8 h-8 rounded-full border-2 border-accent-start border-t-transparent animate-spin" />
+          <div className="w-8 h-8 rounded-full border-2 border-orange-500 border-t-transparent animate-spin" />
         </div>
       </div>
     );
@@ -448,12 +446,38 @@ export default function SetlistDetailPage() {
       <div className="no-print print:!hidden">
         <Header />
       </div>
-      <main className="flex-1 w-full max-w-3xl mx-auto px-4 pt-[max(env(safe-area-inset-top,2rem),2rem)] pb-32 no-print print:!hidden">
 
-        {/* Page header */}
-        <div className="flex items-start gap-3 mb-8 mt-4">
-          <div className="flex-1 min-w-0">
-            {/* Editable name */}
+      <main className="flex-1 w-full pb-36 no-print print:!hidden">
+        {/* Full-width Warm Orange-Coral Mesh Gradient Hero Header */}
+        <div className="hero-mesh-gradient pt-6 pb-20 px-4 sm:px-6 shadow-md relative">
+          <div className="max-w-2xl mx-auto flex items-center justify-between">
+            <button
+              onClick={() => router.push('/setlists')}
+              className="hidden lg:flex w-10 h-10 rounded-full bg-white/30 hover:bg-white/40 active:scale-95 backdrop-blur-md border border-white/40 text-white items-center justify-center transition-all shadow-sm cursor-pointer"
+              title="Back to Setlists"
+            >
+              <CornerLeftUp size={18} />
+            </button>
+            <h1 className="text-lg sm:text-xl font-extrabold text-white tracking-tight drop-shadow-sm truncate max-w-xs sm:max-w-md text-center flex-1">
+              {setlist.name}
+            </h1>
+            <div className="hidden lg:block w-10" />
+          </div>
+        </div>
+
+        <div className="max-w-xl mx-auto px-4 sm:px-6">
+          {/* Overlapping Large Frosted Glass Cover Card */}
+          <div className="glass-card -mt-14 p-6 flex flex-col items-center text-center shadow-popover relative z-10">
+            {/* Custom Cover Art Graphic */}
+            <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-2xl bg-gradient-to-tr from-indigo-950 via-purple-900 to-orange-500 p-1 shadow-md border border-white/40 flex flex-col items-center justify-center text-white mb-4 relative overflow-hidden group">
+              <div className="w-12 h-12 rounded-full bg-white/15 backdrop-blur-md flex items-center justify-center mb-1.5 shadow-inner">
+                <Music2 size={24} className="text-orange-300 stroke-[2.2]" />
+              </div>
+              <span className="text-[11px] font-extrabold tracking-tight text-white/90">ChordCraft</span>
+              <span className="text-[9px] text-white/70 font-semibold truncate max-w-[90%]">{setlist.name}</span>
+            </div>
+
+            {/* Set Name (Editable) */}
             {editingName ? (
               <input
                 autoFocus
@@ -461,19 +485,19 @@ export default function SetlistDetailPage() {
                 onChange={e => setNameVal(e.target.value)}
                 onBlur={handleNameSave}
                 onKeyDown={e => e.key === 'Enter' && handleNameSave()}
-                className="text-2xl sm:text-3xl font-bold text-text-primary bg-transparent border-b-2 border-accent-solid outline-none w-full"
+                className="text-xl sm:text-2xl font-bold text-text-primary bg-transparent border-b-2 border-orange-500 outline-none text-center w-full max-w-xs"
               />
             ) : (
-              <h1
-                className="text-2xl sm:text-3xl font-bold text-text-primary cursor-pointer hover:text-accent-start transition-all truncate"
+              <h2
                 onClick={() => setEditingName(true)}
+                className="text-xl sm:text-2xl font-extrabold text-text-primary cursor-pointer hover:text-orange-500 transition-colors tracking-tight"
                 title="Click to edit name"
               >
                 {setlist.name}
-              </h1>
+              </h2>
             )}
 
-            {/* Editable date */}
+            {/* Subtitle / Date */}
             {editingDate ? (
               <input
                 autoFocus
@@ -481,72 +505,114 @@ export default function SetlistDetailPage() {
                 value={dateVal}
                 onChange={e => setDateVal(e.target.value)}
                 onBlur={handleDateSave}
-                className="text-xs text-text-secondary bg-transparent border-b border-border outline-none mt-1"
+                className="text-xs text-text-muted bg-transparent border-b border-border outline-none mt-1 text-center"
               />
             ) : (
               <p
-                className="text-xs text-text-secondary mt-1 cursor-pointer hover:text-accent-start transition-all"
                 onClick={() => setEditingDate(true)}
+                className="text-xs text-text-muted mt-1 font-medium cursor-pointer hover:text-orange-500 transition-colors"
                 title="Click to edit date"
               >
                 {setlist.date
-                  ? new Date(setlist.date).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
+                  ? new Date(setlist.date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })
                   : '+ Add date'}
               </p>
             )}
-          </div>
-        </div>
 
-        {/* Toolbar */}
-        <div className="flex flex-wrap items-center gap-2 mb-6">
-          <button
-            onClick={() => setShowPicker(true)}
-            className="flex items-center gap-2 px-4 py-2.5 bg-surface border border-border text-text-primary text-sm font-bold rounded-xl hover:bg-surface-raised hover:text-accent-start transition-all"
-          >
-            <Plus size={16} /> Add songs
-          </button>
-          <button
-            onClick={() => window.print()}
-            className="flex items-center gap-2 px-4 py-2.5 bg-surface border border-border text-text-primary text-sm font-bold rounded-xl hover:bg-surface-raised hover:text-accent-start transition-all"
-          >
-            <Printer size={16} /> Print setlist
-          </button>
-          <button
-            disabled={items.length === 0}
-            onClick={() => {
-              sessionStorage.setItem(`setlist-leader-${setlistId}`, '1');
-              router.push(`/setlists/${setlistId}/perform`);
-            }}
-            className="flex items-center gap-2 px-5 py-2.5 bg-accent-gradient text-white text-sm font-bold rounded-xl shadow-md hover:brightness-110 disabled:opacity-40 transition-all ml-auto"
-          >
-            <Play size={16} /> Start set
-          </button>
-        </div>
+            {/* Two Action Buttons: Play (Dark Gradient Pill) and Detail (Glass Pill) */}
+            <div className="flex items-center gap-3 mt-5 w-full max-w-xs justify-center">
+              <button
+                disabled={items.length === 0}
+                onClick={() => {
+                  sessionStorage.setItem(`setlist-leader-${setlistId}`, '1');
+                  router.push(`/setlists/${setlistId}/perform`);
+                }}
+                className="flex-1 py-2.5 px-5 btn-dark-pill flex items-center justify-center gap-2 text-sm disabled:opacity-40 cursor-pointer"
+              >
+                <Play size={15} className="fill-current" /> Play
+              </button>
 
-        {/* Items list */}
-        {items.length === 0 ? (
-          <div className="text-center py-20 text-text-secondary border border-dashed border-border rounded-2xl">
-            <Music size={40} className="mx-auto mb-3 opacity-30" />
-            <p className="font-semibold">No songs yet</p>
-            <p className="text-sm opacity-70 mt-1">Tap "+ Add songs" to build your setlist.</p>
+              <button
+                onClick={() => setShowPicker(true)}
+                className="flex-1 py-2.5 px-5 btn-glass-pill flex items-center justify-center gap-2 text-sm cursor-pointer"
+              >
+                <Plus size={15} /> Add Songs
+              </button>
+            </div>
           </div>
-        ) : (
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-            <SortableContext items={items.map(i => i.id)} strategy={verticalListSortingStrategy}>
-              <div className="flex flex-col gap-2">
-                {items.map((item, idx) => (
-                  <SortableItemRow
-                    key={item.id}
-                    item={item}
-                    idx={idx}
-                    onSetTranspose={setTransposeTarget}
-                    onSetNote={setNoteTarget}
-                    onRemove={handleRemove}
-                  />
-                ))}
+
+          {/* "Songs in this Set" Section Heading */}
+          <div className="flex items-center justify-between mt-8 mb-4 px-1">
+            <h3 className="text-base font-extrabold text-text-primary tracking-tight">
+              Songs in this Set
+            </h3>
+            <span className="text-xs text-text-muted font-bold">
+              {items.length} {items.length === 1 ? 'song' : 'songs'}
+            </span>
+          </div>
+
+          {/* Items list */}
+          {items.length === 0 ? (
+            <div className="glass-card p-10 text-center text-text-muted flex flex-col items-center">
+              <div className="w-14 h-14 icon-well flex items-center justify-center mb-3">
+                <Music size={24} className="text-orange-500/60" />
               </div>
-            </SortableContext>
-          </DndContext>
+              <p className="font-bold text-sm text-text-primary">No songs in this setlist yet</p>
+              <p className="text-xs text-text-muted mt-1 max-w-xs mb-4">
+                Tap "Add Songs" above to select chord charts and lyrics sheets for this performance.
+              </p>
+              <button
+                onClick={() => setShowPicker(true)}
+                className="px-5 py-2.5 rounded-full btn-gradient-orange text-xs font-bold shadow-glow flex items-center gap-1.5 cursor-pointer"
+              >
+                <Plus size={15} /> Add Songs
+              </button>
+            </div>
+          ) : (
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+              <SortableContext items={items.map(i => i.id)} strategy={verticalListSortingStrategy}>
+                <div className="flex flex-col gap-2.5">
+                  {items.map((item, idx) => (
+                    <SortableItemRow
+                      key={item.id}
+                      item={item}
+                      idx={idx}
+                      onSetTranspose={setTransposeTarget}
+                      onSetNote={setNoteTarget}
+                      onRemove={handleRemove}
+                    />
+                  ))}
+                </div>
+              </SortableContext>
+            </DndContext>
+          )}
+
+          {/* Toolbar secondary actions */}
+          {items.length > 0 && (
+            <div className="flex items-center justify-center gap-3 mt-6">
+              <button
+                onClick={() => window.print()}
+                className="py-2 px-4 glass-pill text-xs font-bold text-text-secondary hover:text-text-primary flex items-center gap-1.5 cursor-pointer"
+              >
+                <Printer size={14} /> Print Setlist
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Floating Dark Gradient Pill "View Set / Perform" pinned above bottom nav */}
+        {items.length > 0 && (
+          <div className="fixed bottom-20 left-0 right-0 z-30 flex justify-center pointer-events-none px-4">
+            <button
+              onClick={() => {
+                sessionStorage.setItem(`setlist-leader-${setlistId}`, '1');
+                router.push(`/setlists/${setlistId}/perform`);
+              }}
+              className="pointer-events-auto px-8 py-3 btn-dark-pill shadow-2xl flex items-center gap-2 text-sm font-extrabold cursor-pointer animate-in fade-in slide-in-from-bottom-2 duration-200"
+            >
+              <Play size={16} className="fill-current" /> View Set
+            </button>
+          </div>
         )}
       </main>
 
@@ -584,3 +650,4 @@ export default function SetlistDetailPage() {
     </div>
   );
 }
+

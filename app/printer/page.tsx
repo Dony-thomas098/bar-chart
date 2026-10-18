@@ -310,7 +310,7 @@ export default function PrinterPage() {
 
               {/* Floating Dropdown Results */}
               {isSearchFocused && searchQuery.trim() && (
-                <div className="absolute top-full left-0 right-0 mt-2 bg-surface-raised border border-border rounded-2xl shadow-popover max-h-72 overflow-y-auto p-2 space-y-1 z-30">
+                <div className="absolute top-full left-0 right-0 mt-2 bg-white/70 dark:bg-[#1c1c20]/70 backdrop-blur-2xl saturate-[180%] border border-white/60 dark:border-white/15 rounded-2xl shadow-[0_8px_32px_rgba(31,38,135,0.12),inset_0_1px_0_rgba(255,255,255,0.8)] max-h-72 overflow-y-auto p-2 space-y-1 z-30">
                   {isSearching && searchResults.length === 0 && (
                     <div className="p-4 text-center text-text-secondary text-sm">Searching...</div>
                   )}
@@ -404,7 +404,7 @@ export default function PrinterPage() {
 
         {isPrintModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm print:hidden">
-            <div className="bg-surface border border-border p-6 rounded-2xl w-full max-w-sm shadow-xl animate-in fade-in zoom-in duration-200">
+            <div className="bg-white/70 dark:bg-[#18181d]/70 backdrop-blur-2xl saturate-[180%] border border-white/60 dark:border-white/15 p-6 rounded-2xl w-full max-w-sm shadow-[0_8px_32px_rgba(31,38,135,0.12),inset_0_1px_0_rgba(255,255,255,0.8)] animate-in fade-in zoom-in duration-200">
               <div className="flex justify-between items-center mb-6">
                 <h3 className="font-bold text-lg">Print Options ({mode === 'chart' ? 'Charts' : 'Lyrics'})</h3>
                 <button onClick={() => setIsPrintModalOpen(false)} className="text-text-secondary hover:text-white"><X size={20} /></button>

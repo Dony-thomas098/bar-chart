@@ -8,12 +8,13 @@ import {
 } from '@/lib/storage';
 import { seedSampleData } from '@/lib/sampleData';
 import { FolderPickerModal } from './FolderPickerModal';
-import { useAuth } from '@/components/AuthProvider';
+import { useAuth, canModifySection } from '@/components/AuthProvider';
 import {
   Folder as FolderIcon, FileText, MoreVertical, Search,
   Plus, CornerLeftUp, Trash2, Edit2, CornerRightDown, Download, X,
-  FolderPlus, FilePlus, Printer, Star, LayoutGrid, List, Sparkles
+  FolderPlus, FilePlus, Printer, Star, LayoutGrid, List, Sparkles, Check
 } from 'lucide-react';
+import './ios-tiles.css';
 
 interface Props {
   folderId: string | null;
@@ -23,7 +24,8 @@ interface Props {
 
 export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
+  const canEdit = canModifySection(profile?.profession, kind);
   const [folders, setFolders] = useState<Folder[]>([]);
   const [charts, setCharts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -54,6 +56,103 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
 
   // Selection state
   const [selectedItems, setSelectedItems] = useState<{ id: string, type: 'folder' | 'chart' | 'lyrics' }[]>([]);
+  const selectedItemsRef = useRef(selectedItems);
+  useEffect(() => {
+    selectedItemsRef.current = selectedItems;
+  }, [selectedItems]);
+
+  // Track if any modal is currently active
+  const isModalActive = Boolean(
+    createFolderModal ||
+    bulkDeleteModal ||
+    deleteItem ||
+    renameItem ||
+    moveItem ||
+    isBulkMove
+  );
+  const isModalActiveRef = useRef(isModalActive);
+  useEffect(() => {
+    isModalActiveRef.current = isModalActive;
+  }, [isModalActive]);
+
+  // Exit toast state for double-back to exit on phone
+  const [showExitToast, setShowExitToast] = useState(false);
+  const exitToastTimer = useRef<NodeJS.Timeout | null>(null);
+
+  // Master Phone Back Button & Gesture Trap
+  useEffect(() => {
+    // Clean up any lingering #select hash from prior sessions
+    if (typeof window !== 'undefined' && window.location.hash === '#select') {
+      window.history.replaceState(null, '', window.location.pathname + window.location.search);
+    }
+
+    // Pad the history stack so Android back gesture never closes the app on initial back
+    try {
+      window.history.pushState({ chordCraftTrap: true }, '', window.location.href);
+    } catch (e) {
+      console.warn('Failed to pad history stack', e);
+    }
+
+    let lastBackPressTime = 0;
+
+    const handlePopState = () => {
+      // 1. If in SELECTION MODE -> Deselect all items immediately and prevent app close!
+      if (selectedItemsRef.current.length > 0) {
+        try {
+          window.history.pushState({ chordCraftTrap: true }, '', window.location.href);
+        } catch {}
+        setSelectedItems([]);
+        return;
+      }
+
+      // 2. If any MODAL is open -> Close modal immediately and prevent app close!
+      if (isModalActiveRef.current) {
+        try {
+          window.history.pushState({ chordCraftTrap: true }, '', window.location.href);
+        } catch {}
+        setCreateFolderModal(false);
+        setBulkDeleteModal(false);
+        setDeleteItem(null);
+        setRenameItem(null);
+        setMoveItem(null);
+        setIsBulkMove(false);
+        return;
+      }
+
+      // 3. If inside a SUBFOLDER -> Navigate up to parent folder!
+      if (folderId) {
+        try {
+          window.history.pushState({ chordCraftTrap: true }, '', window.location.href);
+        } catch {}
+        router.push(kind === 'lyrics' ? '/lyrics' : '/');
+        return;
+      }
+
+      // 4. If at ROOT with nothing selected and no modals open:
+      // Double-back within 2 seconds exits the app, single back shows toast
+      const now = Date.now();
+      if (now - lastBackPressTime < 2000) {
+        // Confirmed double-back: allow app to close
+        window.history.back();
+      } else {
+        lastBackPressTime = now;
+        try {
+          window.history.pushState({ chordCraftTrap: true }, '', window.location.href);
+        } catch {}
+        setShowExitToast(true);
+        if (exitToastTimer.current) clearTimeout(exitToastTimer.current);
+        exitToastTimer.current = setTimeout(() => {
+          setShowExitToast(false);
+        }, 2000);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+      if (exitToastTimer.current) clearTimeout(exitToastTimer.current);
+    };
+  }, [folderId, kind, router]);
 
   useEffect(() => {
     const evt = new CustomEvent('selection-change', { detail: selectedItems.length });
@@ -75,19 +174,21 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
   const startPos = useRef<{ x: number; y: number } | null>(null);
 
   const handlePointerDown = (id: string, type: 'folder' | 'chart' | 'lyrics', e: React.PointerEvent) => {
+    // Only respond to primary touch or left click
+    if (e.button !== 0 && e.pointerType === 'mouse') return;
     startPos.current = { x: e.clientX, y: e.clientY };
     if (longPressTimer.current) clearTimeout(longPressTimer.current);
-    longPressTimer.current = setTimeout(() => {
-      lastLongPressTime.current = Date.now();
-      if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
-        try { navigator.vibrate(50); } catch (e) {}
-      }
-      setSelectedItems(prev => {
-        const exists = prev.some(i => i.id === id);
-        if (exists) return prev.filter(i => i.id !== id);
-        return [...prev, { id, type }];
-      });
-    }, 400);
+
+    // Only set long-press timer if NOT already in selection mode
+    if (selectedItems.length === 0) {
+      longPressTimer.current = setTimeout(() => {
+        lastLongPressTime.current = Date.now();
+        if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+          try { navigator.vibrate(50); } catch (err) {}
+        }
+        setSelectedItems([{ id, type }]);
+      }, 400);
+    }
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
@@ -109,12 +210,14 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
   };
 
   const handleCardClick = (id: string, type: 'folder' | 'chart' | 'lyrics', e: React.MouseEvent, onNormalClick: () => void) => {
+    // Prevent normal click if user just finished a long-press gesture
     if (Date.now() - lastLongPressTime.current < 600) {
       e.preventDefault();
       e.stopPropagation();
       return;
     }
 
+    // If in selection mode, clicking anywhere on the card toggles its selection
     if (selectedItems.length > 0) {
       e.preventDefault();
       e.stopPropagation();
@@ -188,6 +291,7 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
 
 
   const executeRename = async (newName: string) => {
+    if (!canEdit) return;
     if (renameItem && newName.trim() !== '' && newName.trim() !== renameItem.currentName) {
       await renameEntry(renameItem.id, renameItem.type, newName.trim());
       loadContents();
@@ -196,11 +300,12 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
   };
 
   const handleCreateFolder = () => {
+    if (!canEdit) return;
     setCreateFolderModal(true);
   };
 
   const handleCreateChart = async () => {
-    if (!user) return;
+    if (!canEdit || !user) return;
     if (kind === 'lyrics') {
       const lyrics = {
         id: crypto.randomUUID(),
@@ -234,6 +339,7 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
 
 
   const executeDelete = async (permanent: boolean = false) => {
+    if (!canEdit) return;
     if (deleteItem) {
       if (permanent) {
         await deleteEntry(deleteItem.id, deleteItem.type);
@@ -247,6 +353,7 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
   };
 
   const executeMove = async (targetFolderId: string | null) => {
+    if (!canEdit) return;
     if (isBulkMove) {
       await Promise.all(selectedItems.map(item => moveEntry(item.id, item.type, targetFolderId)));
       setSelectedItems([]);
@@ -270,6 +377,7 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
   };
 
   const handleBulkDelete = async (permanent: boolean = false) => {
+    if (!canEdit) return;
     if (permanent) {
       await Promise.all(selectedItems.map(item => deleteEntry(item.id, item.type)));
     } else {
@@ -283,6 +391,7 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
 
   const toggleSelection = (id: string, type: 'folder' | 'chart' | 'lyrics', e: React.MouseEvent) => {
     e.stopPropagation();
+    if (!canEdit) return;
     setSelectedItems(prev => {
       const exists = prev.find(item => item.id === id);
       if (exists) return prev.filter(item => item.id !== id);
@@ -291,16 +400,31 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
   };
 
   const handleSelectAll = () => {
+    if (!canEdit) return;
     if (isSearching) {
-      setSelectedItems(searchResults.map(c => ({ id: c.id, type: c.type || kind })));
+      if (selectedItems.length === searchResults.length) {
+        setSelectedItems([]);
+      } else {
+        setSelectedItems(searchResults.map(c => ({ id: c.id, type: c.type || kind })));
+      }
     } else {
       const allFolders = folders.map(f => ({ id: f.id, type: 'folder' as const }));
       const allCharts = charts.map(c => ({ id: c.id, type: c.type || kind as any }));
-      setSelectedItems([...allFolders, ...allCharts]);
+      const totalCount = allFolders.length + allCharts.length;
+      if (selectedItems.length === totalCount && totalCount > 0) {
+        setSelectedItems([]);
+      } else {
+        setSelectedItems([...allFolders, ...allCharts]);
+      }
     }
   };
 
   const RowMenu = ({ id, type, name }: { id: string, type: 'folder' | 'chart' | 'lyrics', name: string }) => {
+    // If user cannot edit this section and item has no read-only actions, hide kebab completely
+    if (!canEdit && type !== 'chart') {
+      return null;
+    }
+
     const isOpen = activeDropdown === id;
     return (
       <div className="relative" ref={isOpen ? dropdownRef : null}>
@@ -319,25 +443,30 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
               setActiveDropdown(null);
             }
           }}
-          className="p-2 text-text-secondary hover:text-accent-start rounded-md hover:bg-white/5 focus:outline-none transition-colors"
+          className="p-1.5 text-[#1c1c1e]/70 hover:text-[#1c1c1e] rounded-full hover:bg-black/5 dark:hover:bg-white/10 focus:outline-none transition-colors"
+          aria-label="More options"
         >
-          <MoreVertical size={18} />
+          <MoreVertical size={16} />
         </button>
 
         {isOpen && (
-          <div className={`absolute right-0 ${dropdownDirection === 'up' ? 'bottom-full mb-2' : 'top-full mt-2'} w-48 bg-[#161033] rounded-xl shadow-2xl z-[9999] border border-white/20 py-1`}>
-            <button
-              onClick={(e) => { e.stopPropagation(); setActiveDropdown(null); setRenameItem({ id, type, currentName: name }); }}
-              className="flex items-center w-full px-4 py-2 text-xs uppercase tracking-widest font-bold text-text-secondary hover:bg-white/5 hover:text-white"
-            >
-              <Edit2 size={14} className="mr-2" /> Rename
-            </button>
-            <button
-              onClick={(e) => { e.stopPropagation(); setActiveDropdown(null); setMoveItem({ id, type }); }}
-              className="flex items-center w-full px-4 py-2 text-xs uppercase tracking-widest font-bold text-text-secondary hover:bg-white/5 hover:text-white"
-            >
-              <CornerRightDown size={14} className="mr-2" /> Move
-            </button>
+          <div className={`absolute right-0 ${dropdownDirection === 'up' ? 'bottom-full mb-2' : 'top-full mt-2'} w-48 bg-white/55 dark:bg-[#1c1c22]/55 backdrop-blur-2xl saturate-[180%] rounded-2xl shadow-[0_8px_32px_rgba(31,38,135,0.12),inset_0_1px_0_rgba(255,255,255,0.8)] z-[9999] border border-white/60 dark:border-white/15 py-1.5 animate-in fade-in zoom-in-95 duration-150`}>
+            {canEdit && (
+              <>
+                <button
+                  onClick={(e) => { e.stopPropagation(); setActiveDropdown(null); setRenameItem({ id, type, currentName: name }); }}
+                  className="flex items-center w-full px-4 py-2 text-xs font-semibold text-slate-800 dark:text-slate-100 hover:bg-orange-500/10 hover:text-orange-600 dark:hover:text-orange-400 transition-colors cursor-pointer"
+                >
+                  <Edit2 size={14} className="mr-2.5 text-slate-400" /> Rename
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); setActiveDropdown(null); setMoveItem({ id, type }); }}
+                  className="flex items-center w-full px-4 py-2 text-xs font-semibold text-slate-800 dark:text-slate-100 hover:bg-orange-500/10 hover:text-orange-600 dark:hover:text-orange-400 transition-colors cursor-pointer"
+                >
+                  <CornerRightDown size={14} className="mr-2.5 text-slate-400" /> Move
+                </button>
+              </>
+            )}
             {type === 'chart' && (
               <button
                 onClick={(e) => { 
@@ -357,52 +486,91 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
                     alert('Already in print queue');
                   }
                 }}
-                className="flex items-center w-full px-4 py-2 text-xs uppercase tracking-widest font-bold text-text-secondary hover:bg-white/5 hover:text-white"
+                className="flex items-center w-full px-4 py-2 text-xs font-semibold text-slate-800 dark:text-slate-100 hover:bg-orange-500/10 hover:text-orange-600 dark:hover:text-orange-400 transition-colors cursor-pointer"
               >
-                <Printer size={14} className="mr-2" /> Add to Printer
+                <Printer size={14} className="mr-2.5 text-slate-400" /> Add to Printer
               </button>
             )}
-            <button
-              onClick={(e) => { e.stopPropagation(); setActiveDropdown(null); setDeleteItem({ id, type, name }); setDeleteConfirmText(''); }}
-              className="flex items-center w-full px-4 py-2 text-xs uppercase tracking-widest font-bold text-red-400 hover:bg-red-500/10 hover:text-red-300"
-            >
-              <Trash2 size={14} className="mr-2" /> Delete
-            </button>
+            {canEdit && (
+              <>
+                <div className="h-px bg-black/[0.06] dark:bg-white/[0.08] my-1 mx-2" />
+                <button
+                  onClick={(e) => { e.stopPropagation(); setActiveDropdown(null); setDeleteItem({ id, type, name }); setDeleteConfirmText(''); }}
+                  className="flex items-center w-full px-4 py-2 text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer"
+                >
+                  <Trash2 size={14} className="mr-2.5 text-rose-500" /> Delete
+                </button>
+              </>
+            )}
           </div>
         )}
       </div>
     );
   };
 
+  // Selection Checkbox — only visible during selection mode (long-press) and when editing is allowed
+  const SelectionCheckbox = ({ id, type }: { id: string, type: 'folder' | 'chart' | 'lyrics' }) => {
+    if (!canEdit || selectedItems.length === 0) return null;
+    const isSelected = selectedItems.some(i => i.id === id);
+    return (
+      <div
+        onClick={(e) => toggleSelection(id, type, e)}
+        className={`w-5 h-5 rounded-md flex items-center justify-center cursor-pointer transition-all duration-150 shadow-sm ${
+          isSelected
+            ? 'bg-orange-500 text-white border-2 border-orange-500 scale-105 shadow-md shadow-orange-500/30'
+            : 'bg-white/20 dark:bg-black/50 border-2 border-white/70 dark:border-white/40 hover:border-orange-400'
+        }`}
+        title={isSelected ? 'Deselect item' : 'Select item'}
+      >
+        {isSelected && <Check size={12} className="stroke-[3.5] text-white" />}
+      </div>
+    );
+  };
+
+  const [createDropdownOpen, setCreateDropdownOpen] = useState(false);
+
   return (
-    <div className="w-full max-w-7xl mx-auto px-4 pt-[max(env(safe-area-inset-top,2rem),2rem)] pb-8">
-      {/* Back button (only inside subfolders) */}
+    <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 pt-3 pb-32">
+      {/* Back button (only inside subfolders on desktop; phones/tablets use system back) */}
       {folderId && (
-        <div className="mb-4">
+        <div className="mb-4 flex items-center gap-3">
           <button
             onClick={() => router.push(kind === 'lyrics' ? '/lyrics' : '/')}
-            className="p-2.5 text-text-secondary bg-surface border border-border rounded-xl hover:text-white hover:bg-surface-raised transition-all"
-            title="Back"
+            className="hidden lg:flex w-10 h-10 rounded-full glass-card items-center justify-center text-text-primary hover:bg-white/80 active:scale-95 transition-all shadow-sm"
+            title="Back to root"
           >
             <CornerLeftUp size={18} />
           </button>
+          {folderName && (
+            <h2 className="text-xl font-bold text-text-primary tracking-tight truncate">
+              {folderName}
+            </h2>
+          )}
         </div>
       )}
 
       {/* Search + action icon buttons on one row */}
-      <div className="flex items-center gap-2 mb-8">
-        {/* Search */}
+      <div className="flex items-center gap-2.5 mb-6">
+        {/* Search Field (Glass Pill) */}
         <div className="relative flex-1">
-          <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-            <Search className="h-4 w-4 text-text-secondary" />
+          <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-text-muted">
+            <Search className="h-4 w-4" />
           </div>
           <input
             type="text"
-            className="block w-full pl-10 pr-4 py-2.5 bg-surface border border-border rounded-xl text-sm text-text-primary placeholder-text-secondary focus:outline-none focus:border-accent-solid transition-all font-medium"
+            className="block w-full pl-10 pr-9 py-2.5 glass-pill text-sm font-medium text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-orange-500/40 transition-all shadow-sm"
             placeholder={folderId ? 'Search in folder…' : kind === 'lyrics' ? 'Search lyrics…' : 'Search charts…'}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="absolute inset-y-0 right-0 pr-3 flex items-center text-text-muted hover:text-text-primary"
+            >
+              <X size={14} />
+            </button>
+          )}
         </div>
 
         {/* View Mode Toggle Button */}
@@ -413,49 +581,98 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
             localStorage.setItem('chord-grid-view-mode', nextMode);
           }}
           title={viewMode === 'grid' ? 'Switch to List View' : 'Switch to Grid View'}
-          className="p-2.5 text-text-secondary bg-surface border border-border rounded-xl hover:text-white hover:bg-surface-raised transition-all shrink-0"
+          className="w-10 h-10 rounded-full glass-pill flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-white/80 dark:hover:bg-white/10 active:scale-95 transition-all shadow-sm shrink-0"
         >
-          {viewMode === 'grid' ? <List size={18} /> : <LayoutGrid size={18} />}
+          {viewMode === 'grid' ? <List size={18} className="stroke-[2.2]" /> : <LayoutGrid size={18} className="stroke-[2.2]" />}
         </button>
 
-        {/* New Folder icon */}
-        <button
-          onClick={handleCreateFolder}
-          title="New Folder"
-          className="p-2.5 text-text-secondary bg-surface border border-border rounded-xl hover:text-accent-start hover:bg-surface-raised transition-all shrink-0"
-        >
-          <FolderPlus size={18} />
-        </button>
+        {/* Plus Action Button (Circular Dark Gradient) */}
+        {canEdit && (
+          <div className="relative shrink-0">
+            <button
+              onClick={() => setCreateDropdownOpen(prev => !prev)}
+              title="Create New"
+              className="w-10 h-10 rounded-full btn-dark-pill flex items-center justify-center shadow-md active:scale-95 transition-transform cursor-pointer"
+            >
+              <Plus size={20} className="stroke-[2.5]" />
+            </button>
 
-
-
-        {/* New Chart / New Lyrics — gradient icon + label */}
-        <button
-          onClick={handleCreateChart}
-          title={kind === 'lyrics' ? 'New Lyrics' : 'New Chart'}
-          className="flex items-center gap-1.5 px-3 py-2.5 bg-accent-gradient text-white text-xs font-bold rounded-xl shadow-md hover:brightness-110 transition-all shrink-0"
-        >
-          <FilePlus size={16} />
-          <span className="hidden sm:inline">{kind === 'lyrics' ? 'New Lyrics' : 'New Chart'}</span>
-        </button>
+            {createDropdownOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setCreateDropdownOpen(false)} />
+                <div className="absolute right-0 top-full mt-2 w-48 bg-white/55 dark:bg-[#1c1c22]/55 backdrop-blur-2xl saturate-[180%] rounded-2xl shadow-[0_8px_32px_rgba(31,38,135,0.12),inset_0_1px_0_rgba(255,255,255,0.8)] z-50 border border-white/60 dark:border-white/15 py-1.5 animate-in fade-in zoom-in-95 duration-150">
+                  <button
+                    onClick={() => { setCreateDropdownOpen(false); handleCreateFolder(); }}
+                    className="flex items-center w-full px-4 py-2.5 text-xs font-bold text-slate-800 dark:text-slate-100 hover:bg-orange-500/10 hover:text-orange-600 dark:hover:text-orange-400 transition-colors cursor-pointer"
+                  >
+                    <FolderPlus size={16} className="mr-2.5 text-orange-500 shrink-0" />
+                    <span>New Folder</span>
+                  </button>
+                  <button
+                    onClick={() => { setCreateDropdownOpen(false); handleCreateChart(); }}
+                    className="flex items-center w-full px-4 py-2.5 text-xs font-bold text-slate-800 dark:text-slate-100 hover:bg-orange-500/10 hover:text-orange-600 dark:hover:text-orange-400 transition-colors cursor-pointer"
+                  >
+                    <FilePlus size={16} className="mr-2.5 text-orange-500 shrink-0" />
+                    <span>{kind === 'lyrics' ? 'New Lyrics' : 'New Chart'}</span>
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
       </div>
 
-
       {/* Content Area */}
-      <div className="pt-4 pb-20">
+      <div className="relative pt-2 pb-16">
+        {/* 2-3 Decorative Blurred Blobs behind the tile grid */}
+        <div className="absolute inset-0 pointer-events-none -z-10 overflow-visible dark:opacity-20 transition-opacity" aria-hidden="true">
+          <div
+            className="absolute top-6 left-[6%] w-[220px] h-[220px] rounded-full pointer-events-none"
+            style={{
+              backgroundColor: '#fd944e',
+              filter: 'blur(60px)',
+              WebkitFilter: 'blur(60px)',
+              opacity: 0.5,
+            }}
+          />
+          <div
+            className="absolute top-28 right-[10%] w-[220px] h-[220px] rounded-full pointer-events-none"
+            style={{
+              backgroundColor: '#ffd7b8',
+              filter: 'blur(60px)',
+              WebkitFilter: 'blur(60px)',
+              opacity: 0.55,
+            }}
+          />
+          <div
+            className="absolute bottom-12 left-[36%] w-[220px] h-[220px] rounded-full pointer-events-none"
+            style={{
+              backgroundColor: '#93c5fd',
+              filter: 'blur(60px)',
+              WebkitFilter: 'blur(60px)',
+              opacity: 0.45,
+            }}
+          />
+        </div>
+
         {loading && !isSearching ? (
-          <div className="p-12 text-center text-text-secondary font-medium">Loading...</div>
+          <div className="p-16 text-center text-text-muted font-semibold flex items-center justify-center gap-2">
+            <div className="w-5 h-5 rounded-full border-2 border-orange-500 border-t-transparent animate-spin" />
+            <span>Loading library...</span>
+          </div>
         ) : isSearching ? (
-          <div className={viewMode === 'list' ? 'flex flex-col gap-2.5' : 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6'}>
+          <div className={viewMode === 'list' ? 'flex flex-col gap-2.5 relative z-0' : 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 sm:gap-6 relative z-0'}>
             {searchResults.length === 0 ? (
-              <div className="col-span-full p-12 text-center text-text-secondary font-medium">No charts found matching "{searchQuery}"</div>
+              <div className="col-span-full p-16 text-center text-text-primary font-medium ios-tile">
+                No charts found matching "{searchQuery}"
+              </div>
             ) : (
               searchResults.map((chart) => (
                 viewMode === 'list' ? (
                   <div
                     key={chart.id}
-                    className={`bg-surface border rounded-xl px-4 py-3 flex items-center justify-between cursor-pointer group relative transition-all duration-200 select-none ${
-                      selectedItems.some(i => i.id === chart.id) ? 'border-accent-solid shadow-md bg-surface-raised' : 'border-border shadow-sm hover:bg-surface-raised hover:-translate-x-0.5'
+                    className={`ios-tile px-4 py-3 flex items-center justify-between cursor-pointer group relative transition-all duration-200 select-none ${
+                      selectedItems.some(i => i.id === chart.id) ? 'ring-2 ring-orange-500 shadow-glow' : ''
                     } ${activeDropdown === chart.id ? 'z-[999]' : ''}`}
                     style={{ touchAction: 'manipulation', WebkitUserSelect: 'none', userSelect: 'none', WebkitTouchCallout: 'none' }}
                     onPointerDown={(e) => handlePointerDown(chart.id, kind, e)}
@@ -463,34 +680,31 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
                     onPointerUp={handlePointerUp}
                     onPointerCancel={handlePointerUp}
                     onClick={(e) => handleCardClick(chart.id, kind, e, () => router.push(kind === 'lyrics' ? `/lyrics/${chart.id}` : `/chart/${chart.id}`))}
-                    onContextMenu={(e) => { e.preventDefault(); }}
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      if (Date.now() - lastLongPressTime.current > 600) {
+                        toggleSelection(chart.id, kind, e);
+                      }
+                    }}
                   >
                     <div className="flex items-center gap-3 min-w-0 flex-1 pr-2">
-                      <div onClick={e => e.stopPropagation()} className="shrink-0">
-                        <input
-                          type="checkbox"
-                          checked={selectedItems.some(i => i.id === chart.id)}
-                          onChange={() => {}}
-                          onClick={(e) => toggleSelection(chart.id, kind, e)}
-                          className="w-4 h-4 rounded border-border text-accent-solid focus:ring-accent-solid bg-transparent"
-                        />
-                      </div>
-                      <div className="w-10 h-10 bg-surface-raised rounded-xl flex items-center justify-center shrink-0 border border-border">
-                        <FileText size={20} className="text-accent-start" />
+                      {selectedItems.length > 0 && (
+                        <div onClick={e => e.stopPropagation()} className="shrink-0 animate-in fade-in zoom-in-75 duration-150">
+                          <SelectionCheckbox id={chart.id} type={kind} />
+                        </div>
+                      )}
+                      <div className="w-10 h-10 icon-well flex items-center justify-center shrink-0">
+                        <FileText size={18} className="text-orange-500" />
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-bold text-text-primary truncate">{chart.title}</p>
-                        <p className="text-[10px] text-text-secondary">{new Date(chart.updated_at).toLocaleDateString()}</p>
+                        <p className="text-[11px] text-text-secondary mt-0.5 font-medium">{new Date(chart.updated_at).toLocaleDateString()}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-1 shrink-0" onClick={e => e.stopPropagation()}>
                       <button
-                        className={`p-1.5 rounded-full hover:bg-white/10 transition-all ${
-                          activeDropdown === chart.id
-                            ? 'opacity-0 pointer-events-none'
-                            : chart.is_bookmarked
-                            ? 'opacity-100'
-                            : 'opacity-0 group-hover:opacity-100'
+                        className={`p-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-all ${
+                          chart.is_bookmarked ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
                         }`}
                         onClick={(e) => {
                           e.stopPropagation();
@@ -498,7 +712,7 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
                         }}
                         title={chart.is_bookmarked ? 'Remove Bookmark' : 'Bookmark Chart'}
                       >
-                        <Star size={16} className={chart.is_bookmarked ? "text-yellow-400 fill-yellow-400 drop-shadow-[0_0_6px_rgba(250,204,21,0.4)]" : "text-text-secondary/40 hover:text-yellow-400"} />
+                        <Star size={16} className={chart.is_bookmarked ? "text-amber-500 fill-amber-500 drop-shadow-sm" : "text-text-muted hover:text-amber-500"} />
                       </button>
                       <RowMenu id={chart.id} type={kind} name={chart.title} />
                     </div>
@@ -506,8 +720,8 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
                 ) : (
                   <div
                     key={chart.id}
-                    className={`bg-surface border rounded-xl p-5 flex flex-col items-center justify-center cursor-pointer group relative transition-all duration-200 select-none ${
-                      selectedItems.some(i => i.id === chart.id) ? 'border-accent-solid shadow-md bg-surface-raised before:absolute before:left-0 before:top-0 before:bottom-0 before:w-1 before:bg-accent-gradient before:rounded-l-xl' : 'border-border shadow-sm hover:shadow-hover hover:-translate-y-1'
+                    className={`ios-tile p-4 sm:p-5 flex flex-col items-center justify-center cursor-pointer group relative transition-all duration-200 select-none ${
+                      selectedItems.some(i => i.id === chart.id) ? 'ring-2 ring-orange-500 shadow-glow' : ''
                     } ${activeDropdown === chart.id ? 'z-[999]' : ''}`}
                     style={{ touchAction: 'manipulation', WebkitUserSelect: 'none', userSelect: 'none', WebkitTouchCallout: 'none' }}
                     onPointerDown={(e) => handlePointerDown(chart.id, kind, e)}
@@ -515,32 +729,38 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
                     onPointerUp={handlePointerUp}
                     onPointerCancel={handlePointerUp}
                     onClick={(e) => handleCardClick(chart.id, kind, e, () => router.push(kind === 'lyrics' ? `/lyrics/${chart.id}` : `/chart/${chart.id}`))}
-                    onContextMenu={(e) => { e.preventDefault(); }}
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      if (Date.now() - lastLongPressTime.current > 600) {
+                        toggleSelection(chart.id, kind, e);
+                      }
+                    }}
                   >
-                    <div className="absolute top-3 left-3 z-10" onClick={e => e.stopPropagation()}>
-                      <input
-                        type="checkbox"
-                        checked={selectedItems.some(i => i.id === chart.id)}
-                        onChange={() => {}}
-                        onClick={(e) => toggleSelection(chart.id, kind, e)}
-                        className="w-4 h-4 rounded border-border text-accent-solid focus:ring-accent-solid bg-transparent"
-                      />
-                    </div>
-                    <div className="absolute top-2 right-2 z-10" onClick={e => e.stopPropagation()}>
+                    {/* Top Left: Checkbox (only shown in selection mode) */}
+                    {selectedItems.length > 0 && (
+                      <div className="absolute top-3 left-3 z-10 animate-in fade-in zoom-in-75 duration-150" onClick={e => e.stopPropagation()}>
+                        <SelectionCheckbox id={chart.id} type={kind} />
+                      </div>
+                    )}
+
+                    {/* Top Right: Kebab Menu */}
+                    <div className="absolute top-2.5 right-2.5 z-10" onClick={e => e.stopPropagation()}>
                       <RowMenu id={chart.id} type={kind} name={chart.title} />
                     </div>
-                    <div className="w-16 h-16 bg-surface-raised rounded-full flex items-center justify-center mb-4 mt-2 shadow-inner border border-border">
-                      <FileText size={24} className="text-accent-start" />
+
+                    {/* Centered Circular Glass Icon Well */}
+                    <div className="w-14 h-14 sm:w-16 sm:h-16 icon-well flex items-center justify-center mb-3 mt-3 transition-transform group-hover:scale-105">
+                      <FileText size={24} className="text-orange-500 stroke-[2.2]" />
                     </div>
-                    <p className="text-sm font-bold text-text-primary text-center w-full truncate">{chart.title}</p>
-                    <p className="text-[10px] text-text-secondary mt-1">{new Date(chart.updated_at).toLocaleDateString()}</p>
+
+                    {/* Title & Date */}
+                    <p className="text-sm font-bold text-text-primary text-center w-full line-clamp-2 leading-tight px-1">{chart.title}</p>
+                    <p className="text-[11px] text-text-secondary mt-1 font-medium">{new Date(chart.updated_at).toLocaleDateString()}</p>
+
+                    {/* Bookmark Star */}
                     <button
-                      className={`absolute bottom-3 right-3 z-10 p-1.5 rounded-full hover:bg-white/10 transition-all ${
-                        activeDropdown === chart.id
-                          ? 'opacity-0 pointer-events-none'
-                          : chart.is_bookmarked
-                          ? 'opacity-100 scale-100'
-                          : 'opacity-0 group-hover:opacity-100 scale-90 hover:scale-100'
+                      className={`absolute bottom-2.5 right-2.5 z-10 p-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-all ${
+                        chart.is_bookmarked ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
                       }`}
                       onClick={(e) => {
                         e.stopPropagation();
@@ -548,7 +768,7 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
                       }}
                       title={chart.is_bookmarked ? 'Remove Bookmark' : 'Bookmark Chart'}
                     >
-                      <Star size={16} className={chart.is_bookmarked ? "text-yellow-400 fill-yellow-400 drop-shadow-[0_0_6px_rgba(250,204,21,0.4)]" : "text-text-secondary/40 hover:text-yellow-400"} />
+                      <Star size={15} className={chart.is_bookmarked ? "text-amber-500 fill-amber-500 drop-shadow-sm" : "text-text-muted hover:text-amber-500"} />
                     </button>
                   </div>
                 )
@@ -556,29 +776,33 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
             )}
           </div>
         ) : (
-          <div className={viewMode === 'list' ? 'flex flex-col gap-2.5' : 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6'}>
+          <div className={viewMode === 'list' ? 'flex flex-col gap-2.5 relative z-0' : 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 sm:gap-6 relative z-0'}>
             {folders.length === 0 && charts.length === 0 ? (
-              <div className="col-span-full p-12 text-center flex flex-col items-center justify-center">
-                <div className="mx-auto h-20 w-20 bg-surface-raised rounded-full shadow-inner border border-border flex items-center justify-center mb-5">
-                  <FolderIcon size={32} className="text-text-secondary opacity-50" strokeWidth={2} />
+              <div className="col-span-full p-12 sm:p-16 text-center flex flex-col items-center justify-center ios-tile">
+                <div className="w-20 h-20 icon-well flex items-center justify-center mb-5">
+                  <FolderIcon size={32} className="text-orange-500/70" strokeWidth={2} />
                 </div>
-                <h3 className="text-base font-bold text-text-primary mb-1.5">No songs or folders yet</h3>
-                <p className="text-xs text-text-secondary max-w-sm mb-6">
-                  Get started by creating a new folder, or load ready-to-use sample worship songs, jazz standards, and pop classics.
+                <h3 className="text-lg font-bold text-text-primary mb-1.5">No songs or folders yet</h3>
+                <p className="text-xs text-text-secondary max-w-sm mb-6 font-medium">
+                  {canEdit 
+                    ? "Create a new folder to organize your library, or load ready-to-use sample worship songs, jazz standards, and pop classics."
+                    : `No ${kind === 'lyrics' ? 'lyrics sheets' : 'chord charts'} are available in this folder yet.`}
                 </p>
-                <button
-                  onClick={async () => {
-                    setLoading(true);
-                    await seedSampleData(user?.id);
-                    const res = await listFolder(folderId, kind);
-                    setFolders(res?.folders || []);
-                    setCharts(res?.charts || []);
-                    setLoading(false);
-                  }}
-                  className="px-5 py-2.5 rounded-xl bg-accent-gradient text-white text-xs font-bold shadow-lg hover:brightness-110 flex items-center gap-2 transition-all active:scale-95"
-                >
-                  <Sparkles size={16} /> Load Demo Charts & Folders
-                </button>
+                {canEdit && (
+                  <button
+                    onClick={async () => {
+                      setLoading(true);
+                      await seedSampleData(user?.id);
+                      const res = await listFolder(folderId, kind);
+                      setFolders(res?.folders || []);
+                      setCharts(res?.charts || []);
+                      setLoading(false);
+                    }}
+                    className="px-6 py-3 rounded-full btn-gradient-orange text-xs font-bold shadow-glow flex items-center gap-2 transition-all active:scale-95 cursor-pointer"
+                  >
+                    <Sparkles size={16} /> Load Demo Charts & Folders
+                  </button>
+                )}
               </div>
             ) : (
               <>
@@ -586,8 +810,8 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
                   viewMode === 'list' ? (
                     <div
                       key={folder.id}
-                      className={`bg-surface border rounded-xl px-4 py-3 flex items-center justify-between cursor-pointer group relative transition-all duration-200 select-none ${
-                        selectedItems.some(i => i.id === folder.id) ? 'border-accent-solid shadow-md bg-surface-raised' : 'border-border shadow-sm hover:bg-surface-raised hover:-translate-x-0.5'
+                      className={`ios-tile px-4 py-3 flex items-center justify-between cursor-pointer group relative transition-all duration-200 select-none ${
+                        selectedItems.some(i => i.id === folder.id) ? 'ring-2 ring-orange-500 shadow-glow' : ''
                       } ${activeDropdown === folder.id ? 'z-[999]' : ''}`}
                       style={{ touchAction: 'manipulation', WebkitUserSelect: 'none', userSelect: 'none', WebkitTouchCallout: 'none' }}
                       onPointerDown={(e) => handlePointerDown(folder.id, 'folder', e)}
@@ -595,24 +819,25 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
                       onPointerUp={handlePointerUp}
                       onPointerCancel={handlePointerUp}
                       onClick={(e) => handleCardClick(folder.id, 'folder', e, () => router.push(kind === 'lyrics' ? `/lyrics/folder/${folder.id}` : `/folder/${folder.id}`))}
-                      onContextMenu={(e) => { e.preventDefault(); }}
+                      onContextMenu={(e) => {
+                        e.preventDefault();
+                        if (Date.now() - lastLongPressTime.current > 600) {
+                          toggleSelection(folder.id, 'folder', e);
+                        }
+                      }}
                     >
                       <div className="flex items-center gap-3 min-w-0 flex-1 pr-2">
-                        <div onClick={e => e.stopPropagation()} className="shrink-0">
-                          <input
-                            type="checkbox"
-                            checked={selectedItems.some(i => i.id === folder.id)}
-                            onChange={() => {}}
-                            onClick={(e) => toggleSelection(folder.id, 'folder', e)}
-                            className="w-4 h-4 rounded border-border text-accent-solid focus:ring-accent-solid bg-transparent"
-                          />
-                        </div>
-                        <div className="w-10 h-10 bg-surface-raised rounded-xl flex items-center justify-center shrink-0 border border-border">
-                          <FolderIcon size={20} className="text-text-primary opacity-60" fill="currentColor" fillOpacity={0.15} />
+                        {selectedItems.length > 0 && (
+                          <div onClick={e => e.stopPropagation()} className="shrink-0 animate-in fade-in zoom-in-75 duration-150">
+                            <SelectionCheckbox id={folder.id} type="folder" />
+                          </div>
+                        )}
+                        <div className="w-10 h-10 icon-well flex items-center justify-center shrink-0">
+                          <FolderIcon size={18} className="text-orange-500/80" fill="currentColor" fillOpacity={0.2} />
                         </div>
                         <div className="min-w-0 flex-1">
                           <p className="text-sm font-bold text-text-primary truncate">{folder.name}</p>
-                          <p className="text-[10px] text-text-secondary">{new Date(folder.updated_at).toLocaleDateString()}</p>
+                          <p className="text-[11px] text-text-secondary mt-0.5 font-medium">{new Date(folder.updated_at).toLocaleDateString()}</p>
                         </div>
                       </div>
                       <div onClick={e => e.stopPropagation()} className="shrink-0">
@@ -622,8 +847,8 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
                   ) : (
                     <div
                       key={folder.id}
-                      className={`bg-surface border rounded-xl p-5 flex flex-col items-center justify-center cursor-pointer group relative transition-all duration-200 select-none ${
-                        selectedItems.some(i => i.id === folder.id) ? 'border-accent-solid shadow-md bg-surface-raised before:absolute before:left-0 before:top-0 before:bottom-0 before:w-1 before:bg-accent-gradient before:rounded-l-xl' : 'border-border shadow-sm hover:shadow-hover hover:-translate-y-1'
+                      className={`ios-tile p-4 sm:p-5 flex flex-col items-center justify-center cursor-pointer group relative transition-all duration-200 select-none ${
+                        selectedItems.some(i => i.id === folder.id) ? 'ring-2 ring-orange-500 shadow-glow' : ''
                       } ${activeDropdown === folder.id ? 'z-[999]' : ''}`}
                       style={{ touchAction: 'manipulation', WebkitUserSelect: 'none', userSelect: 'none', WebkitTouchCallout: 'none' }}
                       onPointerDown={(e) => handlePointerDown(folder.id, 'folder', e)}
@@ -631,25 +856,33 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
                       onPointerUp={handlePointerUp}
                       onPointerCancel={handlePointerUp}
                       onClick={(e) => handleCardClick(folder.id, 'folder', e, () => router.push(kind === 'lyrics' ? `/lyrics/folder/${folder.id}` : `/folder/${folder.id}`))}
-                      onContextMenu={(e) => { e.preventDefault(); }}
+                      onContextMenu={(e) => {
+                        e.preventDefault();
+                        if (Date.now() - lastLongPressTime.current > 600) {
+                          toggleSelection(folder.id, 'folder', e);
+                        }
+                      }}
                     >
-                      <div className="absolute top-3 left-3 z-10" onClick={e => e.stopPropagation()}>
-                        <input
-                          type="checkbox"
-                          checked={selectedItems.some(i => i.id === folder.id)}
-                          onChange={() => {}}
-                          onClick={(e) => toggleSelection(folder.id, 'folder', e)}
-                          className="w-4 h-4 rounded border-border text-accent-solid focus:ring-accent-solid bg-transparent"
-                        />
-                      </div>
-                      <div className="absolute top-2 right-2 z-10" onClick={e => e.stopPropagation()}>
+                      {/* Top Left: Checkbox (only shown in selection mode) */}
+                      {selectedItems.length > 0 && (
+                        <div className="absolute top-3 left-3 z-10 animate-in fade-in zoom-in-75 duration-150" onClick={e => e.stopPropagation()}>
+                          <SelectionCheckbox id={folder.id} type="folder" />
+                        </div>
+                      )}
+
+                      {/* Top Right: Kebab Menu */}
+                      <div className="absolute top-2.5 right-2.5 z-10" onClick={e => e.stopPropagation()}>
                         <RowMenu id={folder.id} type="folder" name={folder.name} />
                       </div>
-                      <div className="w-16 h-16 bg-surface-raised rounded-full flex items-center justify-center mb-4 mt-2 shadow-inner border border-border">
-                        <FolderIcon size={24} className="text-text-primary opacity-50" fill="currentColor" fillOpacity={0.1} />
+
+                      {/* Centered Circular Glass Icon Well */}
+                      <div className="w-14 h-14 sm:w-16 sm:h-16 icon-well flex items-center justify-center mb-3 mt-3 transition-transform group-hover:scale-105">
+                        <FolderIcon size={26} className="text-orange-500/80" fill="currentColor" fillOpacity={0.18} />
                       </div>
-                      <p className="text-sm font-bold text-text-primary text-center w-full truncate">{folder.name}</p>
-                      <p className="text-[10px] text-text-secondary mt-1">{new Date(folder.updated_at).toLocaleDateString()}</p>
+
+                      {/* Title & Date */}
+                      <p className="text-sm font-bold text-text-primary text-center w-full line-clamp-2 leading-tight px-1">{folder.name}</p>
+                      <p className="text-[11px] text-text-secondary mt-1 font-medium">{new Date(folder.updated_at).toLocaleDateString()}</p>
                     </div>
                   )
                 ))}
@@ -658,8 +891,8 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
                   viewMode === 'list' ? (
                     <div
                       key={chart.id}
-                      className={`bg-surface border rounded-xl px-4 py-3 flex items-center justify-between cursor-pointer group relative transition-all duration-200 select-none ${
-                        selectedItems.some(i => i.id === chart.id) ? 'border-accent-solid shadow-md bg-surface-raised' : 'border-border shadow-sm hover:bg-surface-raised hover:-translate-x-0.5'
+                      className={`ios-tile px-4 py-3 flex items-center justify-between cursor-pointer group relative transition-all duration-200 select-none ${
+                        selectedItems.some(i => i.id === chart.id) ? 'ring-2 ring-orange-500 shadow-glow' : ''
                       } ${activeDropdown === chart.id ? 'z-[999]' : ''}`}
                       style={{ touchAction: 'manipulation', WebkitUserSelect: 'none', userSelect: 'none', WebkitTouchCallout: 'none' }}
                       onPointerDown={(e) => handlePointerDown(chart.id, kind, e)}
@@ -667,34 +900,31 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
                       onPointerUp={handlePointerUp}
                       onPointerCancel={handlePointerUp}
                       onClick={(e) => handleCardClick(chart.id, kind, e, () => router.push(kind === 'lyrics' ? `/lyrics/${chart.id}` : `/chart/${chart.id}`))}
-                      onContextMenu={(e) => { e.preventDefault(); }}
+                      onContextMenu={(e) => {
+                        e.preventDefault();
+                        if (Date.now() - lastLongPressTime.current > 600) {
+                          toggleSelection(chart.id, kind, e);
+                        }
+                      }}
                     >
                       <div className="flex items-center gap-3 min-w-0 flex-1 pr-2">
-                        <div onClick={e => e.stopPropagation()} className="shrink-0">
-                          <input
-                            type="checkbox"
-                            checked={selectedItems.some(i => i.id === chart.id)}
-                            onChange={() => {}}
-                            onClick={(e) => toggleSelection(chart.id, kind, e)}
-                            className="w-4 h-4 rounded border-border text-accent-solid focus:ring-accent-solid bg-transparent"
-                          />
-                        </div>
-                        <div className="w-10 h-10 bg-surface-raised rounded-xl flex items-center justify-center shrink-0 border border-border">
-                          <FileText size={20} className="text-accent-start" />
+                        {selectedItems.length > 0 && (
+                          <div onClick={e => e.stopPropagation()} className="shrink-0 animate-in fade-in zoom-in-75 duration-150">
+                            <SelectionCheckbox id={chart.id} type={kind} />
+                          </div>
+                        )}
+                        <div className="w-10 h-10 icon-well flex items-center justify-center shrink-0">
+                          <FileText size={18} className="text-orange-500" />
                         </div>
                         <div className="min-w-0 flex-1">
                           <p className="text-sm font-bold text-text-primary truncate">{chart.title}</p>
-                          <p className="text-[10px] text-text-secondary">{new Date(chart.updated_at).toLocaleDateString()}</p>
+                          <p className="text-[11px] text-text-secondary mt-0.5 font-medium">{new Date(chart.updated_at).toLocaleDateString()}</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-1 shrink-0" onClick={e => e.stopPropagation()}>
                         <button
-                          className={`p-1.5 rounded-full hover:bg-white/10 transition-all ${
-                            activeDropdown === chart.id
-                              ? 'opacity-0 pointer-events-none'
-                              : chart.is_bookmarked
-                              ? 'opacity-100 scale-100'
-                              : 'opacity-0 group-hover:opacity-100 scale-90 hover:scale-100'
+                          className={`p-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-all ${
+                            chart.is_bookmarked ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
                           }`}
                           onClick={(e) => {
                             e.stopPropagation();
@@ -702,7 +932,7 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
                           }}
                           title={chart.is_bookmarked ? 'Remove Bookmark' : 'Bookmark Chart'}
                         >
-                          <Star size={16} className={chart.is_bookmarked ? "text-yellow-400 fill-yellow-400 drop-shadow-[0_0_6px_rgba(250,204,21,0.4)]" : "text-text-secondary/40 hover:text-yellow-400"} />
+                          <Star size={16} className={chart.is_bookmarked ? "text-amber-500 fill-amber-500 drop-shadow-sm" : "text-text-muted hover:text-amber-500"} />
                         </button>
                         <RowMenu id={chart.id} type={kind} name={chart.title} />
                       </div>
@@ -710,8 +940,8 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
                   ) : (
                     <div
                       key={chart.id}
-                      className={`bg-surface border rounded-xl p-5 flex flex-col items-center justify-center cursor-pointer group relative transition-all duration-200 select-none ${
-                        selectedItems.some(i => i.id === chart.id) ? 'border-accent-solid shadow-md bg-surface-raised before:absolute before:left-0 before:top-0 before:bottom-0 before:w-1 before:bg-accent-gradient before:rounded-l-xl' : 'border-border shadow-sm hover:shadow-hover hover:-translate-y-1'
+                      className={`ios-tile p-4 sm:p-5 flex flex-col items-center justify-center cursor-pointer group relative transition-all duration-200 select-none ${
+                        selectedItems.some(i => i.id === chart.id) ? 'ring-2 ring-orange-500 shadow-glow' : ''
                       } ${activeDropdown === chart.id ? 'z-[999]' : ''}`}
                       style={{ touchAction: 'manipulation', WebkitUserSelect: 'none', userSelect: 'none', WebkitTouchCallout: 'none' }}
                       onPointerDown={(e) => handlePointerDown(chart.id, kind, e)}
@@ -719,32 +949,38 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
                       onPointerUp={handlePointerUp}
                       onPointerCancel={handlePointerUp}
                       onClick={(e) => handleCardClick(chart.id, kind, e, () => router.push(kind === 'lyrics' ? `/lyrics/${chart.id}` : `/chart/${chart.id}`))}
-                      onContextMenu={(e) => { e.preventDefault(); }}
+                      onContextMenu={(e) => {
+                        e.preventDefault();
+                        if (Date.now() - lastLongPressTime.current > 600) {
+                          toggleSelection(chart.id, kind, e);
+                        }
+                      }}
                     >
-                      <div className="absolute top-3 left-3 z-10" onClick={e => e.stopPropagation()}>
-                        <input
-                          type="checkbox"
-                          checked={selectedItems.some(i => i.id === chart.id)}
-                          onChange={() => {}}
-                          onClick={(e) => toggleSelection(chart.id, kind, e)}
-                          className="w-4 h-4 rounded border-border text-accent-solid focus:ring-accent-solid bg-transparent"
-                        />
-                      </div>
-                      <div className="absolute top-2 right-2 z-10" onClick={e => e.stopPropagation()}>
+                      {/* Top Left: Checkbox (only shown in selection mode) */}
+                      {selectedItems.length > 0 && (
+                        <div className="absolute top-3 left-3 z-10 animate-in fade-in zoom-in-75 duration-150" onClick={e => e.stopPropagation()}>
+                          <SelectionCheckbox id={chart.id} type={kind} />
+                        </div>
+                      )}
+
+                      {/* Top Right: Kebab Menu */}
+                      <div className="absolute top-2.5 right-2.5 z-10" onClick={e => e.stopPropagation()}>
                         <RowMenu id={chart.id} type={kind} name={chart.title} />
                       </div>
-                      <div className="w-16 h-16 bg-surface-raised rounded-full flex items-center justify-center mb-4 mt-2 shadow-inner border border-border">
-                        <FileText size={24} className="text-accent-start" />
+
+                      {/* Centered Circular Glass Icon Well */}
+                      <div className="w-14 h-14 sm:w-16 sm:h-16 icon-well flex items-center justify-center mb-3 mt-3 transition-transform group-hover:scale-105">
+                        <FileText size={24} className="text-orange-500 stroke-[2.2]" />
                       </div>
-                      <p className="text-sm font-bold text-text-primary text-center w-full truncate">{chart.title}</p>
-                      <p className="text-[10px] text-text-secondary mt-1">{new Date(chart.updated_at).toLocaleDateString()}</p>
+
+                      {/* Title & Date */}
+                      <p className="text-sm font-bold text-text-primary text-center w-full line-clamp-2 leading-tight px-1">{chart.title}</p>
+                      <p className="text-[11px] text-text-secondary mt-1 font-medium">{new Date(chart.updated_at).toLocaleDateString()}</p>
+
+                      {/* Bookmark Star */}
                       <button
-                        className={`absolute bottom-3 right-3 z-10 p-1.5 rounded-full hover:bg-white/10 transition-all ${
-                          activeDropdown === chart.id
-                            ? 'opacity-0 pointer-events-none'
-                            : chart.is_bookmarked
-                            ? 'opacity-100 scale-100'
-                            : 'opacity-0 group-hover:opacity-100 scale-90 hover:scale-100'
+                        className={`absolute bottom-2.5 right-2.5 z-10 p-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-all ${
+                          chart.is_bookmarked ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
                         }`}
                         onClick={(e) => {
                           e.stopPropagation();
@@ -752,7 +988,7 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
                         }}
                         title={chart.is_bookmarked ? 'Remove Bookmark' : 'Bookmark Chart'}
                       >
-                        <Star size={16} className={chart.is_bookmarked ? "text-yellow-400 fill-yellow-400 drop-shadow-[0_0_6px_rgba(250,204,21,0.4)]" : "text-text-secondary/40 hover:text-yellow-400"} />
+                        <Star size={15} className={chart.is_bookmarked ? "text-amber-500 fill-amber-500 drop-shadow-sm" : "text-text-muted hover:text-amber-500"} />
                       </button>
                     </div>
                   )
@@ -763,34 +999,38 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
         )}
       </div>
 
-      {/* Bulk Action Bar (Pill) */}
+      {/* Bulk Action Bar (Floating Glass Pill Dock) */}
       {selectedItems.length > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] bg-surface-raised border border-border text-text-primary px-4 py-2 rounded-full shadow-popover flex items-center space-x-3 animate-in slide-in-from-bottom-4">
+        <div className="fixed bottom-5 sm:bottom-8 left-1/2 -translate-x-1/2 z-[100] bg-white/50 dark:bg-[#18181c]/50 backdrop-blur-2xl saturate-[180%] border border-white/60 dark:border-white/15 text-text-primary px-5 py-2.5 rounded-full shadow-[0_8px_32px_rgba(31,38,135,0.12),inset_0_1px_0_rgba(255,255,255,0.8)] flex items-center space-x-3 animate-in slide-in-from-bottom-4 duration-200">
           <span className="text-xs font-bold text-text-primary whitespace-nowrap">
             {selectedItems.length} selected
           </span>
-          <div className="flex space-x-2 border-l border-border pl-3">
+          <div className="flex items-center space-x-2 border-l border-border pl-3">
             <button
               onClick={handleSelectAll}
-              className="px-4 py-1.5 text-xs font-bold text-text-primary bg-surface border border-border rounded-full hover:text-accent-start hover:bg-white/5 transition-all"
+              className="px-3.5 py-1.5 text-xs font-bold text-text-primary glass-pill hover:bg-white dark:hover:bg-white/10 transition-all cursor-pointer"
             >
-              Select All
+              {(isSearching ? selectedItems.length === searchResults.length && searchResults.length > 0 : selectedItems.length === (folders.length + charts.length) && (folders.length + charts.length) > 0) ? 'Deselect All' : 'Select All'}
             </button>
-            <button
-              onClick={() => setIsBulkMove(true)}
-              className="px-4 py-1.5 text-xs font-bold text-text-primary bg-surface border border-border rounded-full hover:text-accent-start hover:bg-white/5 transition-all"
-            >
-              Move
-            </button>
-            <button
-              onClick={() => { setBulkDeleteModal(true); setDeleteConfirmText(''); }}
-              className="px-4 py-1.5 text-xs font-bold text-white bg-red-600/90 rounded-full hover:bg-red-600 shadow-md transition-all"
-            >
-              Delete
-            </button>
+            {canEdit && (
+              <>
+                <button
+                  onClick={() => setIsBulkMove(true)}
+                  className="px-3.5 py-1.5 text-xs font-bold text-text-primary glass-pill hover:bg-white dark:hover:bg-white/10 transition-all cursor-pointer"
+                >
+                  Move
+                </button>
+                <button
+                  onClick={() => { setBulkDeleteModal(true); setDeleteConfirmText(''); }}
+                  className="px-4 py-1.5 text-xs font-bold text-white bg-rose-500 rounded-full hover:bg-rose-600 shadow-sm transition-all cursor-pointer"
+                >
+                  Delete
+                </button>
+              </>
+            )}
             <button
               onClick={() => setSelectedItems([])}
-              className="ml-1 p-1.5 text-text-secondary hover:text-white transition-all rounded-full hover:bg-white/5"
+              className="ml-1 p-1 text-text-muted hover:text-text-primary transition-all rounded-full"
             >
               <X size={16} />
             </button>
@@ -808,9 +1048,9 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
 
       {/* Inline Rename Modal */}
       {renameItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-surface rounded-2xl p-8 w-full max-w-sm shadow-popover border border-border">
-            <h3 className="text-xl font-bold text-text-primary mb-6 text-center">Rename {renameItem.type}</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="bg-white/60 dark:bg-[#18181c]/60 backdrop-blur-2xl saturate-[180%] rounded-[28px] p-6 w-full max-w-sm shadow-[0_8px_32px_rgba(31,38,135,0.12),inset_0_1px_0_rgba(255,255,255,0.8)] border border-white/60 dark:border-white/15">
+            <h3 className="text-base font-bold text-text-primary mb-4 text-center">Rename {renameItem.type}</h3>
             <form onSubmit={(e) => {
               e.preventDefault();
               const input = e.currentTarget.elements.namedItem('newName') as HTMLInputElement;
@@ -820,11 +1060,11 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
                 name="newName"
                 autoFocus
                 defaultValue={renameItem.currentName}
-                className="w-full px-4 py-3 bg-surface-raised border border-border shadow-inner rounded-xl text-text-primary focus:outline-none focus:border-accent-solid transition-colors mb-8 font-medium"
+                className="w-full px-4 py-3 glass-pill text-text-primary focus:outline-none focus:ring-2 focus:ring-orange-500/40 transition-all mb-6 font-semibold text-sm"
               />
-              <div className="flex justify-center space-x-4">
-                <button type="button" onClick={() => setRenameItem(null)} className="px-6 py-2.5 text-sm font-bold text-text-secondary bg-surface border border-border rounded-xl hover:text-white hover:bg-surface-raised transition-all">Cancel</button>
-                <button type="submit" className="px-6 py-2.5 text-sm font-bold text-white bg-accent-gradient rounded-xl shadow-md hover:brightness-110 transition-all">Save</button>
+              <div className="flex justify-center gap-3">
+                <button type="button" onClick={() => setRenameItem(null)} className="flex-1 py-2.5 text-xs font-bold text-text-secondary glass-pill hover:bg-white dark:hover:bg-white/10 transition-all">Cancel</button>
+                <button type="submit" className="flex-1 py-2.5 text-xs font-bold btn-dark-pill transition-all">Save</button>
               </div>
             </form>
           </div>
@@ -833,30 +1073,30 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
 
       {/* Inline Delete Confirmation */}
       {deleteItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-surface rounded-2xl p-8 w-full max-w-sm shadow-popover border border-border text-center">
-            <div className="w-16 h-16 mx-auto bg-surface-raised shadow-inner border border-border rounded-full flex items-center justify-center mb-6">
-              <Trash2 size={24} className="text-red-500" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="bg-white/60 dark:bg-[#18181c]/60 backdrop-blur-2xl saturate-[180%] rounded-[28px] p-6 w-full max-w-sm shadow-[0_8px_32px_rgba(31,38,135,0.12),inset_0_1px_0_rgba(255,255,255,0.8)] border border-white/60 dark:border-white/15 text-center">
+            <div className="w-14 h-14 mx-auto icon-well flex items-center justify-center mb-4">
+              <Trash2 size={22} className="text-rose-500" />
             </div>
-            <h3 className="text-xl font-bold text-text-primary mb-3">Delete {deleteItem.type}?</h3>
-            <p className="text-sm text-text-secondary mb-4 font-medium px-4">
+            <h3 className="text-base font-bold text-text-primary mb-2">Delete {deleteItem.type}?</h3>
+            <p className="text-xs text-text-secondary mb-5 font-medium px-2 leading-relaxed">
               Are you sure you want to delete "{deleteItem.name}"?
               {deleteItem.type === 'folder' && " All nested folders and charts will also be permanently deleted."}
             </p>
-            <div className="flex justify-center space-x-4">
-              <button onClick={() => { setDeleteItem(null); setDeleteConfirmText(''); }} className="px-6 py-2.5 text-sm font-bold text-text-secondary bg-surface border border-border rounded-xl hover:text-white hover:bg-surface-raised transition-all">Cancel</button>
+            <div className="flex flex-col gap-2">
               <button 
                 onClick={() => executeDelete(false)} 
-                className="px-4 py-2.5 text-sm font-bold text-white bg-accent-gradient rounded-xl shadow-md hover:brightness-110 transition-all"
+                className="w-full py-2.5 text-xs font-bold text-white bg-gradient-to-r from-orange-500 to-rose-400 rounded-full shadow-glow hover:brightness-105 transition-all"
               >
                 Move to Trash
               </button>
               <button 
                 onClick={() => executeDelete(true)} 
-                className="px-4 py-2.5 text-sm font-bold text-red-500 bg-red-500/10 border border-red-500/20 rounded-xl shadow-md hover:bg-red-500 hover:text-white transition-all"
+                className="w-full py-2 text-xs font-bold text-rose-500 hover:bg-rose-500/10 rounded-full transition-all"
               >
                 Delete Permanently
               </button>
+              <button onClick={() => { setDeleteItem(null); setDeleteConfirmText(''); }} className="w-full py-2 text-xs font-semibold text-text-muted hover:text-text-primary transition-all">Cancel</button>
             </div>
           </div>
         </div>
@@ -864,29 +1104,29 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
 
       {/* Bulk Delete Confirmation */}
       {bulkDeleteModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-surface rounded-2xl p-8 w-full max-w-lg shadow-popover border border-border text-center">
-            <div className="w-16 h-16 mx-auto bg-surface-raised shadow-inner border border-border rounded-full flex items-center justify-center mb-6">
-              <Trash2 size={24} className="text-red-500" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="bg-white/60 dark:bg-[#18181c]/60 backdrop-blur-2xl saturate-[180%] rounded-[28px] p-6 w-full max-w-sm shadow-[0_8px_32px_rgba(31,38,135,0.12),inset_0_1px_0_rgba(255,255,255,0.8)] border border-white/60 dark:border-white/15 text-center">
+            <div className="w-14 h-14 mx-auto icon-well flex items-center justify-center mb-4">
+              <Trash2 size={22} className="text-rose-500" />
             </div>
-            <h3 className="text-xl font-bold text-text-primary mb-3">Delete {selectedItems.length} items?</h3>
-            <p className="text-sm text-text-secondary mb-4 font-medium px-4">
-              Are you sure you want to delete {selectedItems.length} items? All nested folders and charts will also be affected.
+            <h3 className="text-base font-bold text-text-primary mb-2">Delete {selectedItems.length} items?</h3>
+            <p className="text-xs text-text-secondary mb-5 font-medium px-2 leading-relaxed">
+              Are you sure you want to delete {selectedItems.length} items? All nested contents will be affected.
             </p>
-            <div className="flex justify-center space-x-3">
-              <button onClick={() => { setBulkDeleteModal(false); setDeleteConfirmText(''); }} className="px-6 py-2.5 text-sm font-bold text-text-secondary bg-surface border border-border rounded-xl hover:text-white hover:bg-surface-raised transition-all">Cancel</button>
+            <div className="flex flex-col gap-2">
               <button 
                 onClick={() => handleBulkDelete(false)} 
-                className="px-4 py-2.5 text-sm font-bold text-white bg-accent-gradient rounded-xl shadow-md hover:brightness-110 transition-all"
+                className="w-full py-2.5 text-xs font-bold text-white bg-gradient-to-r from-orange-500 to-rose-400 rounded-full shadow-glow hover:brightness-105 transition-all"
               >
                 Move to Trash
               </button>
               <button 
                 onClick={() => handleBulkDelete(true)} 
-                className="px-4 py-2.5 text-sm font-bold text-red-500 bg-red-500/10 border border-red-500/20 rounded-xl shadow-md hover:bg-red-500 hover:text-white transition-all"
+                className="w-full py-2 text-xs font-bold text-rose-500 hover:bg-rose-500/10 rounded-full transition-all"
               >
                 Delete Permanently
               </button>
+              <button onClick={() => { setBulkDeleteModal(false); setDeleteConfirmText(''); }} className="w-full py-2 text-xs font-semibold text-text-muted hover:text-text-primary transition-all">Cancel</button>
             </div>
           </div>
         </div>
@@ -894,9 +1134,9 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
 
       {/* Create Folder Modal */}
       {createFolderModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-surface rounded-2xl p-8 w-full max-w-sm shadow-popover border border-border">
-            <h3 className="text-xl font-bold text-text-primary mb-6 text-center">New Folder</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="bg-white/60 dark:bg-[#18181c]/60 backdrop-blur-2xl saturate-[180%] rounded-[28px] p-6 w-full max-w-sm shadow-[0_8px_32px_rgba(31,38,135,0.12),inset_0_1px_0_rgba(255,255,255,0.8)] border border-white/60 dark:border-white/15">
+            <h3 className="text-base font-bold text-text-primary mb-4 text-center">New Folder</h3>
             <form onSubmit={async (e) => {
               e.preventDefault();
               const input = e.currentTarget.elements.namedItem('folderName') as HTMLInputElement;
@@ -911,14 +1151,21 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
                 name="folderName"
                 autoFocus
                 placeholder="Folder name"
-                className="w-full px-4 py-3 bg-surface-raised border border-border shadow-inner rounded-xl text-text-primary focus:outline-none focus:border-accent-solid transition-colors mb-8 font-medium"
+                className="w-full px-4 py-3 glass-pill text-text-primary focus:outline-none focus:ring-2 focus:ring-orange-500/40 transition-all mb-6 font-semibold text-sm"
               />
-              <div className="flex justify-center space-x-4">
-                <button type="button" onClick={() => setCreateFolderModal(false)} className="px-6 py-2.5 text-sm font-bold text-text-secondary bg-surface border border-border rounded-xl hover:text-white hover:bg-surface-raised transition-all">Cancel</button>
-                <button type="submit" className="px-6 py-2.5 text-sm font-bold text-white bg-accent-gradient rounded-xl shadow-md hover:brightness-110 transition-all">Create</button>
+              <div className="flex justify-center gap-3">
+                <button type="button" onClick={() => setCreateFolderModal(false)} className="flex-1 py-2.5 text-xs font-bold text-text-secondary glass-pill hover:bg-white dark:hover:bg-white/10 transition-all">Cancel</button>
+                <button type="submit" className="flex-1 py-2.5 text-xs font-bold btn-dark-pill transition-all">Create</button>
               </div>
             </form>
           </div>
+        </div>
+      )}
+
+      {/* "Press back again to exit" Toast */}
+      {showExitToast && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[200] bg-white/70 dark:bg-black/60 text-text-primary dark:text-white border border-white/60 dark:border-white/15 text-xs font-bold px-4 py-2 rounded-full shadow-[0_8px_32px_rgba(31,38,135,0.12),inset_0_1px_0_rgba(255,255,255,0.8)] backdrop-blur-2xl saturate-[180%] animate-in fade-in slide-in-from-bottom-2 duration-150 pointer-events-none">
+          Press back again to exit
         </div>
       )}
 

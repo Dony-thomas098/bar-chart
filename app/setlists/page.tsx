@@ -6,9 +6,10 @@ import { useAuth } from '@/components/AuthProvider';
 import { Header } from '@/components/Header';
 import { supabase } from '@/lib/supabase';
 import { listSetlists, createSetlist, deleteSetlist, duplicateSetlist, updateSetlist, type Setlist } from '@/lib/setlists';
+import { GlassCard, PillButton, IconButton } from '@/components/ui/primitives';
 import {
   ListMusic, Plus, MoreVertical, Trash2, Copy, Pencil, Calendar,
-  Music2, CornerLeftUp, X, Check, Play, Radio,
+  Music2, CornerLeftUp, X, Check, Play, Radio, ChevronRight,
 } from 'lucide-react';
 
 // ─── New Setlist Modal ────────────────────────────────────────────────────────
@@ -34,19 +35,17 @@ function NewSetlistModal({ onClose, onCreate }: {
   };
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative z-10 w-full max-w-md bg-surface border border-border rounded-t-3xl sm:rounded-3xl shadow-popover p-6 flex flex-col gap-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-base font-bold text-text-primary">New Setlist</h2>
-          <button onClick={onClose} className="p-1.5 text-text-secondary hover:text-white rounded-lg transition-all">
-            <X size={18} />
-          </button>
+    <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-0 sm:p-4">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity" onClick={onClose} />
+      <div className="relative z-10 w-full max-w-md bg-white/65 dark:bg-[#18181d]/65 backdrop-blur-2xl saturate-[180%] border border-white/60 dark:border-white/15 rounded-t-[32px] sm:rounded-[32px] shadow-[0_8px_32px_rgba(31,38,135,0.12),inset_0_1px_0_rgba(255,255,255,0.8)] p-6 sm:p-7 flex flex-col gap-4 animate-slide-up sm:animate-fade-in">
+        <div className="flex items-center justify-between pb-2 border-b border-black/[0.06] dark:border-white/[0.08]">
+          <h2 className="text-lg font-bold text-text-primary tracking-tight">New Setlist</h2>
+          <IconButton icon={<X size={18} />} onClick={onClose} variant="glass" aria-label="Close" />
         </div>
 
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-3.5">
           <div>
-            <label className="text-[10px] font-bold uppercase tracking-widest text-text-secondary block mb-1.5">
+            <label className="text-[11px] font-bold uppercase tracking-wider text-text-secondary block mb-1.5">
               Name *
             </label>
             <input
@@ -55,22 +54,22 @@ function NewSetlistModal({ onClose, onCreate }: {
               onChange={e => setName(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleCreate()}
               placeholder="Sunday Service, Gig at The Venue…"
-              className="w-full px-4 py-2.5 bg-surface-raised border border-border rounded-xl text-text-primary placeholder-text-secondary text-sm outline-none focus:border-accent-solid transition-all"
+              className="w-full px-4 py-3 bg-white/70 dark:bg-white/[0.06] border border-glass rounded-2xl text-text-primary placeholder:text-text-muted text-sm outline-none focus:ring-2 focus:ring-orange-500/30 transition-all shadow-inner-glass"
             />
           </div>
           <div>
-            <label className="text-[10px] font-bold uppercase tracking-widest text-text-secondary block mb-1.5">
+            <label className="text-[11px] font-bold uppercase tracking-wider text-text-secondary block mb-1.5">
               Date (optional)
             </label>
             <input
               type="date"
               value={date}
               onChange={e => setDate(e.target.value)}
-              className="w-full px-4 py-2.5 bg-surface-raised border border-border rounded-xl text-text-primary text-sm outline-none focus:border-accent-solid transition-all"
+              className="w-full px-4 py-3 bg-white/70 dark:bg-white/[0.06] border border-glass rounded-2xl text-text-primary text-sm outline-none focus:ring-2 focus:ring-orange-500/30 transition-all shadow-inner-glass"
             />
           </div>
           <div>
-            <label className="text-[10px] font-bold uppercase tracking-widest text-text-secondary block mb-1.5">
+            <label className="text-[11px] font-bold uppercase tracking-wider text-text-secondary block mb-1.5">
               Notes (optional)
             </label>
             <textarea
@@ -78,18 +77,21 @@ function NewSetlistModal({ onClose, onCreate }: {
               onChange={e => setNotes(e.target.value)}
               rows={2}
               placeholder="Venue, key, special instructions…"
-              className="w-full px-4 py-2.5 bg-surface-raised border border-border rounded-xl text-text-primary placeholder-text-secondary text-sm outline-none focus:border-accent-solid transition-all resize-none"
+              className="w-full px-4 py-3 bg-white/70 dark:bg-white/[0.06] border border-glass rounded-2xl text-text-primary placeholder:text-text-muted text-sm outline-none focus:ring-2 focus:ring-orange-500/30 transition-all shadow-inner-glass resize-none"
             />
           </div>
         </div>
 
-        <button
-          onClick={handleCreate}
-          disabled={!name.trim() || saving}
-          className="w-full py-3 bg-accent-gradient text-white font-bold rounded-xl text-sm disabled:opacity-40 hover:brightness-110 transition-all"
-        >
-          {saving ? 'Creating…' : 'Create Setlist'}
-        </button>
+        <div className="pt-2">
+          <PillButton
+            onClick={handleCreate}
+            disabled={!name.trim() || saving}
+            variant="primary-dark"
+            className="w-full py-3.5 text-sm"
+          >
+            {saving ? 'Creating…' : 'Create Setlist'}
+          </PillButton>
+        </div>
       </div>
     </div>
   );
@@ -114,28 +116,29 @@ function RenameModal({ setlist, onClose, onRename }: {
   };
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative z-10 w-full max-w-sm bg-surface border border-border rounded-2xl shadow-popover p-5 flex flex-col gap-3">
-        <h2 className="text-sm font-bold text-text-primary">Rename Setlist</h2>
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative z-10 w-full max-w-sm bg-white/65 dark:bg-[#18181d]/65 backdrop-blur-2xl saturate-[180%] border border-white/60 dark:border-white/15 rounded-[28px] shadow-[0_8px_32px_rgba(31,38,135,0.12),inset_0_1px_0_rgba(255,255,255,0.8)] p-6 flex flex-col gap-4 animate-fade-in">
+        <h2 className="text-base font-bold text-text-primary">Rename Setlist</h2>
         <input
           autoFocus
           value={name}
           onChange={e => setName(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && handleSave()}
-          className="w-full px-4 py-2.5 bg-surface-raised border border-border rounded-xl text-text-primary text-sm outline-none focus:border-accent-solid transition-all"
+          className="w-full px-4 py-3 bg-white/70 dark:bg-white/[0.06] border border-glass rounded-2xl text-text-primary text-sm outline-none focus:ring-2 focus:ring-orange-500/30 transition-all shadow-inner-glass"
         />
-        <div className="flex gap-2">
-          <button onClick={onClose} className="flex-1 py-2 text-xs font-bold text-text-secondary bg-surface-raised border border-border rounded-xl hover:text-white transition-all">
+        <div className="flex gap-2 pt-1">
+          <PillButton onClick={onClose} variant="glass" className="flex-1 py-2.5 text-xs">
             Cancel
-          </button>
-          <button
+          </PillButton>
+          <PillButton
             onClick={handleSave}
             disabled={!name.trim() || saving}
-            className="flex-1 py-2 text-xs font-bold text-white bg-accent-gradient rounded-xl disabled:opacity-40 hover:brightness-110 transition-all"
+            variant="primary-dark"
+            className="flex-1 py-2.5 text-xs"
           >
             {saving ? 'Saving…' : 'Save'}
-          </button>
+          </PillButton>
         </div>
       </div>
     </div>
@@ -150,24 +153,25 @@ function ConfirmDeleteModal({ name, onClose, onConfirm }: {
   onConfirm: () => void;
 }) {
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative z-10 w-full max-w-sm bg-surface border border-border rounded-2xl shadow-popover p-5 flex flex-col gap-4">
-        <h2 className="text-sm font-bold text-text-primary">Delete Setlist?</h2>
-        <p className="text-sm text-text-secondary">
-          <span className="text-white font-semibold">"{name}"</span> will be permanently deleted.
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative z-10 w-full max-w-sm bg-white/65 dark:bg-[#18181d]/65 backdrop-blur-2xl saturate-[180%] border border-white/60 dark:border-white/15 rounded-[28px] shadow-[0_8px_32px_rgba(31,38,135,0.12),inset_0_1px_0_rgba(255,255,255,0.8)] p-6 flex flex-col gap-4 animate-fade-in">
+        <h2 className="text-base font-bold text-text-primary">Delete Setlist?</h2>
+        <p className="text-sm text-text-secondary leading-relaxed">
+          <span className="text-text-primary font-semibold">"{name}"</span> will be permanently deleted.
           The underlying charts and lyrics will not be affected.
         </p>
-        <div className="flex gap-2">
-          <button onClick={onClose} className="flex-1 py-2 text-xs font-bold text-text-secondary bg-surface-raised border border-border rounded-xl hover:text-white transition-all">
+        <div className="flex gap-2 pt-1">
+          <PillButton onClick={onClose} variant="glass" className="flex-1 py-2.5 text-xs">
             Cancel
-          </button>
-          <button
+          </PillButton>
+          <PillButton
             onClick={onConfirm}
-            className="flex-1 py-2 text-xs font-bold text-white bg-red-500 rounded-xl hover:bg-red-400 transition-all"
+            variant="danger"
+            className="flex-1 py-2.5 text-xs"
           >
             Delete
-          </button>
+          </PillButton>
         </div>
       </div>
     </div>
@@ -200,86 +204,87 @@ function SetlistCard({
     : null;
 
   return (
-    <div
-      className="bg-surface border border-border rounded-2xl shadow-card hover:shadow-hover transition-all group cursor-pointer relative"
+    <GlassCard
       onClick={onOpen}
+      interactive
+      className="p-4 sm:p-5 group cursor-pointer relative"
     >
-      <div className="p-4 flex items-center gap-4">
-        {/* Icon */}
-        <div className="w-12 h-12 rounded-xl bg-accent-gradient/10 border border-accent-solid/20 flex items-center justify-center shrink-0">
-          <ListMusic size={22} className="text-accent-start" />
+      <div className="flex items-center gap-4">
+        {/* Centered Glass Icon Well */}
+        <div className="w-13 h-13 rounded-2xl bg-gradient-to-br from-orange-500/15 via-rose-500/10 to-amber-500/15 border border-white/60 dark:border-white/10 shadow-inner-glass flex items-center justify-center shrink-0">
+          <ListMusic size={24} className="text-orange-600 dark:text-orange-400" />
         </div>
 
         {/* Info */}
         <div className="flex-1 min-w-0">
-          <p className="font-bold text-text-primary text-sm truncate">{setlist.name}</p>
-          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+          <p className="font-bold text-text-primary text-base truncate tracking-tight">{setlist.name}</p>
+          <div className="flex items-center gap-2.5 mt-1 flex-wrap">
             {formattedDate && (
-              <span className="flex items-center gap-1 text-[10px] text-text-secondary">
-                <Calendar size={10} /> {formattedDate}
+              <span className="flex items-center gap-1 text-[11px] font-semibold text-text-secondary">
+                <Calendar size={11} className="text-orange-500/70" /> {formattedDate}
               </span>
             )}
             {setlist.songCount !== undefined && (
-              <span className="text-[10px] text-text-secondary">
+              <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/15">
                 {setlist.songCount} song{setlist.songCount !== 1 ? 's' : ''}
               </span>
             )}
           </div>
-          <p className="text-[10px] text-text-secondary/60 mt-0.5">
+          <p className="text-[11px] text-text-muted mt-1">
             Updated {new Date(setlist.updated_at).toLocaleDateString()}
           </p>
         </div>
 
         {/* Actions */}
-        <div className="flex items-center gap-1 shrink-0">
+        <div className="flex items-center gap-1.5 shrink-0" onClick={e => e.stopPropagation()}>
           <button
             onClick={e => { e.stopPropagation(); onDelete(); }}
-            className="p-2 text-text-secondary/50 hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-all sm:opacity-0 sm:group-hover:opacity-100"
+            className="p-2 text-text-muted hover:text-red-500 hover:bg-red-500/10 rounded-full transition-all sm:opacity-0 sm:group-hover:opacity-100"
             title="Delete Setlist"
           >
-            <Trash2 size={18} />
+            <Trash2 size={17} />
           </button>
           <div className="relative">
-            <button
+            <IconButton
+              icon={<MoreVertical size={16} />}
               onClick={e => { e.stopPropagation(); setMenuOpen(v => !v); }}
-              className="p-2 text-text-secondary hover:text-white bg-surface-raised border border-border rounded-xl transition-all"
-            >
-              <MoreVertical size={16} />
-            </button>
-          {menuOpen && (
-            <>
-              <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
-              <div className="absolute right-0 top-full mt-1 z-20 min-w-[170px] bg-surface-raised border border-border rounded-xl shadow-popover overflow-hidden">
-                <button 
-                  onClick={e => { e.stopPropagation(); setMenuOpen(false); onStartPerform(); }} 
-                  className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-accent-solid hover:bg-white/5 transition-all"
-                >
-                  <Play size={13} className="text-accent-solid fill-accent-solid" /> Start Performance
-                </button>
-                <button 
-                  onClick={e => { e.stopPropagation(); setMenuOpen(false); onSendToPerformQueue(); }} 
-                  className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-text-primary hover:bg-white/5 transition-all"
-                >
-                  <Radio size={13} className="text-sky-400" /> Send to Perform Queue
-                </button>
-                <div className="h-px bg-border mx-2" />
-                <button onClick={e => { e.stopPropagation(); setMenuOpen(false); onRename(); }} className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-text-primary hover:bg-white/5 transition-all">
-                  <Pencil size={13} /> Rename
-                </button>
-                <button onClick={e => { e.stopPropagation(); setMenuOpen(false); onDuplicate(); }} className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-text-primary hover:bg-white/5 transition-all">
-                  <Copy size={13} /> Duplicate
-                </button>
-                <div className="h-px bg-border mx-2" />
-                <button onClick={e => { e.stopPropagation(); setMenuOpen(false); onDelete(); }} className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-red-400 hover:bg-red-500/10 transition-all">
-                  <Trash2 size={13} /> Delete
-                </button>
-              </div>
-            </>
-          )}
+              variant="glass"
+              aria-label="More options"
+            />
+            {menuOpen && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
+                <div className="absolute right-0 top-full mt-2 z-20 min-w-[190px] bg-white/55 dark:bg-[#1e1e24]/55 backdrop-blur-2xl saturate-[180%] border border-white/60 dark:border-white/15 rounded-2xl shadow-[0_8px_32px_rgba(31,38,135,0.12),inset_0_1px_0_rgba(255,255,255,0.8)] overflow-hidden animate-fade-in p-1.5">
+                  <button 
+                    onClick={e => { e.stopPropagation(); setMenuOpen(false); onStartPerform(); }} 
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-orange-600 dark:text-orange-400 hover:bg-orange-500/10 rounded-xl transition-all"
+                  >
+                    <Play size={14} className="fill-current" /> Start Performance
+                  </button>
+                  <button 
+                    onClick={e => { e.stopPropagation(); setMenuOpen(false); onSendToPerformQueue(); }} 
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-text-primary hover:bg-black/5 dark:hover:bg-white/5 rounded-xl transition-all"
+                  >
+                    <Radio size={14} className="text-sky-500" /> Send to Perform Queue
+                  </button>
+                  <div className="h-px bg-black/[0.06] dark:bg-white/[0.08] my-1 mx-2" />
+                  <button onClick={e => { e.stopPropagation(); setMenuOpen(false); onRename(); }} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-text-primary hover:bg-black/5 dark:hover:bg-white/5 rounded-xl transition-all">
+                    <Pencil size={14} /> Rename
+                  </button>
+                  <button onClick={e => { e.stopPropagation(); setMenuOpen(false); onDuplicate(); }} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-text-primary hover:bg-black/5 dark:hover:bg-white/5 rounded-xl transition-all">
+                    <Copy size={14} /> Duplicate
+                  </button>
+                  <div className="h-px bg-black/[0.06] dark:bg-white/[0.08] my-1 mx-2" />
+                  <button onClick={e => { e.stopPropagation(); setMenuOpen(false); onDelete(); }} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-red-500 hover:bg-red-500/10 rounded-xl transition-all">
+                    <Trash2 size={14} /> Delete
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>
-    </div>
+    </GlassCard>
   );
 }
 
@@ -369,37 +374,47 @@ export default function SetlistsPage() {
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
-      <main className="flex-1 overflow-y-auto w-full max-w-3xl mx-auto px-4 pt-[max(env(safe-area-inset-top,2rem),2rem)] pb-32">
+      <main className="flex-1 overflow-y-auto w-full max-w-4xl mx-auto px-4 pt-[max(env(safe-area-inset-top,1.5rem),1.5rem)] pb-36">
 
         {/* Action row */}
-        <div className="flex justify-end mb-6 mt-4">
-          <button
+        <div className="flex items-center justify-between mb-6 mt-2">
+          <div>
+            <h1 className="text-2xl font-extrabold text-text-primary tracking-tight">Setlists</h1>
+            <p className="text-xs text-text-secondary mt-0.5">Organize charts for gigs and rehearsals</p>
+          </div>
+          <PillButton
             onClick={() => setShowNew(true)}
-            className="flex items-center gap-1.5 px-3 py-2.5 bg-accent-gradient text-white text-xs font-bold rounded-xl shadow-md hover:brightness-110 transition-all shrink-0"
+            variant="primary-dark"
+            icon={<Plus size={16} />}
+            className="px-4 py-2.5 text-xs shadow-btn-dark"
           >
-            <Plus size={16} />
-            <span className="hidden sm:inline">New Setlist</span>
-          </button>
+            New Setlist
+          </PillButton>
         </div>
 
         {/* List */}
         {loading && (
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-3.5">
             {[1, 2, 3].map(i => (
-              <div key={i} className="h-20 bg-surface border border-border rounded-2xl animate-pulse" />
+              <div key={i} className="h-24 bg-surface-glass border border-glass rounded-[24px] animate-pulse" />
             ))}
           </div>
         )}
 
         {!loading && setlists.length === 0 && (
-          <div className="text-center py-24 text-text-secondary">
-            <ListMusic size={48} className="mx-auto mb-4 opacity-30" />
-            <p className="font-semibold text-base mb-1">No setlists yet</p>
-            <p className="text-sm opacity-70">Create one to organize your songs for a gig or session.</p>
-          </div>
+          <GlassCard className="text-center py-20 px-6 my-6">
+            <div className="w-16 h-16 rounded-full bg-orange-500/10 border border-orange-500/20 flex items-center justify-center mx-auto mb-4 text-orange-500 shadow-inner-glass">
+              <ListMusic size={32} />
+            </div>
+            <p className="font-bold text-lg text-text-primary mb-1 tracking-tight">No setlists yet</p>
+            <p className="text-xs text-text-secondary max-w-sm mx-auto mb-6">Create your first setlist to group and sequence songs for live performances.</p>
+            <PillButton onClick={() => setShowNew(true)} variant="primary-dark" icon={<Plus size={16} />}>
+              Create First Setlist
+            </PillButton>
+          </GlassCard>
         )}
 
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-3.5">
           {setlists.map(s => (
             <SetlistCard
               key={s.id}
@@ -417,7 +432,7 @@ export default function SetlistsPage() {
 
       {/* Toast Alert */}
       {toastMsg && (
-        <div className="fixed left-1/2 bottom-8 -translate-x-1/2 z-[300] bg-[#1b1236]/95 border border-border-light text-white text-xs font-bold px-4 py-2.5 rounded-full shadow-2xl flex items-center gap-2 animate-fade-in pointer-events-none">
+        <div className="fixed left-1/2 bottom-24 -translate-x-1/2 z-[300] bg-white/70 dark:bg-black/60 border border-white/60 dark:border-white/15 text-text-primary dark:text-white text-xs font-bold px-4 py-2.5 rounded-full shadow-[0_8px_32px_rgba(31,38,135,0.12),inset_0_1px_0_rgba(255,255,255,0.8)] backdrop-blur-2xl saturate-[180%] flex items-center gap-2 animate-fade-in pointer-events-none">
           <span>{toastMsg}</span>
         </div>
       )}

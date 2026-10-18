@@ -77,10 +77,10 @@ const isOnline = () => {
   return typeof navigator !== 'undefined' && navigator.onLine;
 };
 
-// Flush pending saves when coming back online
-if (typeof window !== 'undefined') {
-  window.addEventListener('online', async () => {
-    if (!dbPromise) return;
+// Flush pending saves when coming back online or logging in
+export async function flushPendingSaves() {
+  if (!dbPromise || !isOnline()) return;
+  try {
     const db = await dbPromise;
     const pending = await db.getAll('pending_saves');
     for (const item of pending) {
@@ -105,7 +105,13 @@ if (typeof window !== 'undefined') {
       }
       await db.delete('pending_saves', item.id);
     }
-  });
+  } catch (err) {
+    console.warn('[Storage] flushPendingSaves error:', err);
+  }
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('online', flushPendingSaves);
 }
 
 // Cache updating utilities — exported so OfflineSyncContext can use them for realtime event handling
@@ -178,14 +184,33 @@ export async function listFolder(folderId: string | null, kind: 'chart' | 'lyric
         timeoutPromise,
       ]);
 
-      if (foldersRes.data && dbPromise) {
+      const onlineFolders: Folder[] = foldersRes.data || [];
+      const onlineItems = itemsRes.data || [];
+
+      // Also get local cached items so songs created in Guest mode are not hidden
+      const local = await listFolderFromCache(folderId, kind);
+
+      // Merge: local items + online items (online items take priority if IDs match)
+      const folderMap = new Map<string, Folder>();
+      local.folders.forEach(f => folderMap.set(f.id, f));
+      onlineFolders.forEach(f => folderMap.set(f.id, f));
+
+      const itemMap = new Map<string, any>();
+      local.charts.forEach(c => itemMap.set(c.id, c));
+      onlineItems.forEach(c => itemMap.set(c.id, { ...c, type: kind }));
+
+      if (onlineFolders.length > 0 && dbPromise) {
         const db = await dbPromise;
         const tx = db.transaction('folders', 'readwrite');
-        foldersRes.data.forEach((f) => tx.store.put(f));
+        onlineFolders.forEach((f) => tx.store.put(f));
       }
+
+      // Flush any queued offline saves in the background
+      flushPendingSaves().catch(() => {});
+
       return {
-        folders: foldersRes.data || [],
-        charts: (itemsRes.data || []).map((c) => ({ ...c, type: kind })),
+        folders: Array.from(folderMap.values()),
+        charts: Array.from(itemMap.values()),
       };
     } catch (e) {
       console.warn('[Storage] listFolder online fetch failed or timed out, using local cache:', e);
