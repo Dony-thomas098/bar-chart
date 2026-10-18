@@ -1,16 +1,16 @@
 'use client';
 
 import React, { useState, useEffect, useTransition } from 'react';
-import { useAuth } from '@/components/AuthProvider';
-import { supabase } from '@/lib/supabase';
+import { useAuth, canModifySection } from '@/components/AuthProvider';
 import { getRecentCharts, createFolder, saveChart } from '@/lib/storage';
 import { saveLyrics } from '@/lib/lyrics';
-import { X, User, LogOut, Home, Clock, Type, Settings, Plus, Folder as FolderIcon, FileText, Printer, Trash2, Music, Music2, ListMusic, Star, Download } from 'lucide-react';
-import Link from 'next/link';
+import { X, User, LogOut, Settings, Folder as FolderIcon, FileText, Printer, Trash2, Music, Music2, ListMusic, Star, Download, ChevronRight, Plus, Sun, Moon } from 'lucide-react';
 import { useRouter, usePathname } from 'next/navigation';
+import { getStoredTheme, setTheme, ThemeMode } from '@/lib/theme';
+import './sidebar-drawer.css';
 
 export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
-  const { user, signOut } = useAuth();
+  const { user, profile, signOut } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const [recentCharts, setRecentCharts] = useState<any[]>([]);
@@ -19,6 +19,11 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
   const [folderKind, setFolderKind] = useState<'chart' | 'lyrics'>('chart');
   const [joinCode, setJoinCode] = useState('');
   const [isPending, startTransition] = useTransition();
+  const [themeMode, setThemeMode] = useState<ThemeMode>('system');
+  const [isDarkEffective, setIsDarkEffective] = useState(false);
+  const isSinger = profile?.profession === 'singing';
+  const canCreateChart = canModifySection(profile?.profession, 'chart');
+  const canCreateLyrics = canModifySection(profile?.profession, 'lyrics');
 
   const handleNav = (path: string) => {
     onClose();
@@ -33,6 +38,23 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
   }
 
   useEffect(() => {
+    const updateThemeState = () => {
+      const mode = getStoredTheme();
+      setThemeMode(mode);
+      const prefersDark = typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      setIsDarkEffective(mode === 'dark' || (mode === 'system' && prefersDark));
+    };
+    updateThemeState();
+    window.addEventListener('chord-grid-theme-change', updateThemeState);
+    return () => window.removeEventListener('chord-grid-theme-change', updateThemeState);
+  }, []);
+
+  const toggleTheme = () => {
+    const next: ThemeMode = isDarkEffective ? 'light' : 'dark';
+    setTheme(next);
+  };
+
+  useEffect(() => {
     if (isOpen) {
       getRecentCharts(5).then(setRecentCharts);
       const savedFont = localStorage.getItem('chord-grid-font');
@@ -43,13 +65,6 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
   const handleLogout = async () => {
     onClose();
     await signOut();
-  };
-
-  const handleFontChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const val = e.target.value;
-    setSelectedFont(val);
-    localStorage.setItem('chord-grid-font', val);
-    window.dispatchEvent(new Event('chord-grid-font-change'));
   };
 
   const handleCreateFolder = (kind: 'chart' | 'lyrics') => {
@@ -78,112 +93,176 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
 
   const handleCreateLyrics = async () => {
     if (!user) return;
-    const lyrics = {
+    const lyric = {
       id: crypto.randomUUID(),
       title: 'Untitled Lyrics',
       body: '',
-      folder_id: pathname.startsWith('/lyrics') ? currentFolderId : null,
+      folder_id: currentFolderId,
       created_by: user.id,
       updated_at: new Date().toISOString(),
     };
-    await saveLyrics(lyrics);
-    router.push(`/lyrics/${lyrics.id}/edit`);
+    await saveLyrics(lyric);
+    router.push(`/lyrics/${lyric.id}/edit`);
     onClose();
   };
 
-
-
   return (
     <>
-      {/* Backdrop */}
-      <div 
-        className={`fixed inset-0 bg-black/60 backdrop-blur-sm z-50 transition-opacity duration-300 ${isOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`} 
+      {/* Backdrop / Scrim */}
+      <div
+        className="app-drawer-scrim"
+        data-open={isOpen ? 'true' : 'false'}
         onClick={onClose}
       />
-      
+
       {/* Sidebar Panel */}
-      <div className={`fixed top-0 left-0 bottom-0 w-80 max-w-[85vw] bg-surface border-r border-border shadow-popover z-50 transform transition-transform duration-300 ease-out flex flex-col ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-        
+      <div className="app-drawer app-drawer-panel" data-open={isOpen ? 'true' : 'false'}>
+
         {/* Profile Header */}
-        <div className="p-6 border-b border-border bg-bg">
-          <div className="flex justify-between items-start mb-6">
-            <div className="h-12 w-12 rounded-full bg-surface border border-accent-solid shadow-inner flex items-center justify-center text-accent-start">
-              <User size={24} />
+        <div className="app-drawer-header">
+          <div className="app-drawer-header-top">
+            <div className="app-drawer-header-info">
+              <div className="app-drawer-avatar">
+                <User size={20} />
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <p className="app-drawer-email">{user?.email}</p>
+                <span className="app-drawer-badge">
+                  {profile?.profession === 'singing' ? 'Singer' : (profile?.instrument || 'Pro Musician')}
+                </span>
+              </div>
             </div>
-            <div>
-              <p className="text-sm font-bold text-text-primary truncate w-40">{user?.email}</p>
-              <p className="text-[10px] uppercase tracking-widest text-text-secondary font-semibold mt-1">Free Plan</p>
-            </div>
-            <button onClick={onClose} className="p-2 text-text-secondary bg-surface-raised border border-border shadow-inner rounded-full hover:text-white transition-all">
+            <button
+              onClick={onClose}
+              className="app-drawer-close"
+              aria-label="Close menu"
+            >
               <X size={16} />
             </button>
           </div>
-          <div className="flex space-x-2 mt-2">
-            <button onClick={() => handleNav('/profile')} className="flex-1 py-2 bg-surface border border-border shadow-sm rounded-lg text-xs font-bold text-text-secondary hover:text-white transition-all flex justify-center items-center">
-              <User size={14} className="mr-1" /> Profile
+
+          <div className="app-drawer-header-actions">
+            <button
+              onClick={() => handleNav('/profile')}
+              className="app-drawer-header-btn"
+            >
+              <User size={13} /> Profile
             </button>
-            <button onClick={() => handleNav('/settings')} className="flex-1 py-2 bg-surface border border-border shadow-sm rounded-lg text-xs font-bold text-text-secondary hover:text-white transition-all flex justify-center items-center">
-              <Settings size={14} className="mr-1" /> Settings
+            <button
+              onClick={() => handleNav('/settings')}
+              className="app-drawer-header-btn"
+            >
+              <Settings size={13} /> Settings
+            </button>
+            <button
+              onClick={toggleTheme}
+              className="app-drawer-header-btn"
+              title={isDarkEffective ? "Switch to Light Mode" : "Switch to Dark Mode"}
+            >
+              {isDarkEffective ? <Sun size={13} className="text-amber-200" /> : <Moon size={13} />}
+              {isDarkEffective ? 'Light' : 'Dark'}
             </button>
           </div>
         </div>
 
-        {/* Navigation */}
-        <div className="flex-1 overflow-y-auto">
-          {/* Main Navigation */}
-          <div className="p-6 border-b border-border">
-            <h3 className="text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-4 flex items-center">
-              <FolderIcon size={12} className="mr-2" /> Library
+        {/* Navigation Body */}
+        <div className="app-drawer-scroll">
+          {/* LIBRARY */}
+          <div className="app-drawer-section">
+            <h3 className="app-drawer-section-label">
+              Library
             </h3>
-            <button 
-              onClick={() => { router.push('/'); onClose(); }}
-              className="w-full flex items-center px-4 py-3 bg-surface border border-border shadow-md rounded-xl text-sm font-bold text-text-primary hover:text-accent-start hover:bg-surface-raised transition-all group mb-3"
-            >
-              <FileText size={18} className="mr-3 text-text-secondary group-hover:text-accent-start" /> Chords
-            </button>
-            <button 
-              onClick={() => { router.push('/lyrics'); onClose(); }}
-              className="w-full flex items-center px-4 py-3 bg-surface border border-border shadow-md rounded-xl text-sm font-bold text-text-primary hover:text-accent-start hover:bg-surface-raised transition-all group mb-3"
-            >
-              <Music size={18} className="mr-3 text-text-secondary group-hover:text-accent-start" /> Lyrics
-            </button>
-            <button 
-              onClick={() => { router.push('/bookmarks'); onClose(); }}
-              className="w-full flex items-center px-4 py-3 bg-surface border border-border shadow-md rounded-xl text-sm font-bold text-text-primary hover:text-accent-start hover:bg-surface-raised transition-all group mb-3"
-            >
-              <Star size={18} className="mr-3 text-text-secondary group-hover:text-accent-start" /> Bookmarks
-            </button>
-            <button 
-              onClick={() => { router.push('/setlists'); onClose(); }}
-              className="w-full flex items-center px-4 py-3 bg-surface border border-border shadow-md rounded-xl text-sm font-bold text-text-primary hover:text-accent-start hover:bg-surface-raised transition-all group mb-1"
-            >
-              <ListMusic size={18} className="mr-3 text-text-secondary group-hover:text-accent-start" /> Setlists
-            </button>
+            <div className="app-drawer-section-items">
+              {(() => {
+                const isChordsActive = isSinger
+                  ? (pathname === '/chords' || pathname.startsWith('/folder') || (pathname.startsWith('/chart/') && !pathname.includes('/setlists')))
+                  : (pathname === '/' || pathname === '/chords' || pathname.startsWith('/folder') || (pathname.startsWith('/chart/') && !pathname.includes('/setlists')));
+
+                const isLyricsActive = isSinger
+                  ? (pathname === '/' || pathname.startsWith('/lyrics'))
+                  : pathname.startsWith('/lyrics');
+
+                return (
+                  <>
+                    <button
+                      onClick={() => { router.push(isSinger ? '/chords' : '/'); onClose(); }}
+                      className={`app-drawer-row${isChordsActive ? ' app-drawer-row--active' : ''}`}
+                    >
+                      <span className="app-drawer-row-left">
+                        <span className="app-drawer-row-icon"><FileText size={16} /></span>
+                        <span className="app-drawer-row-label">Chords Library</span>
+                      </span>
+                      <ChevronRight size={14} className="app-drawer-row-chevron" />
+                    </button>
+                    <button
+                      onClick={() => { router.push(isSinger ? '/' : '/lyrics'); onClose(); }}
+                      className={`app-drawer-row${isLyricsActive ? ' app-drawer-row--active' : ''}`}
+                    >
+                      <span className="app-drawer-row-left">
+                        <span className="app-drawer-row-icon"><Music size={16} /></span>
+                        <span className="app-drawer-row-label">Lyrics Sheets</span>
+                      </span>
+                      <ChevronRight size={14} className="app-drawer-row-chevron" />
+                    </button>
+                  </>
+                );
+              })()}
+
+              <button
+                onClick={() => { router.push('/bookmarks'); onClose(); }}
+                className={`app-drawer-row${pathname.startsWith('/bookmarks') ? ' app-drawer-row--active' : ''}`}
+              >
+                <span className="app-drawer-row-left">
+                  <span className="app-drawer-row-icon"><Star size={16} /></span>
+                  <span className="app-drawer-row-label">Starred Bookmarks</span>
+                </span>
+                <ChevronRight size={14} className="app-drawer-row-chevron" />
+              </button>
+              <button
+                onClick={() => { router.push('/setlists'); onClose(); }}
+                className={`app-drawer-row${pathname.startsWith('/setlists') ? ' app-drawer-row--active' : ''}`}
+              >
+                <span className="app-drawer-row-left">
+                  <span className="app-drawer-row-icon"><ListMusic size={16} /></span>
+                  <span className="app-drawer-row-label">Setlists &amp; Gigs</span>
+                </span>
+                <ChevronRight size={14} className="app-drawer-row-chevron" />
+              </button>
+            </div>
           </div>
 
-          <div className="p-6 border-b border-border">
-            <h3 className="text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-4 flex items-center">
-              <Settings size={12} className="mr-2" /> Tools
+          {/* PERFORMANCE & TOOLS */}
+          <div className="app-drawer-section">
+            <h3 className="app-drawer-section-label">
+              Performance &amp; Tools
             </h3>
-            <button 
-              onClick={() => { router.push('/perform'); onClose(); }}
-              className="w-full flex items-center px-4 py-3 bg-surface border border-border shadow-md rounded-xl text-sm font-bold text-text-primary hover:text-accent-start hover:bg-surface-raised transition-all group mb-3"
-            >
-              <Music2 size={18} className="mr-3 text-text-secondary group-hover:text-accent-start" /> Perform
-            </button>
-            <button 
-              onClick={() => { router.push('/printer'); onClose(); }}
-              className="w-full flex items-center px-4 py-3 bg-surface border border-border shadow-md rounded-xl text-sm font-bold text-text-primary hover:text-accent-start hover:bg-surface-raised transition-all group mb-4"
-            >
-              <Printer size={18} className="mr-3 text-text-secondary group-hover:text-accent-start" /> Printer
-            </button>
+            <div className="app-drawer-section-items">
+              <button
+                onClick={() => { router.push('/perform'); onClose(); }}
+                className={`app-drawer-row${pathname.startsWith('/perform') ? ' app-drawer-row--active' : ''}`}
+              >
+                <span className="app-drawer-row-left">
+                  <span className="app-drawer-row-icon"><Music2 size={16} /></span>
+                  <span className="app-drawer-row-label">Live Stage Mode</span>
+                </span>
+                <ChevronRight size={14} className="app-drawer-row-chevron" />
+              </button>
+              <button
+                onClick={() => { router.push('/printer'); onClose(); }}
+                className={`app-drawer-row${pathname.startsWith('/printer') ? ' app-drawer-row--active' : ''}`}
+              >
+                <span className="app-drawer-row-left">
+                  <span className="app-drawer-row-icon"><Printer size={16} /></span>
+                  <span className="app-drawer-row-label">Print &amp; PDF Export</span>
+                </span>
+                <ChevronRight size={14} className="app-drawer-row-chevron" />
+              </button>
+            </div>
 
-            {/* Join Session Section inside Sidebar */}
-            <div className="mt-4 pt-4 border-t border-border/50">
-              <h4 className="text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-2 flex items-center gap-1">
-                <Music2 size={12} className="text-accent-start" /> Join Live Session
-              </h4>
-              <div className="flex gap-2">
+            {/* Join Live Session */}
+            <div className="app-drawer-join-card">
+              <span className="app-drawer-join-label">Join Live Session</span>
+              <div className="app-drawer-join-row">
                 <input
                   value={joinCode}
                   onChange={e => setJoinCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6))}
@@ -195,7 +274,7 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
                     }
                   }}
                   placeholder="CODE"
-                  className="w-20 px-2 py-1.5 bg-surface-raised border border-border rounded-lg text-text-primary placeholder-text-secondary text-center outline-none focus:border-accent-solid font-mono font-bold text-xs tracking-wider transition-all"
+                  className="app-drawer-join-input"
                 />
                 <button
                   onClick={() => {
@@ -206,128 +285,118 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
                     }
                   }}
                   disabled={joinCode.trim().length !== 6}
-                  className="flex-1 py-1.5 bg-accent-gradient text-white text-xs font-bold rounded-lg disabled:opacity-40 hover:brightness-110 transition-all text-center"
+                  className="app-drawer-join-btn"
                 >
-                  Join
+                  Join Stage
                 </button>
               </div>
             </div>
           </div>
 
-          {/* Quick Actions */}
-          <div className="p-6 border-b border-border">
-            <h3 className="text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-4 flex items-center">
-              <Settings size={12} className="mr-2" /> Quick Actions
-            </h3>
-            <div className="grid grid-cols-2 gap-3 mb-3">
-              <button onClick={() => handleCreateFolder('chart')} className="flex flex-col items-center justify-center p-3 bg-surface border border-border shadow-sm hover:bg-surface-raised rounded-xl text-text-secondary hover:text-white transition-all text-xs font-bold">
-                <FolderIcon size={18} className="mb-2" /> New Chart Folder
-              </button>
-              <button onClick={() => handleCreateFolder('lyrics')} className="flex flex-col items-center justify-center p-3 bg-surface border border-border shadow-sm hover:bg-surface-raised rounded-xl text-text-secondary hover:text-white transition-all text-xs font-bold">
-                <FolderIcon size={18} className="mb-2" /> New Lyrics Folder
-              </button>
-              <button onClick={handleCreateChart} className="flex flex-col items-center justify-center p-3 bg-accent-gradient shadow-md rounded-xl text-white hover:brightness-110 transition-all text-xs font-bold">
-                <FileText size={18} className="mb-2" /> New Chart
-              </button>
-              <button onClick={handleCreateLyrics} className="flex flex-col items-center justify-center p-3 bg-accent-gradient shadow-md rounded-xl text-white hover:brightness-110 transition-all text-xs font-bold">
-                <Type size={18} className="mb-2" /> New Lyrics
-              </button>
-            </div>
-            
-
-          </div>
-
-          {/* Recent Charts */}
-          <div className="p-6 border-b border-border">
-            <h3 className="text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-4 flex items-center">
-              <Clock size={12} className="mr-2" /> Recent
-            </h3>
-            {recentCharts.length === 0 ? (
-              <p className="text-xs text-text-secondary italic px-2">No recent charts</p>
-            ) : (
-              <div className="space-y-1">
-                {recentCharts.map(chart => (
-                  <button
-                    key={chart.id}
-                    onClick={() => { router.push(`/chart/${chart.id}`); onClose(); }}
-                    className="w-full flex items-center px-4 py-2.5 rounded-lg text-sm font-semibold text-text-primary hover:bg-white/5 hover:text-white transition-all text-left"
-                  >
-                    <span className="w-1.5 h-1.5 rounded-full bg-accent-start mr-3 shrink-0"></span>
-                    <span className="truncate">{chart.title}</span>
-                  </button>
-                ))}
+          {/* QUICK CREATE */}
+          {(canCreateChart || canCreateLyrics) && (
+            <div className="app-drawer-section">
+              <h3 className="app-drawer-section-label">
+                Quick Create
+              </h3>
+              <div className="app-drawer-create-grid">
+                {isSinger ? (
+                  <>
+                    <button
+                      onClick={() => handleCreateFolder('lyrics')}
+                      className="app-drawer-create-tile"
+                    >
+                      <FolderIcon size={18} /> New Folder
+                    </button>
+                    <button
+                      onClick={handleCreateLyrics}
+                      className="app-drawer-create-tile app-drawer-create-tile--charcoal"
+                    >
+                      <Music size={18} /> New Lyrics
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => handleCreateFolder(pathname.startsWith('/lyrics') ? 'lyrics' : 'chart')}
+                      className="app-drawer-create-tile"
+                    >
+                      <FolderIcon size={18} /> New Folder
+                    </button>
+                    <button
+                      onClick={handleCreateChart}
+                      className="app-drawer-create-tile app-drawer-create-tile--charcoal"
+                    >
+                      <FileText size={18} /> New Chart
+                    </button>
+                  </>
+                )}
               </div>
-            )}
-          </div>
-
-          {/* Preferences */}
-          <div className="p-6 pb-12">
-            <h3 className="text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-4 flex items-center">
-              <Settings size={12} className="mr-2" /> Preferences
-            </h3>
-            <div className="bg-surface border border-border shadow-card rounded-xl p-4">
-              <label className="flex items-center text-xs font-bold text-text-primary mb-3">
-                <Type size={16} className="mr-2 text-text-secondary" /> Chart Font
-              </label>
-              <select 
-                value={selectedFont} 
-                onChange={handleFontChange}
-                className="w-full bg-surface-raised border border-border shadow-inner text-xs font-bold tracking-wider text-text-primary rounded-lg p-2 focus:outline-none focus:border-accent-solid transition-all"
-              >
-                <option value="system">System Default</option>
-                <option value="monospace">Standard Mono</option>
-                <option value="'Courier New', Courier, monospace">Courier New</option>
-                <option value="'Lucida Console', Monaco, monospace">Lucida Console</option>
-                <option value="'Cascadia Code', 'Cascadia Mono', monospace">Cascadia Code</option>
-                <option value="ui-monospace, SFMono-Regular, Menlo, Monaco, monospace">Apple / SF Mono</option>
-              </select>
             </div>
-            
-            <button 
-              onClick={() => { router.push('/trash'); onClose(); }}
-              className="w-full flex items-center px-4 py-3 mt-4 bg-surface border border-border shadow-sm rounded-xl text-sm font-bold text-text-primary hover:text-red-400 hover:border-red-500/30 transition-all"
-            >
-              <Trash2 size={16} className="mr-3 text-text-secondary" /> Trash
-            </button>
+          )}
 
-            <button 
+          {/* Trash + Theme + Install (below divider) */}
+          <div className="app-drawer-divider-section">
+            <div className="flex items-center justify-between px-3.5 py-2.5 rounded-2xl hover:bg-black/5 dark:hover:bg-white/5 transition-all text-xs font-semibold text-text-secondary select-none">
+              <div className="flex items-center gap-2.5">
+                {isDarkEffective ? <Moon size={15} className="text-orange-500" /> : <Sun size={15} className="text-amber-500" />}
+                <span className="text-text-primary">Midnight Studio</span>
+              </div>
+              <button
+                type="button"
+                onClick={toggleTheme}
+                className={`w-11 h-6 rounded-full p-0.5 transition-colors duration-200 cursor-pointer flex items-center ${
+                  isDarkEffective ? 'bg-orange-500 justify-end' : 'bg-black/20 dark:bg-white/20 justify-start'
+                }`}
+                aria-label="Toggle Midnight Studio Dark Mode"
+              >
+                <div className="w-5 h-5 rounded-full bg-white shadow-sm transition-transform duration-200" />
+              </button>
+            </div>
+            <button
+              onClick={() => { router.push('/trash'); onClose(); }}
+              className="app-drawer-trash-row"
+            >
+              <Trash2 size={15} /> Trash
+            </button>
+            <button
               onClick={() => {
                 onClose();
                 window.dispatchEvent(new Event('open-install-prompt'));
               }}
-              className="w-full flex items-center px-4 py-3 mt-2 bg-indigo-950/40 border border-indigo-500/30 shadow-sm rounded-xl text-sm font-bold text-indigo-300 hover:text-indigo-200 hover:bg-indigo-900/50 transition-all"
+              className="app-drawer-install-row"
             >
-              <Download size={16} className="mr-3 text-indigo-400" /> Install ChordCraft App
+              <Download size={15} /> Install ChordCraft App
             </button>
           </div>
         </div>
 
         {/* Logout Footer */}
-        <div className="p-6 border-t border-border bg-bg">
-          <button 
+        <div className="app-drawer-footer">
+          <button
             onClick={handleLogout}
-            className="flex w-full items-center justify-center px-4 py-3 text-sm font-bold tracking-widest uppercase text-red-500 hover:text-red-400 bg-surface border border-border shadow-md rounded-xl hover:bg-surface-raised transition-all"
+            className="app-drawer-signout"
           >
-            <LogOut size={16} className="mr-2" /> Sign Out
+            <LogOut size={14} /> Sign Out
           </button>
         </div>
       </div>
 
       {/* Create Folder Modal */}
       {createFolderModal && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-surface rounded-2xl p-8 w-full max-w-sm shadow-popover border border-border">
-            <h3 className="text-xl font-bold text-text-primary mb-6 text-center">New Folder</h3>
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white/65 dark:bg-[#151419]/65 backdrop-blur-2xl saturate-[180%] rounded-[32px] p-7 w-full max-w-sm shadow-[0_8px_32px_rgba(31,38,135,0.12),inset_0_1px_0_rgba(255,255,255,0.8)] border border-white/60 dark:border-white/15 animate-fade-in">
+            <h3 className="text-base font-bold text-text-primary mb-4 text-center tracking-tight">New Folder</h3>
             <form onSubmit={async (e) => {
               e.preventDefault();
               const input = e.currentTarget.elements.namedItem('folderName') as HTMLInputElement;
               const name = input.value;
               if (name.trim()) {
                 await createFolder(currentFolderId, name.trim(), folderKind);
-                if (pathname === '/' || pathname === '/lyrics' || pathname.startsWith('/folder/') || pathname.startsWith('/lyrics/folder/')) {
+                if (pathname === '/' || pathname === '/lyrics' || pathname === '/chords' || pathname.startsWith('/folder/') || pathname.startsWith('/lyrics/folder/')) {
                   window.dispatchEvent(new Event('refresh-folder'));
                 } else {
-                  router.push(currentFolderId ? (folderKind === 'lyrics' ? `/lyrics/folder/${currentFolderId}` : `/folder/${currentFolderId}`) : (folderKind === 'lyrics' ? '/lyrics' : '/'));
+                  router.push(currentFolderId ? (folderKind === 'lyrics' ? `/lyrics/folder/${currentFolderId}` : `/folder/${currentFolderId}`) : (folderKind === 'lyrics' ? (isSinger ? '/' : '/lyrics') : (isSinger ? '/chords' : '/')));
                 }
               }
               setCreateFolderModal(false);
@@ -336,12 +405,12 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
               <input
                 name="folderName"
                 autoFocus
-                placeholder="Folder name"
-                className="w-full px-4 py-3 bg-surface-raised border border-border shadow-inner rounded-xl text-text-primary focus:outline-none focus:border-accent-solid transition-colors mb-8 font-medium"
+                placeholder="Folder name…"
+                className="w-full px-4 py-3 bg-white/40 dark:bg-white/5 border border-white/60 dark:border-white/10 rounded-2xl text-text-primary text-sm outline-none focus:ring-2 focus:ring-orange-500/40 transition-all shadow-inner mb-6"
               />
-              <div className="flex justify-center space-x-4">
-                <button type="button" onClick={() => setCreateFolderModal(false)} className="px-6 py-2.5 text-sm font-bold text-text-secondary bg-surface border border-border rounded-xl hover:text-white hover:bg-surface-raised transition-all">Cancel</button>
-                <button type="submit" className="px-6 py-2.5 text-sm font-bold text-white bg-accent-gradient rounded-xl shadow-md hover:brightness-110 transition-all">Create</button>
+              <div className="flex justify-center space-x-3">
+                <button type="button" onClick={() => setCreateFolderModal(false)} className="flex-1 py-2.5 text-xs font-bold text-text-secondary bg-white/40 dark:bg-white/5 hover:bg-white/60 rounded-full transition-all cursor-pointer border border-white/60 dark:border-white/10">Cancel</button>
+                <button type="submit" className="flex-1 py-2.5 text-xs font-bold text-white bg-gradient-to-r from-orange-500 to-rose-500 rounded-full shadow-md hover:brightness-110 transition-all cursor-pointer">Create</button>
               </div>
             </form>
           </div>

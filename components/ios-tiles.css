@@ -1,0 +1,43 @@
+/* Scoped iOS-style frosted glass tile styles */
+.ios-tile {
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  border-radius: 24px;
+  box-shadow: 0 8px 32px rgba(31, 38, 135, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease, border-color 0.2s ease, background-color 0.2s ease;
+}
+
+@supports ((-webkit-backdrop-filter: blur(24px)) or (backdrop-filter: blur(24px))) {
+  .ios-tile {
+    background: rgba(255, 255, 255, 0.45);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    backdrop-filter: blur(24px) saturate(180%);
+  }
+}
+
+.ios-tile:active {
+  transform: scale(0.98);
+}
+
+/* ── Dark Mode Frosted Glass Tile Styling ───────── */
+.dark .ios-tile,
+[data-theme="dark"] .ios-tile {
+  background: rgba(24, 24, 28, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+@supports ((-webkit-backdrop-filter: blur(24px)) or (backdrop-filter: blur(24px))) {
+  .dark .ios-tile,
+  [data-theme="dark"] .ios-tile {
+    background: rgba(24, 24, 28, 0.65);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    backdrop-filter: blur(24px) saturate(180%);
+  }
+}
+
+.dark .ios-tile:hover,
+[data-theme="dark"] .ios-tile:hover {
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow: 0 14px 38px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+}

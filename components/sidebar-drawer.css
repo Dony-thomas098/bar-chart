@@ -1,0 +1,739 @@
+/* ============================================================
+   Sidebar Drawer — Scoped Styles
+   All colour tokens live on .app-drawer so nothing leaks.
+   ============================================================ */
+
+.app-drawer {
+  /* ── Palette tokens ────────────────────────────────── */
+  --dr-orange-deep: #dc4928;
+  --dr-orange-icon: #dc5d31;
+  --dr-orange-glow: #fd944e;
+  --dr-peach-badge: #ffd7b8;
+  --dr-peach-well: #ffe6d4;
+  --dr-charcoal-start: #4a4547;
+  --dr-charcoal-end: #1f1b1c;
+  --dr-panel: rgba(244, 244, 246, 0.78);
+  --dr-card-bg: rgba(255, 255, 255, 0.65);
+  --dr-card-border: rgba(15, 23, 42, 0.07);
+  --dr-card-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+  --dr-text-primary: #1c1c1e;
+  --dr-text-secondary: #6b7280;
+  --dr-chevron: #9ca3af;
+  --dr-accent-gradient: linear-gradient(to bottom, var(--dr-orange-glow), var(--dr-orange-deep));
+  --dr-charcoal-gradient: linear-gradient(180deg, var(--dr-charcoal-start), var(--dr-charcoal-end));
+  --dr-focus-ring: 0 0 0 2px var(--dr-orange-deep);
+}
+
+/* ── Scrim ────────────────────────────────────────────── */
+.app-drawer-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(15, 23, 42, 0.35);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  transition: opacity 220ms ease-out;
+}
+
+.app-drawer-scrim[data-open='false'] {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.app-drawer-scrim[data-open='true'] {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-drawer-scrim {
+    transition: none;
+  }
+}
+
+/* ── Panel ────────────────────────────────────────────── */
+.app-drawer-panel {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 21rem;           /* w-84 equivalent */
+  max-width: 85vw;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+
+  background: var(--dr-panel);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border-radius: 0 28px 28px 0;
+  border-right: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: 0 20px 60px rgba(15, 23, 42, 0.25);
+
+  transform: translateX(-100%);
+  transition: transform 220ms ease-out;
+}
+
+.app-drawer-panel[data-open='true'] {
+  transform: translateX(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-drawer-panel {
+    transition: none;
+  }
+}
+
+/* ── Header (gradient background) ─────────────────── */
+.app-drawer-header {
+  padding: 24px;
+  border-top-right-radius: 28px;
+  background:
+    radial-gradient(ellipse at 80% 20%, var(--dr-orange-glow) 0%, transparent 60%),
+    linear-gradient(135deg, #e8643a, var(--dr-orange-deep) 60%, #c9604a);
+  color: #fff;
+}
+
+.app-drawer-header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 16px;
+}
+
+.app-drawer-header-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.app-drawer-avatar {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  border-radius: 50%;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--dr-orange-deep);
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.10);
+}
+
+.app-drawer-email {
+  font-size: 14px;
+  font-weight: 800;
+  color: #fff;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 160px;
+  letter-spacing: -0.01em;
+}
+
+.app-drawer-badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 9999px;
+  font-size: 10px;
+  font-weight: 700;
+  background: var(--dr-peach-badge);
+  color: #9a3412;
+  margin-top: 2px;
+}
+
+.app-drawer-close {
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 150ms ease;
+}
+
+.app-drawer-close:hover {
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.app-drawer-close:focus-visible {
+  outline: none;
+  box-shadow: var(--dr-focus-ring);
+}
+
+/* ── Profile / Settings pill buttons ────────────────── */
+.app-drawer-header-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.app-drawer-header-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 8px 12px;
+  border-radius: 9999px;
+  border: none;
+  background: var(--dr-card-bg);
+  color: var(--dr-text-primary);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: var(--dr-card-shadow);
+  transition: box-shadow 150ms ease, transform 100ms ease;
+}
+
+.app-drawer-header-btn svg {
+  color: var(--dr-orange-icon);
+}
+
+.app-drawer-header-btn:hover {
+  box-shadow: 0 12px 36px rgba(15, 23, 42, 0.12);
+}
+
+.app-drawer-header-btn:active {
+  transform: scale(0.96);
+}
+
+.app-drawer-header-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--dr-focus-ring);
+}
+
+/* ── Scroll area ───────────────────────────────────── */
+.app-drawer-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  padding-bottom: 100px;       /* space so Trash isn't hidden */
+
+  /* Thin scrollbar */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(15, 23, 42, 0.25) transparent;
+}
+
+.app-drawer-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+
+.app-drawer-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.app-drawer-scroll::-webkit-scrollbar-thumb {
+  background: rgba(15, 23, 42, 0.25);
+  border-radius: 4px;
+}
+
+/* ── Section labels ────────────────────────────────── */
+.app-drawer-section {
+  margin-bottom: 24px;
+}
+
+.app-drawer-section-label {
+  color: var(--dr-text-secondary);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 0 8px;
+  margin-bottom: 8px;
+  display: block;
+}
+
+.app-drawer-section-items {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* ── Menu rows ─────────────────────────────────────── */
+.app-drawer-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 14px;
+  height: 56px;
+  min-height: 44px;
+  border-radius: 16px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+
+.app-drawer-row:hover {
+  background: rgba(15, 23, 42, 0.05);
+}
+
+.app-drawer-row:active {
+  background: rgba(15, 23, 42, 0.05);
+}
+
+.app-drawer-row:focus-visible {
+  outline: none;
+  box-shadow: var(--dr-focus-ring);
+  border-radius: 16px;
+}
+
+/* Current / active row */
+.app-drawer-row--active {
+  background: var(--dr-card-bg);
+  box-shadow: var(--dr-card-shadow);
+  border-left: 3px solid transparent;
+  border-image: var(--dr-accent-gradient) 1;
+  border-image-slice: 1;
+  /* Workaround: use a pseudo for the left accent since border-image
+     strips border-radius. The card radius still applies via overflow. */
+  position: relative;
+}
+
+/* Left accent bar for active row (gradient, 3px wide) */
+.app-drawer-row--active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: linear-gradient(to bottom, var(--dr-orange-glow), var(--dr-orange-deep));
+}
+
+/* Reset the border-image approach and use the pseudo instead */
+.app-drawer-row--active {
+  border-left: none;
+  border-image: none;
+}
+
+.app-drawer-row-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.app-drawer-row-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--dr-peach-well);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--dr-orange-icon);
+  flex-shrink: 0;
+}
+
+.app-drawer-row-icon svg {
+  color: var(--dr-orange-icon);
+}
+
+.app-drawer-row-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--dr-text-primary);
+}
+
+.app-drawer-row-chevron {
+  color: var(--dr-chevron);
+}
+
+/* ── Join Live Session card ────────────────────────── */
+.app-drawer-join-card {
+  margin-top: 14px;
+  padding: 16px;
+  background: var(--dr-card-bg);
+  border: 1px solid var(--dr-card-border);
+  border-radius: 24px;
+  box-shadow: var(--dr-card-shadow);
+}
+
+.app-drawer-join-label {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--dr-text-secondary);
+  margin-bottom: 10px;
+}
+
+.app-drawer-join-row {
+  display: flex;
+  gap: 8px;
+}
+
+.app-drawer-join-input {
+  width: 80px;
+  padding: 10px;
+  background: #fafafa;
+  border: 1px solid var(--dr-card-border);
+  border-radius: 9999px;
+  font-family: 'SFMono-Regular', ui-monospace, monospace;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-align: center;
+  color: var(--dr-text-primary);
+  outline: none;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.app-drawer-join-input::placeholder {
+  color: var(--dr-text-secondary);
+}
+
+.app-drawer-join-input:focus {
+  border-color: var(--dr-orange-deep);
+  box-shadow: 0 0 0 2px rgba(220, 73, 40, 0.2);
+}
+
+.app-drawer-join-btn {
+  flex: 1;
+  padding: 10px 12px;
+  border-radius: 9999px;
+  border: none;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+  cursor: pointer;
+  transition: opacity 150ms ease, transform 100ms ease;
+  min-height: 44px;
+}
+
+.app-drawer-join-btn:active {
+  transform: scale(0.96);
+}
+
+.app-drawer-join-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--dr-focus-ring);
+}
+
+.app-drawer-join-btn:disabled {
+  background: #e5e7eb;
+  color: var(--dr-text-secondary);
+  cursor: default;
+}
+
+.app-drawer-join-btn:not(:disabled) {
+  background: var(--dr-charcoal-gradient);
+  color: #fff;
+}
+
+.app-drawer-join-btn:not(:disabled):hover {
+  opacity: 0.92;
+}
+
+/* ── Quick Create tiles ───────────────────────────── */
+.app-drawer-create-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.app-drawer-create-tile {
+  padding: 14px;
+  border-radius: 20px;
+  border: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: box-shadow 150ms ease, transform 100ms ease;
+  min-height: 44px;
+
+  background: var(--dr-card-bg);
+  color: var(--dr-text-primary);
+  box-shadow: var(--dr-card-shadow);
+}
+
+.app-drawer-create-tile svg {
+  color: var(--dr-orange-icon);
+}
+
+.app-drawer-create-tile:hover {
+  box-shadow: 0 14px 40px rgba(15, 23, 42, 0.12);
+}
+
+.app-drawer-create-tile:active {
+  transform: scale(0.96);
+}
+
+.app-drawer-create-tile:focus-visible {
+  outline: none;
+  box-shadow: var(--dr-focus-ring);
+}
+
+/* New Chart tile — charcoal gradient variant */
+.app-drawer-create-tile--charcoal {
+  background: var(--dr-charcoal-gradient);
+  color: #fff;
+}
+
+.app-drawer-create-tile--charcoal svg {
+  color: #fff;
+}
+
+/* ── Trash row + divider ──────────────────────────── */
+.app-drawer-divider-section {
+  padding-top: 8px;
+  border-top: 1px solid var(--dr-card-border);
+}
+
+.app-drawer-trash-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  height: 56px;
+  min-height: 44px;
+  border-radius: 16px;
+  border: none;
+  background: transparent;
+  color: var(--dr-text-secondary);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  gap: 12px;
+  transition: background 120ms ease;
+}
+
+.app-drawer-trash-row svg {
+  color: var(--dr-text-secondary);
+}
+
+.app-drawer-trash-row:hover {
+  background: rgba(15, 23, 42, 0.05);
+}
+
+.app-drawer-trash-row:focus-visible {
+  outline: none;
+  box-shadow: var(--dr-focus-ring);
+}
+
+/* Install App row (keep existing, just skin it like a normal row) */
+.app-drawer-install-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  height: 56px;
+  min-height: 44px;
+  border-radius: 16px;
+  border: none;
+  background: transparent;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  gap: 12px;
+  transition: background 120ms ease;
+  color: var(--dr-orange-icon);
+}
+
+.app-drawer-install-row svg {
+  color: var(--dr-orange-icon);
+}
+
+.app-drawer-install-row:hover {
+  background: rgba(15, 23, 42, 0.05);
+}
+
+.app-drawer-install-row:focus-visible {
+  outline: none;
+  box-shadow: var(--dr-focus-ring);
+}
+
+/* ── Footer (Sign Out) ────────────────────────────── */
+.app-drawer-footer {
+  background: var(--dr-panel);
+  border-top: 1px solid var(--dr-card-border);
+  padding: 16px 20px;
+  padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+}
+
+.app-drawer-signout {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 16px;
+  min-height: 44px;
+  border-radius: 9999px;
+  border: 1px solid #fecaca;
+  background: #fee2e2;
+  color: #b91c1c;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 150ms ease, transform 100ms ease;
+}
+
+.app-drawer-signout svg {
+  color: #b91c1c;
+}
+
+.app-drawer-signout:hover {
+  background: #fecaca;
+}
+
+.app-drawer-signout:active {
+  transform: scale(0.96);
+}
+
+.app-drawer-signout:focus-visible {
+  outline: none;
+  box-shadow: var(--dr-focus-ring);
+}
+
+/* ── Dark Mode Palette Overrides ─────────────────────── */
+.dark .app-drawer,
+[data-theme="dark"] .app-drawer {
+  --dr-panel: #111116;
+  --dr-card-bg: rgba(255, 255, 255, 0.05);
+  --dr-card-border: rgba(255, 255, 255, 0.08);
+  --dr-card-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  --dr-text-primary: #f4f4f6;
+  --dr-text-secondary: #a1a1aa;
+  --dr-chevron: #71717a;
+  --dr-peach-well: rgba(249, 115, 22, 0.16);
+  --dr-charcoal-start: #27272a;
+  --dr-charcoal-end: #18181b;
+}
+
+.dark .app-drawer-panel,
+[data-theme="dark"] .app-drawer-panel {
+  background: #111116 !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.75);
+}
+
+.dark .app-drawer-header,
+[data-theme="dark"] .app-drawer-header {
+  background:
+    radial-gradient(ellipse at 80% 20%, rgba(249, 115, 22, 0.28) 0%, transparent 60%),
+    linear-gradient(135deg, #241d1a 0%, #191616 60%, #121112 100%) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.dark .app-drawer-avatar,
+[data-theme="dark"] .app-drawer-avatar {
+  background: #27272a;
+  color: #fb923c;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.dark .app-drawer-header-btn,
+[data-theme="dark"] .app-drawer-header-btn {
+  background: rgba(255, 255, 255, 0.08);
+  color: #f4f4f6;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.dark .app-drawer-header-btn:hover,
+[data-theme="dark"] .app-drawer-header-btn:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.dark .app-drawer-row:hover,
+[data-theme="dark"] .app-drawer-row:hover,
+.dark .app-drawer-trash-row:hover,
+[data-theme="dark"] .app-drawer-trash-row:hover,
+.dark .app-drawer-install-row:hover,
+[data-theme="dark"] .app-drawer-install-row:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.dark .app-drawer-row--active,
+[data-theme="dark"] .app-drawer-row--active {
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.dark .app-drawer-join-card,
+[data-theme="dark"] .app-drawer-join-card {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.dark .app-drawer-join-input,
+[data-theme="dark"] .app-drawer-join-input {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #f4f4f6;
+}
+
+.dark .app-drawer-join-btn:disabled,
+[data-theme="dark"] .app-drawer-join-btn:disabled {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.28);
+}
+
+.dark .app-drawer-join-btn:not(:disabled),
+[data-theme="dark"] .app-drawer-join-btn:not(:disabled) {
+  background: linear-gradient(135deg, #ea580c, #dc2626);
+  color: #fff;
+}
+
+.dark .app-drawer-create-tile,
+[data-theme="dark"] .app-drawer-create-tile {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #f4f4f6;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+.dark .app-drawer-create-tile:hover,
+[data-theme="dark"] .app-drawer-create-tile:hover {
+  background: rgba(255, 255, 255, 0.09);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+}
+
+.dark .app-drawer-create-tile--charcoal,
+[data-theme="dark"] .app-drawer-create-tile--charcoal {
+  background: linear-gradient(180deg, #27272a, #18181b);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+.dark .app-drawer-divider-section,
+[data-theme="dark"] .app-drawer-divider-section {
+  border-top-color: rgba(255, 255, 255, 0.08);
+}
+
+.dark .app-drawer-footer,
+[data-theme="dark"] .app-drawer-footer {
+  background: #111116;
+  border-top-color: rgba(255, 255, 255, 0.08);
+}
+
+.dark .app-drawer-signout,
+[data-theme="dark"] .app-drawer-signout {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.25);
+  color: #f87171;
+}
+
+.dark .app-drawer-signout:hover,
+[data-theme="dark"] .app-drawer-signout:hover {
+  background: rgba(239, 68, 68, 0.2);
+}
+

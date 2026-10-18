@@ -1,10 +1,28 @@
 import type { Metadata, Viewport } from "next";
+import { Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/components/AuthProvider";
 import { OfflineSyncProvider } from "@/components/OfflineSyncContext";
 import { Navigation } from "@/components/Navigation";
 import { InstallPrompt } from "@/components/InstallPrompt";
+import { OnboardingModal } from "@/components/OnboardingModal";
+import { BackgroundBlobs } from "@/components/ui/primitives";
+import { ThemeSync } from "@/components/ThemeSync";
 import Script from "next/script";
+
+const plusJakartaSans = Plus_Jakarta_Sans({
+  subsets: ["latin"],
+  variable: "--font-sans",
+  display: "swap",
+  weight: ["400", "500", "600", "700", "800"],
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  variable: "--font-mono",
+  display: "swap",
+  weight: ["400", "500", "600", "700"],
+});
 
 export const metadata: Metadata = {
   title: "ChordCraft - Bar Chart Notations",
@@ -21,7 +39,7 @@ export const metadata: Metadata = {
   ],
   appleWebApp: {
     capable: true,
-    statusBarStyle: "black-translucent",
+    statusBarStyle: "default",
     title: "ChordCraft",
   },
 };
@@ -32,7 +50,7 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: "cover",
-  themeColor: "#080414",
+  themeColor: "#ececee",
 };
 
 export default function RootLayout({
@@ -43,13 +61,28 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className="h-full antialiased"
+      className={`${plusJakartaSans.variable} ${jetbrainsMono.variable} h-full antialiased`}
       suppressHydrationWarning
     >
       <head>
         <script
           dangerouslySetInnerHTML={{
             __html: `
+              (function() {
+                try {
+                  var theme = localStorage.getItem('chord-grid-theme') || 'system';
+                  var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                  var isDark = theme === 'dark' || (theme === 'system' && prefersDark);
+                  var root = document.documentElement;
+                  if (isDark) {
+                    root.classList.add('dark');
+                    root.setAttribute('data-theme', 'dark');
+                  } else {
+                    root.classList.remove('dark');
+                    root.setAttribute('data-theme', 'light');
+                  }
+                } catch (e) {}
+              })();
               window.addEventListener('error', function(e) {
                 if (e && e.message && (e.message.indexOf('Loading chunk') !== -1 || e.message.indexOf('ChunkLoadError') !== -1)) {
                   window.location.reload();
@@ -64,22 +97,17 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className="min-h-[100dvh] flex flex-col font-sans bg-bg text-text-primary selection:bg-accent-solid/30" suppressHydrationWarning>
+      <body className="min-h-[100dvh] flex flex-col font-sans bg-[var(--bg-canvas)] text-text-primary selection:bg-orange-500/20" suppressHydrationWarning>
         <AuthProvider>
           <OfflineSyncProvider>
-          {/* Responsive Background Image */}
-          <div 
-            className="fixed inset-0 pointer-events-none -z-10 no-print bg-[#080414] bg-cover bg-center bg-no-repeat transform scale-[1.15] md:scale-100"
-            style={{
-              backgroundImage: 'url(/bg.png)',
-            }}
-          >
-            {/* Dark overlay to ensure text remains readable over the image */}
-            <div className="absolute inset-0 bg-black/60 mix-blend-multiply" />
-          </div>
-          {children}
-          <Navigation />
-          <InstallPrompt />
+            <ThemeSync />
+            {/* Soft Glass Decorative Canvas Blobs */}
+            <BackgroundBlobs />
+            
+            {children}
+            <Navigation />
+            <InstallPrompt />
+            <OnboardingModal />
           </OfflineSyncProvider>
         </AuthProvider>
         <Script id="register-sw" strategy="afterInteractive">
@@ -111,3 +139,4 @@ export default function RootLayout({
     </html>
   );
 }
+
