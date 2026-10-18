@@ -12,7 +12,7 @@ function ChordNoteTooltip({ chord }: { chord: string }) {
   return (
     <div
       onClick={(e) => e.stopPropagation()}
-      className="absolute -top-11 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-2 px-3 py-1.5 bg-slate-900/95 backdrop-blur-md rounded-xl shadow-2xl border border-slate-700/80 animate-in fade-in zoom-in-95 duration-150 print:hidden min-w-max text-xs sm:text-sm tracking-normal select-none pointer-events-none"
+      className="absolute -top-11 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-2 px-3 py-1.5 bg-white/75 dark:bg-[#18181d]/75 backdrop-blur-2xl saturate-[180%] rounded-xl shadow-[0_8px_32px_rgba(31,38,135,0.12),inset_0_1px_0_rgba(255,255,255,0.8)] border border-white/60 dark:border-white/15 animate-in fade-in zoom-in-95 duration-150 print:hidden min-w-max text-xs sm:text-sm tracking-normal select-none pointer-events-none text-text-primary dark:text-white"
     >
       <span className="font-bold text-indigo-300 font-sans">{info.chordName}</span>
       <span className="text-slate-500 text-xs">→</span>
@@ -92,7 +92,7 @@ function ColorPickerPopover({
   return (
     <div
       onClick={(e) => e.stopPropagation()}
-      className={`absolute ${posClasses} flex items-center gap-1.5 p-2 bg-slate-900/95 backdrop-blur-md rounded-full shadow-2xl border border-slate-700 animate-in fade-in zoom-in-95 duration-150 print:hidden min-w-max`}
+      className={`absolute ${posClasses} flex items-center gap-1.5 p-2 bg-white/70 dark:bg-[#18181d]/70 backdrop-blur-2xl saturate-[180%] rounded-full shadow-[0_8px_32px_rgba(31,38,135,0.12),inset_0_1px_0_rgba(255,255,255,0.8)] border border-white/60 dark:border-white/15 animate-in fade-in zoom-in-95 duration-150 print:hidden min-w-max`}
     >
       {COLOR_SWATCHES.map((swatch) => (
         <button
@@ -141,6 +141,25 @@ export function ChartRenderer({
   // Individual element color overrides
   const [itemColors, setItemColors] = useState<Record<string, string>>({});
   const [activePickerKey, setActivePickerKey] = useState<string | null>(null);
+
+  // Active font synced with settings and props
+  const [activeFont, setActiveFont] = useState<string>(selectedFont || 'system');
+
+  useEffect(() => {
+    const applyFont = () => {
+      const saved = localStorage.getItem('chord-grid-font');
+      if (saved && saved !== 'system') {
+        setActiveFont(saved);
+      } else if (selectedFont && selectedFont !== 'system') {
+        setActiveFont(selectedFont);
+      } else {
+        setActiveFont('system');
+      }
+    };
+    applyFont();
+    window.addEventListener('chord-grid-font-change', applyFont);
+    return () => window.removeEventListener('chord-grid-font-change', applyFont);
+  }, [selectedFont]);
 
   // Chord note voicing tooltip state and double-tap tracker
   const [activeNoteTooltipKey, setActiveNoteTooltipKey] = useState<string | null>(null);
@@ -245,10 +264,14 @@ export function ChartRenderer({
   };
 
   const renderTextFlow = (chartData: ChartData) => {
+    const fontStyle = activeFont && activeFont !== 'system' 
+      ? { fontFamily: activeFont } 
+      : { fontFamily: 'var(--font-sans), sans-serif' };
+
     if (!chartData) return null;
     if (chartData.custom_text !== undefined && chartData.custom_text !== null) {
       return (
-        <pre className="font-sans text-indigo-600 font-medium text-[10px] sm:text-xs md:text-[15px] leading-normal whitespace-pre min-w-max" style={selectedFont !== 'system' ? { fontFamily: selectedFont } : {}}>
+        <pre className="text-indigo-600 font-medium text-[10px] sm:text-xs md:text-[15px] leading-normal whitespace-pre min-w-max" style={fontStyle}>
           {chartData.custom_text}
         </pre>
       );
@@ -262,23 +285,27 @@ export function ChartRenderer({
 
     return (
       <div 
-        className="flex flex-col gap-4 font-sans print:!font-mono w-full leading-relaxed text-slate-900 print-reset-scale print:text-black" 
-        style={selectedFont !== 'system' ? { fontFamily: selectedFont } : {}}
+        className="flex flex-col gap-4 print:!font-mono w-full leading-relaxed text-slate-900 print-reset-scale print:text-black" 
+        style={fontStyle}
       >
         {/* Header */}
-        <div className="relative flex items-center justify-center mb-6 sm:mb-10 pb-4 border-b border-slate-200 print:border-none w-full text-slate-900 print:text-black print:pt-24 print:mb-8">
-          <div className="flex items-baseline gap-3 sm:gap-6 print:gap-4">
-            <h1 className="text-xl sm:text-3xl md:text-4xl font-extrabold print:text-4xl print:!font-bold tracking-tight print:!tracking-normal text-slate-900 print:text-black">{chartData.title || 'Untitled Chart'}</h1>
-            <span className="font-bold text-slate-500 print:text-black print:!font-normal text-sm sm:text-xl print:!text-2xl">{chartData.time_sig || '4/4'}</span>
+        <div className="relative flex items-center justify-center mb-6 sm:mb-10 pb-4 border-b border-slate-200 print:border-b print:border-black/20 w-full text-slate-900 print:text-black print:pt-2 print:pb-2 print:mb-4">
+          <div className="flex items-baseline gap-3 sm:gap-6 print:gap-3">
+            <h1 className="text-xl sm:text-3xl md:text-4xl font-extrabold print:text-2xl print:!font-bold tracking-tight print:!tracking-normal text-slate-900 print:text-black" style={fontStyle}>
+              {chartData.title || 'Untitled Chart'}
+            </h1>
+            <span className="font-bold text-slate-500 print:text-black print:!font-semibold text-sm sm:text-xl print:!text-base" style={fontStyle}>
+              {chartData.time_sig || '4/4'}
+            </span>
           </div>
-          <div className="absolute right-0 print:right-24 font-bold text-slate-500 print:text-black print:!font-normal text-xs sm:text-lg print:!text-xl">
+          <div className="absolute right-0 print:right-2 font-bold text-slate-500 print:text-black print:!font-semibold text-xs sm:text-lg print:!text-sm" style={fontStyle}>
             t={chartData.tempo || 120}
           </div>
         </div>
 
         {/* Lines */}
         <div className="flex flex-col w-full items-center justify-center">
-          <div className="flex flex-col gap-5 sm:gap-8 print:gap-8 w-fit mx-auto print:mx-0 overflow-visible scrollbar-none px-2 py-2 print:p-0">
+          <div className="flex flex-col gap-4 sm:gap-6 md:gap-8 print:!gap-2.5 w-fit mx-auto print:mx-0 overflow-visible scrollbar-none px-1 sm:px-2 py-2 print:p-0">
             {chartData.lines.map((line, lIdx) => {
               const secName = line.label ? line.label.trim().toLowerCase() : '';
               const sectionKey = secName ? `section-${secName}` : `label-${lIdx}`;
@@ -297,15 +324,15 @@ export function ChartRenderer({
                           e.stopPropagation();
                           setActivePickerKey(activePickerKey === sectionKey ? null : sectionKey);
                         }}
-                        className="relative shrink-0 font-extrabold text-sm sm:text-xl md:text-2xl print:text-[1em] print:!font-normal print:!font-mono text-right pr-2 sm:pr-5 print:!pr-3 flex items-center justify-end font-sans print:!font-mono print:!min-w-0 select-none cursor-pointer hover:opacity-75 transition-opacity print:text-black"
-                        style={{ width: `${Math.max(6, labelCh)}ch`, minWidth: '4.5rem', color: customLabelColor || '#0f172a' }}
+                        className="relative shrink-0 font-extrabold text-sm sm:text-xl md:text-2xl print:text-[1em] print:!font-normal print:!font-mono text-right pr-1.5 sm:pr-4 print:!pr-3 flex items-center justify-end print:!min-w-0 select-none cursor-pointer hover:opacity-75 transition-opacity print:text-black"
+                        style={{ width: `${Math.max(4, labelCh)}ch`, minWidth: `${Math.max(4, labelCh)}ch`, color: customLabelColor || '#0f172a', ...fontStyle }}
                         title="Click to color this section label"
                       >
                         <ColorPickerPopover itemKey={sectionKey} activePickerKey={activePickerKey} onSetColor={handleSetColor} position={popoverPos} />
                         {line.label.charAt(0).toUpperCase()}{line.label.slice(1).toLowerCase()}:
                       </div>
                     ) : (
-                      <div className="shrink-0 print:!min-w-0" style={{ width: `${Math.max(6, labelCh)}ch`, minWidth: '4.5rem' }}></div>
+                      <div className="shrink-0 print:!min-w-0" style={{ width: `${Math.max(4, labelCh)}ch`, minWidth: `${Math.max(4, labelCh)}ch` }}></div>
                     )}
 
                     {/* Right Label (Annotation text after || bar) */}
@@ -319,7 +346,7 @@ export function ChartRenderer({
                             setActivePickerKey(activePickerKey === labelRightKey ? null : labelRightKey);
                           }}
                           className="relative shrink-0 font-semibold print:text-black text-sm sm:text-xl print:text-[1em] print:!font-normal print:!font-mono text-left pl-2 sm:pl-5 print:!pl-3 flex items-center ml-auto cursor-pointer hover:opacity-75 transition-opacity"
-                          style={{ width: `${labelRightCh}ch`, color: customLabelRightColor || '#64748b' }}
+                          style={{ width: `${labelRightCh}ch`, color: customLabelRightColor || '#64748b', ...fontStyle }}
                           title="Click to color this text"
                         >
                           <ColorPickerPopover itemKey={labelRightKey} activePickerKey={activePickerKey} onSetColor={handleSetColor} />
@@ -341,8 +368,8 @@ export function ChartRenderer({
                       e.stopPropagation();
                       setActivePickerKey(activePickerKey === sectionKey ? null : sectionKey);
                     }}
-                    className="relative shrink-0 font-extrabold text-sm sm:text-xl md:text-2xl print:text-[1em] print:!font-normal print:!font-mono text-right pr-2 sm:pr-5 print:!pr-3 flex items-center justify-end font-sans print:!font-mono print:!min-w-0 select-none cursor-pointer hover:opacity-75 transition-opacity print:text-black"
-                    style={{ width: `${Math.max(6, labelCh)}ch`, minWidth: '4.5rem', color: customLabelColor || '#0f172a' }}
+                    className="relative shrink-0 font-extrabold text-sm sm:text-xl md:text-2xl print:text-[1em] print:!font-normal print:!font-mono text-right pr-1.5 sm:pr-4 print:!pr-3 flex items-center justify-end print:!min-w-0 select-none cursor-pointer hover:opacity-75 transition-opacity print:text-black"
+                    style={{ width: `${Math.max(4, labelCh)}ch`, minWidth: `${Math.max(4, labelCh)}ch`, color: customLabelColor || '#0f172a', ...fontStyle }}
                     title="Click to color this section label"
                   >
                     <ColorPickerPopover itemKey={sectionKey} activePickerKey={activePickerKey} onSetColor={handleSetColor} position={popoverPos} />
@@ -350,7 +377,7 @@ export function ChartRenderer({
                   </div>
 
                   {/* Chords Container */}
-                  <div className="flex items-center justify-start flex-nowrap shrink-0 text-base sm:text-2xl md:text-[1.75rem] print:!text-[1.1em] print:!font-mono print:!font-normal print:!flex-nowrap print:!whitespace-nowrap">
+                  <div className="flex items-center justify-start flex-nowrap shrink-0 text-sm sm:text-2xl md:text-[1.75rem] print:!text-[1.1em] print:!font-mono print:!font-normal print:!flex-nowrap print:!whitespace-nowrap">
                     {line.blocks.map((block, bIdx) => {
                       const isFirst = bIdx === 0;
                       let prefix = '';
@@ -404,17 +431,17 @@ export function ChartRenderer({
                                       lastTouchTimestampRef.current[barKey] = now;
                                     }
                                   }}
-                                  className={`relative inline-flex items-center justify-center min-w-[2.8rem] sm:min-w-[4.8rem] md:min-w-[5.8rem] print:!min-w-0 print:!w-auto px-1 sm:px-2 print:!px-1 text-center font-extrabold print:!font-normal print:!font-mono transition-all duration-150 text-sm sm:text-2xl md:text-[1.75rem] print:!text-[1em] font-mono sm:font-sans print:!font-mono rounded print:!rounded-none select-none ${
+                                  className={`relative inline-flex items-center justify-center min-w-[2.2rem] sm:min-w-[3.6rem] md:min-w-[4.8rem] print:!min-w-0 print:!w-auto px-1 sm:px-2 print:!px-1 text-center font-extrabold print:!font-normal print:!font-mono transition-all duration-150 text-sm sm:text-2xl md:text-[1.75rem] print:!text-[1em] print:!font-mono rounded print:!rounded-none select-none ${
                                     isTooltipActive ? 'bg-indigo-50/90 ring-2 ring-indigo-400/50' : 'hover:bg-slate-50/50'
                                   }`}
-                                  style={{ color: '#0f172a' }}
+                                  style={{ color: '#0f172a', ...fontStyle }}
                                   title="Double-tap or double-click to view chord notes"
                                 >
                                   {isTooltipActive && <ChordNoteTooltip chord={bar || ''} />}
                                   {parseChord(bar || '_')}
                                 </span>
                                 {barIdx < block.bars.length - 1 && (
-                                  <span className="inline-flex items-center justify-center text-slate-500 font-medium px-1 sm:px-2 print:!px-1 text-lg sm:text-2xl md:text-3xl print:text-black print:!text-[1em] print:!font-normal print:!font-mono print:!tracking-normal">|</span>
+                                  <span className="inline-flex items-center justify-center text-slate-500 font-medium px-1 sm:px-2 print:!px-1 text-base sm:text-2xl md:text-3xl print:text-black print:!text-[1em] print:!font-normal print:!font-mono print:!tracking-normal">|</span>
                                 )}
                               </React.Fragment>
                             );
@@ -441,8 +468,8 @@ export function ChartRenderer({
                           e.stopPropagation();
                           setActivePickerKey(activePickerKey === labelRightKey ? null : labelRightKey);
                         }}
-                        className="relative shrink-0 font-semibold print:text-black text-lg sm:text-2xl print:text-[1em] print:!font-normal print:!font-mono text-left pl-3 sm:pl-6 print:!pl-3 flex items-center cursor-pointer hover:opacity-75 transition-opacity"
-                        style={{ width: `${labelRightCh}ch`, color: customLabelRightColor || '#64748b' }}
+                        className="relative shrink-0 font-semibold print:text-black text-sm sm:text-2xl print:text-[1em] print:!font-normal print:!font-mono text-left pl-2 sm:pl-6 print:!pl-3 flex items-center cursor-pointer hover:opacity-75 transition-opacity"
+                        style={{ width: `${labelRightCh}ch`, color: customLabelRightColor || '#64748b', ...fontStyle }}
                         title="Click to color this text"
                       >
                         <ColorPickerPopover itemKey={labelRightKey} activePickerKey={activePickerKey} onSetColor={handleSetColor} />
@@ -463,7 +490,7 @@ export function ChartRenderer({
     <div 
       id={id}
       onClick={onClick}
-      className="flex text-left flex-col w-full min-h-full p-4 sm:p-8 md:p-10 print:p-0 bg-white print:bg-transparent rounded-2xl print:rounded-none relative mx-auto my-auto print:min-h-[28cm] print:w-full border-none shadow-none"
+      className="flex text-left flex-col w-fit min-w-full min-h-full p-4 sm:p-8 md:p-10 print:p-0 bg-white print:bg-transparent rounded-2xl print:rounded-none relative mx-auto my-0 print:min-h-0 print:h-auto print:w-full border border-slate-200/80 shadow-2xl print:border-none print:shadow-none break-inside-avoid print:break-inside-avoid-page print-single-page"
     >
       {watermark && (
         <div className="hidden print:grid absolute inset-0 grid-cols-4 gap-y-6 gap-x-4 items-center justify-items-center pointer-events-none overflow-hidden z-[1] opacity-[0.04] rotate-[-30deg] scale-150 select-none">

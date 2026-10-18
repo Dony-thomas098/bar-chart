@@ -126,16 +126,65 @@ function useSetlistSession(setlistId: string, isLeaderDevice: boolean) {
 
 // ─── Chart zoom wrapper ───────────────────────────────────────────────────────
 
-function ChartWrapper({ chart, songKey }: { chart: ChartData; songKey: string }) {
-  const { zoomToElement } = useControls();
+function ChartWrapper({ 
+  chart, 
+  songKey,
+  onBaseScaleChange,
+}: { 
+  chart: ChartData; 
+  songKey: string;
+  onBaseScaleChange?: (scale: number) => void;
+}) {
+  const { setTransform, instance } = useControls();
+
+  const fitToScreen = useCallback(() => {
+    const cardEl = document.getElementById('perf-chart-card');
+    const wrapper = instance.wrapperComponent;
+    if (!cardEl || !wrapper) return;
+
+    const viewportWidth = wrapper.clientWidth;
+    const availableWidth = Math.max(260, viewportWidth - 24);
+    const cardWidth = Math.max(cardEl.scrollWidth, cardEl.offsetWidth);
+
+    let scale = 1;
+    if (cardWidth > 0 && availableWidth > 0) {
+      if (availableWidth < cardWidth) {
+        scale = Math.max(0.15, (availableWidth / cardWidth) * 0.98);
+      } else {
+        scale = 1;
+      }
+    }
+
+    if (instance.setup) {
+      instance.setup.minScale = scale;
+    }
+    if (onBaseScaleChange) {
+      onBaseScaleChange(scale);
+    }
+
+    const posX = Math.max(0, (viewportWidth - cardWidth * scale) / 2);
+    setTransform(posX, 0, scale, 0);
+  }, [instance, setTransform, onBaseScaleChange]);
+
   useEffect(() => {
-    let id: any;
-    const fit = () => { clearTimeout(id); id = setTimeout(() => zoomToElement('perf-chart-card', undefined, 0), 100); };
-    fit();
-    window.addEventListener('resize', fit);
-    window.addEventListener('orientationchange', fit);
-    return () => { clearTimeout(id); window.removeEventListener('resize', fit); window.removeEventListener('orientationchange', fit); };
-  }, [zoomToElement, songKey]);
+    let t1: any;
+    let t2: any;
+    const runFit = () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      t1 = setTimeout(fitToScreen, 50);
+      t2 = setTimeout(fitToScreen, 200);
+    };
+    runFit();
+    window.addEventListener('resize', runFit);
+    window.addEventListener('orientationchange', runFit);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      window.removeEventListener('resize', runFit);
+      window.removeEventListener('orientationchange', runFit);
+    };
+  }, [fitToScreen, songKey, chart.id]);
 
   return <ChartRenderer chart={chart} id="perf-chart-card" />;
 }
@@ -166,6 +215,31 @@ export default function SetlistPerformPage() {
   const tabsRef = useRef<HTMLDivElement>(null);
   const activeTabRef = useRef<HTMLButtonElement>(null);
   const [barsVisible, setBarsVisible] = useState(false);
+  const [perfMinScale, setPerfMinScale] = useState(1);
+
+  const isDraggingRef = useRef(false);
+  const dragStartPosRef = useRef({ x: 0, y: 0 });
+
+  const handlePointerDown = (e: React.PointerEvent) => {
+    dragStartPosRef.current = { x: e.clientX, y: e.clientY };
+    isDraggingRef.current = false;
+  };
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    const dx = Math.abs(e.clientX - dragStartPosRef.current.x);
+    const dy = Math.abs(e.clientY - dragStartPosRef.current.y);
+    if (dx > 8 || dy > 8) {
+      isDraggingRef.current = true;
+    }
+  };
+
+  const handleToggleBars = () => {
+    if (isDraggingRef.current) {
+      isDraggingRef.current = false;
+      return;
+    }
+    setBarsVisible(v => !v);
+  };
 
   const [selectedFont, setSelectedFont] = useState('system');
   useEffect(() => { const f = localStorage.getItem('chord-grid-font'); if (f) setSelectedFont(f); }, []);
@@ -507,8 +581,10 @@ export default function SetlistPerformPage() {
 
       {/* ── Content area — full screen, tap to toggle bars ───────────────── */}
       <div
-        className="flex-1 pt-0 w-full h-screen"
-        onClick={() => setBarsVisible(v => !v)}
+        className="flex-1 pt-0 w-full h-screen overflow-y-auto select-none"
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onClick={handleToggleBars}
       >
         {contentLoading && (
           <div className="flex items-center justify-center h-[50vh]">
@@ -519,21 +595,43 @@ export default function SetlistPerformPage() {
         {!contentLoading && currentItem?.item_type === 'chart' && currentChart && (
           <TransformWrapper
             key={`chart-${songPosition}`}
-            initialScale={1} minScale={0.2} maxScale={4}
-            centerOnInit
-            doubleClick={{ disabled: false }}
+            initialScale={perfMinScale}
+            minScale={perfMinScale}
+            maxScale={4}
+            centerOnInit={true}
+            centerZoomedOut={true}
+            limitToBounds={true}
+            wheel={{
+              step: 0.1,
+              wheelDisabled: true, // Enables vertical mouse wheel scrolling down & up
+            }}
+            trackPadPanning={{
+              disabled: false,
+              velocityDisabled: false,
+              lockAxisX: true, // Locks vertical scroll along Y-axis so chart stays centered
+            }}
+            panning={{
+              disabled: false,
+              velocityDisabled: false,
+            }}
+            pinch={{
+              step: 5,
+              disabled: false,
+              allowPanning: true,
+            }}
+            doubleClick={{ disabled: true }}
           >
             <TransformComponent
               wrapperStyle={{ width: '100vw', height: '100dvh' }}
-              contentStyle={{ padding: '32px 24px 100px' }}
+              contentStyle={{ padding: '32px 24px 120px' }}
             >
-              <ChartWrapper chart={currentChart} songKey={`${songPosition}`} />
+              <ChartWrapper chart={currentChart} songKey={`${songPosition}`} onBaseScaleChange={setPerfMinScale} />
             </TransformComponent>
           </TransformWrapper>
         )}
 
         {!contentLoading && currentItem?.item_type === 'lyrics' && currentLyrics && (
-          <div className="px-6 py-8 pb-28 max-w-3xl mx-auto">
+          <div className="px-6 py-8 pb-36 max-w-3xl mx-auto overflow-y-auto">
             <h1 className="text-3xl font-bold mb-6 text-text-primary">{currentLyrics.title}</h1>
             {currentItem.notes && <p className="text-sm italic text-text-secondary mb-4">{currentItem.notes}</p>}
             <pre className="font-sans text-sm leading-relaxed whitespace-pre-wrap text-text-primary"
@@ -558,7 +656,7 @@ export default function SetlistPerformPage() {
       {/* ── Edit Performance Chords Modal ─────────────────────────────────── */}
       {perfModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="w-full max-w-2xl bg-surface border border-border rounded-2xl p-6 shadow-popover flex flex-col gap-5 max-h-[90vh]">
+          <div className="w-full max-w-2xl bg-white/70 dark:bg-[#18181d]/70 backdrop-blur-2xl saturate-[180%] border border-white/60 dark:border-white/15 rounded-2xl p-6 shadow-[0_8px_32px_rgba(31,38,135,0.12),inset_0_1px_0_rgba(255,255,255,0.8)] flex flex-col gap-5 max-h-[90vh]">
             <div className="flex items-center justify-between border-b border-border pb-3">
               <div>
                 <h3 className="text-lg font-bold text-text-primary flex items-center gap-2">
@@ -678,7 +776,7 @@ export default function SetlistPerformPage() {
           className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-200"
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="bg-surface border border-border shadow-2xl rounded-3xl p-6 sm:p-8 w-full max-w-sm flex flex-col gap-4 text-center">
+          <div className="bg-white/70 dark:bg-[#18181d]/70 backdrop-blur-2xl saturate-[180%] border border-white/60 dark:border-white/15 shadow-[0_8px_32px_rgba(31,38,135,0.12),inset_0_1px_0_rgba(255,255,255,0.8)] rounded-3xl p-6 sm:p-8 w-full max-w-sm flex flex-col gap-4 text-center">
             <div className="w-14 h-14 rounded-2xl bg-red-500/10 border border-red-500/30 flex items-center justify-center mx-auto text-red-500">
               <Radio size={32} />
             </div>

@@ -16,24 +16,63 @@ import {
 
 // ─── Inner chart wrapper (needs access to zoom controls) ──────────────────────
 
-function PerformChartWrapper({ chart }: { chart: ChartData }) {
-  const { zoomToElement } = useControls();
+function PerformChartWrapper({ 
+  chart,
+  onBaseScaleChange,
+}: { 
+  chart: ChartData;
+  onBaseScaleChange?: (scale: number) => void;
+}) {
+  const { zoomToElement, setTransform, instance } = useControls();
+
+  const fitToScreen = useCallback(() => {
+    const cardEl = document.getElementById('perform-chart-card');
+    const wrapper = instance.wrapperComponent;
+    if (!cardEl || !wrapper) return;
+
+    const viewportWidth = wrapper.clientWidth;
+    const availableWidth = Math.max(260, viewportWidth - 24);
+    const cardWidth = Math.max(cardEl.scrollWidth, cardEl.offsetWidth);
+
+    let scale = 1;
+    if (cardWidth > 0 && availableWidth > 0) {
+      if (availableWidth < cardWidth) {
+        scale = Math.max(0.15, (availableWidth / cardWidth) * 0.98);
+      } else {
+        scale = 1;
+      }
+    }
+
+    if (instance.setup) {
+      instance.setup.minScale = scale;
+    }
+    if (onBaseScaleChange) {
+      onBaseScaleChange(scale);
+    }
+
+    const posX = Math.max(0, (viewportWidth - cardWidth * scale) / 2);
+    setTransform(posX, 0, scale, 0);
+  }, [instance, setTransform, onBaseScaleChange]);
 
   useEffect(() => {
-    let id: any;
-    const fit = () => {
-      clearTimeout(id);
-      id = setTimeout(() => zoomToElement('perform-chart-card', undefined, 0), 150);
+    let t1: any;
+    let t2: any;
+    const runFit = () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      t1 = setTimeout(fitToScreen, 50);
+      t2 = setTimeout(fitToScreen, 200);
     };
-    fit();
-    window.addEventListener('resize', fit);
-    window.addEventListener('orientationchange', fit);
+    runFit();
+    window.addEventListener('resize', runFit);
+    window.addEventListener('orientationchange', runFit);
     return () => {
-      clearTimeout(id);
-      window.removeEventListener('resize', fit);
-      window.removeEventListener('orientationchange', fit);
+      clearTimeout(t1);
+      clearTimeout(t2);
+      window.removeEventListener('resize', runFit);
+      window.removeEventListener('orientationchange', runFit);
     };
-  }, [zoomToElement, chart.id]);
+  }, [fitToScreen, chart.id]);
 
   // Navigate to section on perform-navigate event (zoom to chart card)
   useEffect(() => {
@@ -146,8 +185,29 @@ export default function PerformancePage() {
     return () => window.removeEventListener('perform-session-end', handler);
   }, []);
 
+  const [performMinScale, setPerformMinScale] = useState(1);
+  const isDraggingRef = useRef(false);
+  const dragStartPosRef = useRef({ x: 0, y: 0 });
+
+  const handlePointerDown = (e: React.PointerEvent) => {
+    dragStartPosRef.current = { x: e.clientX, y: e.clientY };
+    isDraggingRef.current = false;
+  };
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    const dx = Math.abs(e.clientX - dragStartPosRef.current.x);
+    const dy = Math.abs(e.clientY - dragStartPosRef.current.y);
+    if (dx > 8 || dy > 8) {
+      isDraggingRef.current = true;
+    }
+  };
+
   // ─── Simple tap-to-toggle header (like setlist perform) ────────────────
   const toggleHeader = useCallback(() => {
+    if (isDraggingRef.current) {
+      isDraggingRef.current = false;
+      return;
+    }
     setShowHeader(prev => !prev);
   }, []);
 
@@ -307,16 +367,42 @@ export default function PerformancePage() {
       </div>
 
       {/* ── Chart Canvas ── */}
-      <main className="flex-1 w-full h-screen overflow-hidden" onClick={toggleHeader}>
+      <main
+        className="flex-1 w-full h-screen overflow-hidden select-none"
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onClick={toggleHeader}
+      >
         <TransformWrapper
-          initialScale={1} minScale={0.1} maxScale={5}
-          centerOnInit={true} centerZoomedOut={true}
-          wheel={{ step: 0.1 }} pinch={{ step: 5 }}
+          initialScale={performMinScale}
+          minScale={performMinScale}
+          maxScale={4}
+          centerOnInit={true}
+          centerZoomedOut={true}
+          limitToBounds={true}
+          wheel={{
+            step: 0.1,
+            wheelDisabled: true, // Enables natural vertical mouse wheel scrolling down & up
+          }}
+          trackPadPanning={{
+            disabled: false,
+            velocityDisabled: false,
+            lockAxisX: true, // Locks vertical scroll along Y-axis so chart remains centered
+          }}
+          panning={{
+            disabled: false,
+            velocityDisabled: false,
+          }}
+          pinch={{
+            step: 5,
+            disabled: false,
+            allowPanning: true,
+          }}
           doubleClick={{ disabled: true }}
         >
           <TransformComponent
             wrapperClass="!w-full !h-screen cursor-pointer"
-            contentClass="w-max min-w-full min-h-screen flex items-start justify-center p-4 sm:p-16 pt-24 pb-32"
+            contentClass="w-max min-w-full min-h-screen flex items-start justify-center p-4 sm:p-16 pt-24 pb-36"
           >
             <div onClick={(e) => { e.stopPropagation(); toggleHeader(); }} className="w-full h-full flex items-center justify-center">
               {chartLoading || !currentChart ? (
@@ -324,7 +410,7 @@ export default function PerformancePage() {
                   <div className="w-8 h-8 rounded-full border-2 border-accent-start border-t-transparent animate-spin" />
                 </div>
               ) : (
-                <PerformChartWrapper chart={currentChart} />
+                <PerformChartWrapper chart={currentChart} onBaseScaleChange={setPerformMinScale} />
               )}
             </div>
           </TransformComponent>
@@ -410,7 +496,7 @@ export default function PerformancePage() {
           className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-200"
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="bg-surface border border-border shadow-2xl rounded-3xl p-6 sm:p-8 w-full max-w-sm flex flex-col gap-4 text-center">
+          <div className="bg-white/70 dark:bg-[#18181d]/70 backdrop-blur-2xl saturate-[180%] border border-white/60 dark:border-white/15 shadow-[0_8px_32px_rgba(31,38,135,0.12),inset_0_1px_0_rgba(255,255,255,0.8)] rounded-3xl p-6 sm:p-8 w-full max-w-sm flex flex-col gap-4 text-center">
             <div className="w-14 h-14 rounded-2xl bg-red-500/10 border border-red-500/30 flex items-center justify-center mx-auto text-red-500">
               <StopCircle size={32} />
             </div>

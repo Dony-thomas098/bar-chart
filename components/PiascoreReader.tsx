@@ -7,11 +7,12 @@ import { ChartRenderer } from '@/components/ChartRenderer';
 import { SongPickerModal, PickedItem } from '@/components/SongPickerModal';
 import { transposeChart } from '@/lib/transpose';
 import { readChart, toggleBookmark, getBookmarks } from '@/lib/storage';
+import { useAuth, canModifySection } from '@/components/AuthProvider';
 import { TransformWrapper, TransformComponent, useControls } from 'react-zoom-pan-pinch';
 import {
   FolderOpen, Smile, X, Plus, Play, Pause, Bookmark as BookmarkIcon,
   Crop, LayoutGrid, Info, Edit3, ArrowUpDown, BookOpen, Volume2,
-  ChevronRight, ArrowLeft, RotateCcw, Sliders, ScrollText
+  ChevronRight, ArrowLeft, RotateCcw, Sliders, ScrollText, Printer
 } from 'lucide-react';
 
 interface TabItem {
@@ -29,32 +30,87 @@ interface Props {
 }
 
 // ── Inner chart zoom reset wrapper ──────────────────────────────────────────────
-function ChartContentWrapper({ chart, selectedFont, chordColor }: { chart: ChartData; selectedFont: string; chordColor: string }) {
-  const { zoomToElement } = useControls();
+function ChartContentWrapper({ 
+  chart, 
+  selectedFont, 
+  chordColor,
+  onBaseScaleChange,
+}: { 
+  chart: ChartData; 
+  selectedFont: string; 
+  chordColor: string;
+  onBaseScaleChange?: (scale: number) => void;
+}) {
+  const { setTransform, instance } = useControls();
+
+  const fitToScreen = useCallback(() => {
+    const cardEl = document.getElementById('piascore-chart-card');
+    const wrapper = instance.wrapperComponent;
+    if (!cardEl || !wrapper) return;
+
+    // Viewport width with safety padding for comfortable margins
+    const viewportWidth = wrapper.clientWidth;
+    const availableWidth = Math.max(260, viewportWidth - 24);
+    // Real full scroll width of the chord chart card
+    const cardWidth = Math.max(cardEl.scrollWidth, cardEl.offsetWidth);
+
+    let scale = 1;
+    if (cardWidth > 0 && availableWidth > 0) {
+      if (availableWidth < cardWidth) {
+        // Content exceeds viewport width: scale down smoothly so whole chart fits
+        scale = Math.max(0.15, (availableWidth / cardWidth) * 0.98);
+      } else {
+        // Fits comfortably at 100% scale (default fixed size)
+        scale = 1;
+      }
+    }
+
+    // Immediately constrain zoom engine minScale so user cannot zoom out beyond this scale
+    if (instance.setup) {
+      instance.setup.minScale = scale;
+    }
+    if (onBaseScaleChange) {
+      onBaseScaleChange(scale);
+    }
+
+    const posX = Math.max(0, (viewportWidth - cardWidth * scale) / 2);
+    setTransform(posX, 0, scale, 0);
+  }, [instance, setTransform, onBaseScaleChange]);
 
   useEffect(() => {
-    let t: any;
-    const fit = () => {
-      clearTimeout(t);
-      t = setTimeout(() => {
-        zoomToElement('piascore-chart-card', undefined, 0);
-      }, 150);
+    let t1: any;
+    let t2: any;
+    const runFit = () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      t1 = setTimeout(fitToScreen, 50);
+      t2 = setTimeout(fitToScreen, 200);
     };
-    fit();
-    window.addEventListener('resize', fit);
-    window.addEventListener('orientationchange', fit);
+    runFit();
+    window.addEventListener('resize', runFit);
+    window.addEventListener('orientationchange', runFit);
+    window.addEventListener('piascore-fit-screen', runFit);
+    window.addEventListener('chord-grid-font-change', runFit);
     return () => {
-      clearTimeout(t);
-      window.removeEventListener('resize', fit);
-      window.removeEventListener('orientationchange', fit);
+      clearTimeout(t1);
+      clearTimeout(t2);
+      window.removeEventListener('resize', runFit);
+      window.removeEventListener('orientationchange', runFit);
+      window.removeEventListener('piascore-fit-screen', runFit);
+      window.removeEventListener('chord-grid-font-change', runFit);
     };
-  }, [zoomToElement, chart.id]);
+  }, [fitToScreen, chart.id]);
 
   return <ChartRenderer chart={chart} selectedFont={selectedFont} chordColor={chordColor} id="piascore-chart-card" />;
 }
 
 export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollowStart }: Props) {
   const router = useRouter();
+  const { profile } = useAuth();
+  const canEditChart = canModifySection(profile?.profession, 'chart');
+
+  // Minimum zoom scale constrained to default fitted size so zooming out beyond default size is impossible
+  const [minZoomScale, setMinZoomScale] = useState<number>(1);
 
   // ── Open Tabs State ─────────────────────────────────────────────────────────
   const [tabs, setTabs] = useState<TabItem[]>([
@@ -94,6 +150,21 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
 
   // ── UI Auto-hide / Header Toggle ────────────────────────────────────────────
   const [showUI, setShowUI] = useState(true);
+  const isDraggingRef = useRef(false);
+  const dragStartPosRef = useRef({ x: 0, y: 0 });
+
+  const handlePointerDown = (e: React.PointerEvent) => {
+    dragStartPosRef.current = { x: e.clientX, y: e.clientY };
+    isDraggingRef.current = false;
+  };
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    const dx = Math.abs(e.clientX - dragStartPosRef.current.x);
+    const dy = Math.abs(e.clientY - dragStartPosRef.current.y);
+    if (dx > 8 || dy > 8) {
+      isDraggingRef.current = true;
+    }
+  };
   
   const closeAllPopups = () => {
     setIsBookmarkOpen(false);
@@ -104,6 +175,10 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
   };
 
   const handleCanvasClick = () => {
+    if (isDraggingRef.current) {
+      isDraggingRef.current = false;
+      return;
+    }
     const hasOpenPopup = isBookmarkOpen || isAdjustOpen || isPageOverviewOpen || isInfoOpen || isMetronomeOpen;
     if (hasOpenPopup) {
       closeAllPopups();
@@ -203,10 +278,16 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
   const [chordColor, setChordColor] = useState('#0f172a');
 
   useEffect(() => {
-    const saved = localStorage.getItem('chord-grid-font');
-    if (saved) setSelectedFont(saved);
+    const handleFontChange = () => {
+      const saved = localStorage.getItem('chord-grid-font');
+      if (saved) setSelectedFont(saved);
+    };
+    handleFontChange();
     const savedColor = localStorage.getItem('chord-grid-chord-color');
     if (savedColor) setChordColor(savedColor);
+
+    window.addEventListener('chord-grid-font-change', handleFontChange);
+    return () => window.removeEventListener('chord-grid-font-change', handleFontChange);
   }, []);
 
   // Load bookmarks list
@@ -333,7 +414,7 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
     <div className="fixed inset-0 w-screen h-screen bg-[#e8e8ec] dark:bg-[#121214] text-slate-800 dark:text-slate-100 flex flex-col overflow-hidden select-none font-sans">
       {/* ── 1. TOP HEADER (Piascore Style) ────────────────────────────────── */}
       <header
-        className={`fixed top-0 left-0 right-0 z-50 bg-[#f8f8fa]/95 dark:bg-[#1a1a1e]/95 backdrop-blur-md border-b border-slate-300 dark:border-slate-800 flex items-center justify-between px-3 h-12 transition-transform duration-300 ${
+        className={`fixed top-0 left-0 right-0 z-50 bg-white/60 dark:bg-[#1a1a1e]/60 backdrop-blur-2xl saturate-[180%] border-b border-white/60 dark:border-white/15 flex items-center justify-between px-3 h-12 transition-transform duration-300 ${
           showUI ? 'translate-y-0' : '-translate-y-full'
         }`}
       >
@@ -370,7 +451,7 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
 
       {/* ── 2. DOCUMENT TAB NAVIGATION BAR (Below Header) ──────────────────── */}
       <nav
-        className={`fixed top-12 left-0 right-0 z-40 bg-[#dedede] dark:bg-[#202024] border-b border-slate-300 dark:border-slate-800 flex items-center px-2 h-9 gap-1 overflow-x-auto scrollbar-none transition-transform duration-300 ${
+        className={`fixed top-12 left-0 right-0 z-40 bg-white/50 dark:bg-[#202024]/50 backdrop-blur-2xl saturate-[180%] border-b border-white/60 dark:border-white/15 flex items-center px-2 h-9 gap-1 overflow-x-auto scrollbar-none transition-transform duration-300 ${
           showUI ? 'translate-y-0' : '-translate-y-[5.25rem]'
         }`}
       >
@@ -431,7 +512,7 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
 
       {/* ── METRONOME CONTROL DRAWER ──────────────────────────────────────── */}
       {isMetronomeOpen && (
-        <div className="fixed left-12 top-1/2 -translate-y-1/2 z-50 w-72 bg-white dark:bg-[#1e1e24] border border-slate-300 dark:border-slate-700 shadow-2xl rounded-2xl p-4 flex flex-col gap-3">
+        <div className="fixed left-12 top-1/2 -translate-y-1/2 z-50 w-72 bg-white/70 dark:bg-[#1e1e24]/70 backdrop-blur-2xl saturate-[180%] border border-white/60 dark:border-white/15 shadow-[0_8px_32px_rgba(31,38,135,0.12),inset_0_1px_0_rgba(255,255,255,0.8)] rounded-2xl p-4 flex flex-col gap-3">
           <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2">
             <h3 className="text-sm font-bold flex items-center gap-2">
               <Volume2 size={16} className="text-accent-start" /> Metronome
@@ -525,29 +606,55 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
 
       {/* ── 4. MAIN SCORE READER CANVAS ───────────────────────────────────── */}
       <main
-        className="flex-1 w-full h-full relative overflow-hidden flex items-stretch justify-center cursor-pointer"
+        className="flex-1 w-full h-full relative overflow-hidden flex items-stretch justify-center cursor-pointer select-none"
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
         onClick={toggleUI}
       >
         <TransformWrapper
-          initialScale={1}
-          minScale={0.2}
+          initialScale={minZoomScale}
+          minScale={minZoomScale}
           maxScale={4}
           centerOnInit={true}
           centerZoomedOut={true}
+          limitToBounds={true}
+          wheel={{
+            step: 0.1,
+            wheelDisabled: true, // Enables natural mouse wheel to scroll down and up through lines
+          }}
+          trackPadPanning={{
+            disabled: false,
+            velocityDisabled: false,
+            lockAxisX: true, // Locks vertical scroll along Y-axis so chart remains neatly centered
+          }}
+          panning={{
+            disabled: false,
+            velocityDisabled: false,
+          }}
+          pinch={{
+            step: 5,
+            disabled: false,
+            allowPanning: true,
+          }}
           doubleClick={{ disabled: true }}
         >
           <TransformComponent
             wrapperClass="!w-full !h-full"
-            contentClass="w-full min-w-full min-h-full flex items-stretch justify-center p-2 sm:p-4 md:p-6 pt-16 sm:pt-20 pb-16 sm:pb-20"
+            contentClass="min-w-full min-h-full w-max flex items-start justify-center p-2 sm:p-4 md:p-6 pt-24 sm:pt-28 pb-16 sm:pb-20"
           >
             <div
               onClick={(e) => {
                 e.stopPropagation();
                 toggleUI();
               }}
-              className="bg-white text-slate-900 shadow-2xl rounded-2xl p-4 sm:p-8 md:p-10 w-full max-w-none border border-slate-200/80 flex items-stretch"
+              className="w-fit min-w-full max-w-none flex flex-col items-start justify-start"
             >
-              <ChartContentWrapper chart={currentChart} selectedFont={selectedFont} chordColor={chordColor} />
+              <ChartContentWrapper
+                chart={currentChart}
+                selectedFont={selectedFont}
+                chordColor={chordColor}
+                onBaseScaleChange={setMinZoomScale}
+              />
             </div>
           </TransformComponent>
         </TransformWrapper>
@@ -557,7 +664,7 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
 
       {/* ── 6. BOTTOM ACTION TOOLBAR (5 Icons matching Piascore) ────────── */}
       <footer
-        className={`fixed bottom-0 left-0 right-0 z-50 bg-[#f8f8fa]/95 dark:bg-[#1a1a1e]/95 backdrop-blur-md border-t border-slate-300 dark:border-slate-800 flex items-center justify-around h-14 px-2 transition-transform duration-300 ${
+        className={`fixed bottom-0 left-0 right-0 z-50 bg-white/60 dark:bg-[#1a1a1e]/60 backdrop-blur-2xl saturate-[180%] border-t border-white/60 dark:border-white/15 shadow-[0_8px_32px_rgba(31,38,135,0.12),inset_0_1px_0_rgba(255,255,255,0.8)] flex items-center justify-around h-14 px-2 transition-transform duration-300 ${
           showUI ? 'translate-y-0' : 'translate-y-full'
         }`}
       >
@@ -626,20 +733,22 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
         </button>
 
         {/* Button 5: Writing */}
-        <button
-          onClick={() => router.push(`/chart/${currentChart.id}/edit`)}
-          className="flex flex-col items-center gap-0.5 text-[10px] font-semibold text-slate-600 dark:text-slate-400 hover:text-[#007aff] transition-all active:scale-95"
-        >
-          <Edit3 size={20} />
-          <span>Writing</span>
-        </button>
+        {canEditChart && (
+          <button
+            onClick={() => router.push(`/chart/${currentChart.id}/edit`)}
+            className="flex flex-col items-center gap-0.5 text-[10px] font-semibold text-slate-600 dark:text-slate-400 hover:text-[#007aff] transition-all active:scale-95"
+          >
+            <Edit3 size={20} />
+            <span>Writing</span>
+          </button>
+        )}
       </footer>
 
       {/* ── 7. BOOKMARK POPOVER MODAL (Image 1 Model) ─────────────────────── */}
       {isBookmarkOpen && (
-        <div className="fixed bottom-16 left-4 z-50 w-80 max-w-[90vw] bg-white dark:bg-[#1e1e24] border border-slate-300 dark:border-slate-700 shadow-2xl rounded-2xl overflow-hidden flex flex-col max-h-96 animate-in slide-in-from-bottom-2 duration-200">
+        <div className="fixed bottom-16 left-4 z-50 w-80 max-w-[90vw] bg-white/65 dark:bg-[#1e1e24]/65 backdrop-blur-2xl saturate-[180%] border border-white/60 dark:border-white/15 shadow-[0_8px_32px_rgba(31,38,135,0.12),inset_0_1px_0_rgba(255,255,255,0.8)] rounded-2xl overflow-hidden flex flex-col max-h-96 animate-in slide-in-from-bottom-2 duration-200">
           {/* Header matching Image 1: < [=], ⇅, Title: Bookmark, + */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#16161a]">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-white/40 dark:border-white/10 bg-white/40 dark:bg-white/[0.05]">
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setIsBookmarkOpen(false)}
@@ -699,7 +808,7 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
       {/* ── 8. SYNC PAGE TURNING MODAL (Image 2 Model) ────────────────────── */}
       {isSyncModalOpen && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-[#1c1c22] border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center flex flex-col items-center gap-4">
+          <div className="bg-white/65 dark:bg-[#1c1c22]/65 backdrop-blur-2xl saturate-[180%] border border-white/60 dark:border-white/15 rounded-2xl shadow-[0_8px_32px_rgba(31,38,135,0.12),inset_0_1px_0_rgba(255,255,255,0.8)] max-w-sm w-full p-6 text-center flex flex-col items-center gap-4">
             <h2 className="text-lg font-bold text-slate-900 dark:text-white">
               Sync page turning
             </h2>
@@ -747,7 +856,7 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
 
       {/* ── 9. ADJUST PAGE PANEL ─────────────────────────────────────────── */}
       {isAdjustOpen && (
-        <div className="fixed bottom-16 right-4 z-50 w-80 bg-white dark:bg-[#1e1e24] border border-slate-300 dark:border-slate-700 shadow-2xl rounded-2xl p-4 flex flex-col gap-4">
+        <div className="fixed bottom-16 right-4 z-50 w-80 bg-white/65 dark:bg-[#1e1e24]/65 backdrop-blur-2xl saturate-[180%] border border-white/60 dark:border-white/15 shadow-[0_8px_32px_rgba(31,38,135,0.12),inset_0_1px_0_rgba(255,255,255,0.8)] rounded-2xl p-4 flex flex-col gap-4">
           <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2">
             <h3 className="text-sm font-bold flex items-center gap-2">
               <Crop size={16} className="text-[#007aff]" /> Display & Scroll Mode
@@ -760,7 +869,27 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
             </button>
           </div>
 
+          {/* Quick Fit to Screen */}
+          <button
+            onClick={() => {
+              window.dispatchEvent(new Event('piascore-fit-screen'));
+              setIsAdjustOpen(false);
+            }}
+            className="w-full py-2.5 px-3 bg-[#007aff]/10 hover:bg-[#007aff]/20 text-[#007aff] dark:text-[#3894ff] rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 active:scale-98"
+          >
+            <RotateCcw size={14} /> Fit Chart to Screen
+          </button>
 
+          {/* 1-Page Print Action */}
+          <button
+            onClick={() => {
+              setIsAdjustOpen(false);
+              setTimeout(() => window.print(), 100);
+            }}
+            className="w-full py-2.5 px-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 active:scale-98"
+          >
+            <Printer size={14} className="text-[#007aff]" /> Print Chart (1 Page)
+          </button>
 
           {/* Transpose Key */}
           <div className="flex flex-col gap-1.5">
@@ -795,13 +924,16 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
                 const f = e.target.value;
                 setSelectedFont(f);
                 localStorage.setItem('chord-grid-font', f);
+                window.dispatchEvent(new Event('chord-grid-font-change'));
               }}
               className="w-full p-2 bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-900 dark:text-white"
             >
-              <option value="system">System Default</option>
-              <option value="outfit">Outfit Clean</option>
-              <option value="serif">Classic Serif</option>
-              <option value="mono">Monospace</option>
+              <option value="system">Plus Jakarta Sans (Default)</option>
+              <option value="'JetBrains Mono', monospace">JetBrains Mono</option>
+              <option value="'Courier New', Courier, monospace">Courier New</option>
+              <option value="Consolas, monospace">Consolas</option>
+              <option value="'Cascadia Code', monospace">Cascadia Code</option>
+              <option value="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace">Apple SF Mono</option>
             </select>
           </div>
 
@@ -841,7 +973,7 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
 
       {/* ── 10. PAGE GRID OVERVIEW PANEL ─────────────────────────────────── */}
       {isPageOverviewOpen && (
-        <div className="fixed bottom-16 right-4 z-50 w-80 bg-white dark:bg-[#1e1e24] border border-slate-300 dark:border-slate-700 shadow-2xl rounded-2xl p-4 flex flex-col gap-3">
+        <div className="fixed bottom-16 right-4 z-50 w-80 bg-white/65 dark:bg-[#1e1e24]/65 backdrop-blur-2xl saturate-[180%] border border-white/60 dark:border-white/15 shadow-[0_8px_32px_rgba(31,38,135,0.12),inset_0_1px_0_rgba(255,255,255,0.8)] rounded-2xl p-4 flex flex-col gap-3">
           <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2">
             <h3 className="text-sm font-bold flex items-center gap-2">
               <LayoutGrid size={16} className="text-[#007aff]" /> Section Overview
@@ -881,7 +1013,7 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
 
       {/* ── 11. INFO PANEL ──────────────────────────────────────────────── */}
       {isInfoOpen && (
-        <div className="fixed bottom-16 right-4 z-50 w-72 bg-white dark:bg-[#1e1e24] border border-slate-300 dark:border-slate-700 shadow-2xl rounded-2xl p-4 flex flex-col gap-3">
+        <div className="fixed bottom-16 right-4 z-50 w-72 bg-white/65 dark:bg-[#1e1e24]/65 backdrop-blur-2xl saturate-[180%] border border-white/60 dark:border-white/15 shadow-[0_8px_32px_rgba(31,38,135,0.12),inset_0_1px_0_rgba(255,255,255,0.8)] rounded-2xl p-4 flex flex-col gap-3">
           <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2">
             <h3 className="text-sm font-bold flex items-center gap-2">
               <Info size={16} className="text-[#007aff]" /> Score Details
