@@ -11,12 +11,13 @@ const FADE_MS = 500;
 
 /**
  * Animated launch screen.
- * - Shows first, on top of everything, every time the app opens or the page is fully reloaded.
- * - Does NOT show again when navigating between screens inside the app.
+ * - Shows ONLY when the app is opened for the first time in a session OR on a hard refresh.
+ * - Does NOT show on subsequent internal navigations or normal soft refreshes.
  * - Smoothly fades out with hardware-accelerated easing.
  * - Tap anywhere or tap "Skip ›" to smoothly dismiss early.
  */
 export function SplashScreen() {
+  const [shouldShow, setShouldShow] = useState<boolean | null>(null);
   const [fading, setFading] = useState(false);
   const [gone, setGone] = useState(false);
   const dismissedRef = useRef(false);
@@ -31,10 +32,45 @@ export function SplashScreen() {
   };
 
   useEffect(() => {
+    // Only show on:
+    // 1. First time opening the app in this session (sessionStorage empty)
+    // 2. Explicit hard refresh (Ctrl+Shift+R / Ctrl+F5)
+    try {
+      const splashShown = sessionStorage.getItem("chordly_splash_shown");
+      const nav = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined;
+      const isHardReload = nav?.type === "reload" && (nav.transferSize > 1000 || nav.encodedBodySize > 500);
+      const isFirstTime = !splashShown;
+
+      if (!isFirstTime && !isHardReload) {
+        setGone(true);
+        setShouldShow(false);
+        return;
+      }
+
+      sessionStorage.setItem("chordly_splash_shown", "true");
+      setShouldShow(true);
+    } catch {
+      setShouldShow(true);
+    }
+
+    // Capture Ctrl+Shift+R / Cmd+Shift+R / Ctrl+F5 so next reload will splash
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && (e.shiftKey || e.key === "F5") && (e.key === "r" || e.key === "R" || e.key === "F5")) {
+        try {
+          sessionStorage.removeItem("chordly_splash_shown");
+        } catch {}
+      }
+      if (e.key === "F5" && (e.ctrlKey || e.shiftKey)) {
+        try {
+          sessionStorage.removeItem("chordly_splash_shown");
+        } catch {}
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+
     const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
     const hold = reduce ? HOLD_MS_REDUCED_MOTION : HOLD_MS;
 
-    // Remaining time accounting for load duration
     const elapsed = performance.now();
     const remaining = Math.max(200, hold - elapsed);
 
@@ -42,10 +78,14 @@ export function SplashScreen() {
       dismiss();
     }, remaining);
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
   }, []);
 
-  if (gone) return null;
+  // Suppressed for existing session or already dismissed
+  if (gone || shouldShow === false) return null;
 
   return (
     <div

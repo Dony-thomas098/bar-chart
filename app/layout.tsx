@@ -89,6 +89,13 @@ export default function RootLayout({
                     root.classList.remove('dark');
                     root.setAttribute('data-theme', 'light');
                   }
+
+                  var splashSeen = sessionStorage.getItem('chordly_splash_shown');
+                  var nav = window.performance && performance.getEntriesByType && performance.getEntriesByType('navigation')[0];
+                  var isHardReload = nav && nav.type === 'reload' && (nav.transferSize > 1000 || nav.encodedBodySize > 500);
+                  if (splashSeen && !isHardReload) {
+                    root.classList.add('no-splash');
+                  }
                 } catch (e) {}
               })();
               window.addEventListener('error', function(e) {
