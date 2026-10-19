@@ -8,12 +8,20 @@ import { X, User, LogOut, Settings, Folder as FolderIcon, FileText, Printer, Tra
 import { useRouter, usePathname } from 'next/navigation';
 import { getStoredTheme, setTheme, ThemeMode } from '@/lib/theme';
 import { ChordlyLogo } from './ChordlyLogo';
+import { useHardwareBackButton } from '@/hooks/useHardwareBackButton';
 import './sidebar-drawer.css';
 
 export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const { user, profile, signOut } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+
+  // Android hardware back button dismisses sidebar drawer
+  useHardwareBackButton({
+    enabled: isOpen,
+    onBack: onClose,
+    stateKey: 'chordly_sidebar',
+  });
   const [recentCharts, setRecentCharts] = useState<any[]>([]);
   const [selectedFont, setSelectedFont] = useState('system');
   const [createFolderModal, setCreateFolderModal] = useState(false);

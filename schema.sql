@@ -97,94 +97,119 @@ ON public.profiles FOR UPDATE TO authenticated
 USING (auth.uid() = id)
 WITH CHECK (auth.uid() = id);
 
--- 9. Folders Policies (Authenticated users within the band/shared library)
-CREATE POLICY "Authenticated users can view non-deleted folders"
+-- 9. Folders Policies (Secure User Ownership)
+CREATE POLICY "Users can view own folders"
 ON public.folders FOR SELECT TO authenticated
-USING (true);
+USING (auth.uid() = created_by);
 
-CREATE POLICY "Authenticated users can insert folders"
+CREATE POLICY "Users can insert own folders"
 ON public.folders FOR INSERT TO authenticated
-WITH CHECK (auth.uid() IS NOT NULL);
+WITH CHECK (auth.uid() = created_by);
 
-CREATE POLICY "Authenticated users can update folders"
+CREATE POLICY "Users can update own folders"
 ON public.folders FOR UPDATE TO authenticated
-USING (auth.uid() IS NOT NULL)
-WITH CHECK (auth.uid() IS NOT NULL);
+USING (auth.uid() = created_by)
+WITH CHECK (auth.uid() = created_by);
 
-CREATE POLICY "Authenticated users can delete folders"
+CREATE POLICY "Users can delete own folders"
 ON public.folders FOR DELETE TO authenticated
-USING (auth.uid() IS NOT NULL);
+USING (auth.uid() = created_by);
 
--- 10. Charts Policies
-CREATE POLICY "Authenticated users can view non-deleted charts"
+-- 10. Charts Policies (Secure User Ownership)
+CREATE POLICY "Users can view own charts"
 ON public.charts FOR SELECT TO authenticated
-USING (true);
+USING (auth.uid() = created_by);
 
-CREATE POLICY "Authenticated users can insert charts"
+CREATE POLICY "Users can insert own charts"
 ON public.charts FOR INSERT TO authenticated
-WITH CHECK (auth.uid() IS NOT NULL);
+WITH CHECK (auth.uid() = created_by);
 
-CREATE POLICY "Authenticated users can update charts"
+CREATE POLICY "Users can update own charts"
 ON public.charts FOR UPDATE TO authenticated
-USING (auth.uid() IS NOT NULL)
-WITH CHECK (auth.uid() IS NOT NULL);
+USING (auth.uid() = created_by)
+WITH CHECK (auth.uid() = created_by);
 
-CREATE POLICY "Authenticated users can delete charts"
+CREATE POLICY "Users can delete own charts"
 ON public.charts FOR DELETE TO authenticated
-USING (auth.uid() IS NOT NULL);
+USING (auth.uid() = created_by);
 
--- 11. Lyrics Policies
-CREATE POLICY "Authenticated users can view lyrics"
+-- 11. Lyrics Policies (Secure User Ownership)
+CREATE POLICY "Users can view own lyrics"
 ON public.lyrics FOR SELECT TO authenticated
-USING (true);
+USING (auth.uid() = created_by);
 
-CREATE POLICY "Authenticated users can insert lyrics"
+CREATE POLICY "Users can insert own lyrics"
 ON public.lyrics FOR INSERT TO authenticated
-WITH CHECK (auth.uid() IS NOT NULL);
+WITH CHECK (auth.uid() = created_by);
 
-CREATE POLICY "Authenticated users can update lyrics"
+CREATE POLICY "Users can update own lyrics"
 ON public.lyrics FOR UPDATE TO authenticated
-USING (auth.uid() IS NOT NULL)
-WITH CHECK (auth.uid() IS NOT NULL);
+USING (auth.uid() = created_by)
+WITH CHECK (auth.uid() = created_by);
 
-CREATE POLICY "Authenticated users can delete lyrics"
+CREATE POLICY "Users can delete own lyrics"
 ON public.lyrics FOR DELETE TO authenticated
-USING (auth.uid() IS NOT NULL);
+USING (auth.uid() = created_by);
 
--- 12. Setlists & Items Policies
-CREATE POLICY "Authenticated users can view setlists"
+-- 12. Setlists & Items Policies (Secure User Ownership)
+CREATE POLICY "Users can view own setlists"
 ON public.setlists FOR SELECT TO authenticated
-USING (true);
+USING (auth.uid() = created_by);
 
-CREATE POLICY "Authenticated users can insert setlists"
+CREATE POLICY "Users can insert own setlists"
 ON public.setlists FOR INSERT TO authenticated
-WITH CHECK (auth.uid() IS NOT NULL);
+WITH CHECK (auth.uid() = created_by);
 
-CREATE POLICY "Authenticated users can update setlists"
+CREATE POLICY "Users can update own setlists"
 ON public.setlists FOR UPDATE TO authenticated
-USING (auth.uid() IS NOT NULL)
-WITH CHECK (auth.uid() IS NOT NULL);
+USING (auth.uid() = created_by)
+WITH CHECK (auth.uid() = created_by);
 
-CREATE POLICY "Authenticated users can delete setlists"
+CREATE POLICY "Users can delete own setlists"
 ON public.setlists FOR DELETE TO authenticated
-USING (auth.uid() IS NOT NULL);
+USING (auth.uid() = created_by);
 
-CREATE POLICY "Authenticated users can view setlist_items"
+CREATE POLICY "Users can view own setlist_items"
 ON public.setlist_items FOR SELECT TO authenticated
-USING (true);
+USING (
+  EXISTS (
+    SELECT 1 FROM public.setlists s
+    WHERE s.id = setlist_items.setlist_id AND s.created_by = auth.uid()
+  )
+);
 
-CREATE POLICY "Authenticated users can insert setlist_items"
+CREATE POLICY "Users can insert own setlist_items"
 ON public.setlist_items FOR INSERT TO authenticated
-WITH CHECK (auth.uid() IS NOT NULL);
+WITH CHECK (
+  EXISTS (
+    SELECT 1 FROM public.setlists s
+    WHERE s.id = setlist_items.setlist_id AND s.created_by = auth.uid()
+  )
+);
 
-CREATE POLICY "Authenticated users can update setlist_items"
+CREATE POLICY "Users can update own setlist_items"
 ON public.setlist_items FOR UPDATE TO authenticated
-USING (auth.uid() IS NOT NULL)
-WITH CHECK (auth.uid() IS NOT NULL);
+USING (
+  EXISTS (
+    SELECT 1 FROM public.setlists s
+    WHERE s.id = setlist_items.setlist_id AND s.created_by = auth.uid()
+  )
+)
+WITH CHECK (
+  EXISTS (
+    SELECT 1 FROM public.setlists s
+    WHERE s.id = setlist_items.setlist_id AND s.created_by = auth.uid()
+  )
+);
 
-CREATE POLICY "Authenticated users can delete setlist_items"
+CREATE POLICY "Users can delete own setlist_items"
 ON public.setlist_items FOR DELETE TO authenticated
-USING (auth.uid() IS NOT NULL);
+USING (
+  EXISTS (
+    SELECT 1 FROM public.setlists s
+    WHERE s.id = setlist_items.setlist_id AND s.created_by = auth.uid()
+  )
+);
 
 -- 13. Auto-sync trigger for new user creation
 CREATE OR REPLACE FUNCTION public.handle_new_user()

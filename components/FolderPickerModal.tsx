@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { listFolder, Folder } from '@/lib/storage';
 import { Folder as FolderIcon, X, ChevronRight, CornerLeftUp } from 'lucide-react';
+import { useHardwareBackButton } from '@/hooks/useHardwareBackButton';
 
 interface Props {
   isOpen: boolean;
@@ -13,6 +14,13 @@ interface Props {
 }
 
 export function FolderPickerModal({ isOpen, onClose, onMoveHere, title = "Move to...", excludeIds = [] }: Props) {
+  // Dismiss on Android hardware back button or Escape
+  useHardwareBackButton({
+    enabled: isOpen,
+    onBack: onClose,
+    stateKey: 'chordly_folder_picker',
+  });
+
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
   const [folders, setFolders] = useState<Folder[]>([]);
   const [loading, setLoading] = useState(true);

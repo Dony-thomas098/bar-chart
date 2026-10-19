@@ -13,6 +13,8 @@ import {
   ChevronRight, Type, AlignLeft, AlignCenter, AlignRight, ScrollText,
   Lock, Unlock
 } from 'lucide-react';
+import { useScreenWakeLock } from '@/hooks/useScreenWakeLock';
+import { useHardwareBackButton } from '@/hooks/useHardwareBackButton';
 
 interface TabItem {
   id: string;
@@ -385,11 +387,40 @@ export function PiascoreLyricsReader({ initialLyric, folderId }: Props) {
 
   const paragraphs = currentLyric.body ? currentLyric.body.split('\n\n') : [];
 
+  // ── Screen Wake Lock (Ensures screen never dims on stage) ──────────────────
+  useScreenWakeLock(true);
+
+  // ── Android Hardware Back Button & Popstate Navigation ────────────────────
+  const hasAnyModalOpen =
+    isSongPickerOpen ||
+    isBookmarkOpen ||
+    isSyncModalOpen ||
+    isAdjustOpen ||
+    isPageOverviewOpen ||
+    isInfoOpen ||
+    isMetronomeOpen;
+
+  const handleDismissTopModal = useCallback(() => {
+    if (isSongPickerOpen) {
+      setIsSongPickerOpen(false);
+    } else if (isSyncModalOpen) {
+      setIsSyncModalOpen(false);
+    } else {
+      closeAllPopups();
+    }
+  }, [isSongPickerOpen, isSyncModalOpen]);
+
+  useHardwareBackButton({
+    enabled: hasAnyModalOpen,
+    onBack: handleDismissTopModal,
+    stateKey: 'chordly_lyrics_modal',
+  });
+
   return (
     <div className="fixed inset-0 w-screen h-screen bg-[#e8e8ec] dark:bg-[#121214] text-slate-800 dark:text-slate-100 flex flex-col overflow-hidden select-none font-sans">
       {/* ── 1. TOP HEADER (Piascore Style) ────────────────────────────────── */}
       <header
-        className={`fixed top-0 left-0 right-0 z-50 bg-white/60 dark:bg-[#1a1a1e]/60 backdrop-blur-2xl saturate-[180%] border-b border-white/60 dark:border-white/15 flex items-center justify-between px-3 h-12 transition-transform duration-300 ${
+        className={`fixed top-0 left-0 right-0 z-50 bg-white/60 dark:bg-[#1a1a1e]/60 backdrop-blur-2xl saturate-[180%] border-b border-white/60 dark:border-white/15 flex items-center justify-between px-3 pt-[env(safe-area-inset-top,0px)] h-[calc(3rem+env(safe-area-inset-top,0px))] transition-transform duration-300 ${
           showUI ? 'translate-y-0' : '-translate-y-full'
         }`}
       >
@@ -442,8 +473,8 @@ export function PiascoreLyricsReader({ initialLyric, folderId }: Props) {
 
       {/* ── 2. DOCUMENT TAB NAVIGATION BAR (Below Header) ──────────────────── */}
       <nav
-        className={`fixed top-12 left-0 right-0 z-40 bg-white/50 dark:bg-[#202024]/50 backdrop-blur-2xl saturate-[180%] border-b border-white/60 dark:border-white/15 flex items-center px-2 h-9 gap-1 overflow-x-auto scrollbar-none transition-transform duration-300 ${
-          showUI ? 'translate-y-0' : '-translate-y-[5.25rem]'
+        className={`fixed top-[calc(3rem+env(safe-area-inset-top,0px))] left-0 right-0 z-40 bg-white/50 dark:bg-[#202024]/50 backdrop-blur-2xl saturate-[180%] border-b border-white/60 dark:border-white/15 flex items-center px-2 h-9 gap-1 overflow-x-auto scrollbar-none transition-transform duration-300 ${
+          showUI ? 'translate-y-0' : '-translate-y-[calc(5.25rem+env(safe-area-inset-top,0px))]'
         }`}
       >
         {tabs.map((tab) => {
@@ -591,7 +622,11 @@ export function PiascoreLyricsReader({ initialLyric, folderId }: Props) {
 
       {/* ── 4. MAIN LYRICS READER CANVAS ───────────────────────────────────── */}
       <main
-        className="flex-1 w-full h-full relative overflow-hidden flex items-stretch justify-center cursor-pointer"
+        className={`flex-1 w-full h-full relative overflow-hidden flex items-stretch justify-center cursor-pointer transition-[padding] duration-300 ${
+          showUI
+            ? 'pt-[calc(5.25rem+env(safe-area-inset-top,0px))] pb-[calc(3.5rem+env(safe-area-inset-bottom,0px))]'
+            : 'pt-[max(0.5rem,env(safe-area-inset-top,0px))] pb-[env(safe-area-inset-bottom,0px)]'
+        }`}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onClick={handleCanvasClick}
@@ -648,7 +683,7 @@ export function PiascoreLyricsReader({ initialLyric, folderId }: Props) {
 
       {/* ── 5. BOTTOM ACTION TOOLBAR (5 Icons matching Piascore) ────────── */}
       <footer
-        className={`fixed bottom-0 left-0 right-0 z-50 bg-white/60 dark:bg-[#1a1a1e]/60 backdrop-blur-2xl saturate-[180%] border-t border-white/60 dark:border-white/15 shadow-[0_8px_32px_rgba(31,38,135,0.12),inset_0_1px_0_rgba(255,255,255,0.8)] flex items-center justify-around h-14 px-2 transition-transform duration-300 ${
+        className={`fixed bottom-0 left-0 right-0 z-50 bg-white/60 dark:bg-[#1a1a1e]/60 backdrop-blur-2xl saturate-[180%] border-t border-white/60 dark:border-white/15 shadow-[0_8px_32px_rgba(31,38,135,0.12),inset_0_1px_0_rgba(255,255,255,0.8)] flex items-center justify-around pb-[env(safe-area-inset-bottom,0px)] h-[calc(3.5rem+env(safe-area-inset-bottom,0px))] px-2 transition-transform duration-300 ${
           showUI ? 'translate-y-0' : 'translate-y-full'
         }`}
       >

@@ -15,6 +15,8 @@ import {
   ChevronRight, ArrowLeft, RotateCcw, Sliders, ScrollText, Printer,
   Lock, Unlock
 } from 'lucide-react';
+import { useScreenWakeLock } from '@/hooks/useScreenWakeLock';
+import { useHardwareBackButton } from '@/hooks/useHardwareBackButton';
 
 interface TabItem {
   id: string;
@@ -505,6 +507,35 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
     }
   };
 
+  // ── Screen Wake Lock (Ensures screen never dims on stage) ──────────────────
+  useScreenWakeLock(true);
+
+  // ── Android Hardware Back Button & Popstate Navigation ────────────────────
+  const hasAnyModalOpen =
+    isSongPickerOpen ||
+    isBookmarkOpen ||
+    isSyncModalOpen ||
+    isAdjustOpen ||
+    isPageOverviewOpen ||
+    isInfoOpen ||
+    isMetronomeOpen;
+
+  const handleDismissTopModal = useCallback(() => {
+    if (isSongPickerOpen) {
+      setIsSongPickerOpen(false);
+    } else if (isSyncModalOpen) {
+      setIsSyncModalOpen(false);
+    } else {
+      closeAllPopups();
+    }
+  }, [isSongPickerOpen, isSyncModalOpen]);
+
+  useHardwareBackButton({
+    enabled: hasAnyModalOpen,
+    onBack: handleDismissTopModal,
+    stateKey: 'chordly_reader_modal',
+  });
+
   return (
     <div className="fixed inset-0 w-screen h-screen bg-[#0F1015] text-[#F4F2F0] flex flex-col overflow-hidden select-none font-sans relative">
       {/* ── Soft warm radial glow in top-left corner ──────────────────────── */}
@@ -517,7 +548,7 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
 
       {/* ── 1. TOP HEADER (Centered Title, Lock Icon, No Catalog/Gesture) ─── */}
       <header
-        className={`fixed top-0 left-0 right-0 z-50 bg-[#0F1015]/85 backdrop-blur-2xl border-b border-[#2A2A31] flex items-center justify-between px-4 h-14 transition-transform duration-300 ${
+        className={`fixed top-0 left-0 right-0 z-50 bg-[#0F1015]/85 backdrop-blur-2xl border-b border-[#2A2A31] flex items-center justify-between px-4 pt-[env(safe-area-inset-top,0px)] h-[calc(3.5rem+env(safe-area-inset-top,0px))] transition-transform duration-300 ${
           showUI ? 'translate-y-0' : '-translate-y-full'
         }`}
       >
@@ -556,8 +587,8 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
 
       {/* ── 2. DOCUMENT TAB NAVIGATION BAR (Below Header) ──────────────────── */}
       <nav
-        className={`fixed top-14 left-0 right-0 z-40 bg-[#0F1015]/75 backdrop-blur-2xl border-b border-[#2A2A31] flex items-center px-3 h-12 gap-2 overflow-x-auto scrollbar-none transition-transform duration-300 ${
-          showUI ? 'translate-y-0' : '-translate-y-[6.5rem]'
+        className={`fixed top-[calc(3.5rem+env(safe-area-inset-top,0px))] left-0 right-0 z-40 bg-[#0F1015]/75 backdrop-blur-2xl border-b border-[#2A2A31] flex items-center px-3 h-12 gap-2 overflow-x-auto scrollbar-none transition-transform duration-300 ${
+          showUI ? 'translate-y-0' : '-translate-y-[calc(6.5rem+env(safe-area-inset-top,0px))]'
         }`}
       >
         {tabs.map((tab) => {
@@ -715,7 +746,9 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
       {/* ── 4. MAIN SCORE READER CANVAS OR EMPTY STATE ─────────────────────── */}
       <main
         className={`flex-1 w-full h-full relative overflow-hidden flex items-stretch justify-center cursor-pointer select-none transition-[padding] duration-300 ${
-          showUI ? 'pt-26' : 'pt-2 md:pt-3'
+          showUI
+            ? 'pt-[calc(6.5rem+env(safe-area-inset-top,0px))]'
+            : 'pt-[max(0.5rem,env(safe-area-inset-top,0px))]'
         }`}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
@@ -812,8 +845,8 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
 
       {/* ── 5. FLOATING BOTTOM ACTION TOOLBAR ──────────────────────────────── */}
       <footer
-        className={`fixed bottom-4 left-[14px] right-[14px] max-w-[500px] mx-auto z-50 bg-[#14141A] border border-[#2E2E36] rounded-[30px] shadow-[0_8px_24px_rgba(0,0,0,0.6)] flex items-center justify-around h-16 px-3 transition-transform duration-300 ${
-          showUI ? 'translate-y-0' : 'translate-y-[calc(100%+24px)]'
+        className={`fixed bottom-[max(1rem,calc(env(safe-area-inset-bottom,0px)+0.75rem))] left-[14px] right-[14px] max-w-[500px] mx-auto z-50 bg-[#14141A] border border-[#2E2E36] rounded-[30px] shadow-[0_8px_24px_rgba(0,0,0,0.6)] flex items-center justify-around h-16 px-3 transition-transform duration-300 ${
+          showUI ? 'translate-y-0' : 'translate-y-[calc(100%+32px)]'
         }`}
       >
         {/* Button 1: Bookmark */}

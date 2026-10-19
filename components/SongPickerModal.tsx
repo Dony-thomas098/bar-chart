@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { searchAll } from '@/lib/storage';
 import { X, Search, FileText, Music, Check, Plus } from 'lucide-react';
+import { useHardwareBackButton } from '@/hooks/useHardwareBackButton';
 
 export type PickedItem = {
   item_type: 'chart' | 'lyrics';
@@ -19,6 +20,13 @@ interface SongPickerModalProps {
 }
 
 export function SongPickerModal({ isOpen, onClose, onAdd, existingIds = [] }: SongPickerModalProps) {
+  // Dismiss modal on Android physical Back press or Escape
+  useHardwareBackButton({
+    enabled: isOpen,
+    onBack: onClose,
+    stateKey: 'chordly_song_picker',
+  });
+
   const [tab, setTab] = useState<'chart' | 'lyrics'>('chart');
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<any[]>([]);
