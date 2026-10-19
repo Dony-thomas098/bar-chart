@@ -48,7 +48,7 @@ export function ChordlyLogo({ variant = "full", animate = false, className = "" 
   );
 
   const word = (
-    <>
+    <g className={styles.word}>
       <g className={styles.letter} style={{ "--i": 0 } as CSSVars}><path transform="translate(300.0 202.4) scale(0.24000 -0.24000)" d="M313 554Q414 554 479.5 504.0Q545 454 564 368H489Q475 427 428.5 460.5Q382 494 313 494Q258 494 214.0 469.0Q170 444 144.5 394.5Q119 345 119 273Q119 201 144.5 151.0Q170 101 214.0 76.0Q258 51 313 51Q382 51 428.5 84.5Q475 118 489 178H564Q545 94 479.0 43.0Q413 -8 313 -8Q236 -8 176.0 26.5Q116 61 82.0 124.5Q48 188 48 273Q48 358 82.0 421.5Q116 485 176.0 519.5Q236 554 313 554Z" className={styles.wm} /></g>
       <g className={styles.letter} style={{ "--i": 1 } as CSSVars}><path transform="translate(444.7 202.4) scale(0.24000 -0.24000)" d="M558 320V0H489V312Q489 401 444.5 448.0Q400 495 323 495Q244 495 197.0 445.0Q150 395 150 298V0H80V740H150V453Q176 502 226.5 529.0Q277 556 340 556Q402 556 451.5 530.0Q501 504 529.5 450.5Q558 397 558 320Z" className={styles.wm} /></g>
       <g className={styles.letter} style={{ "--i": 2 } as CSSVars}><path transform="translate(594.2 202.4) scale(0.24000 -0.24000)" d="M48 273Q48 358 84.0 421.5Q120 485 182.0 519.5Q244 554 321 554Q398 554 460.5 519.5Q523 485 558.5 421.5Q594 358 594 273Q594 189 558.0 125.0Q522 61 459.0 26.5Q396 -8 319 -8Q242 -8 180.5 26.5Q119 61 83.5 124.5Q48 188 48 273ZM522 273Q522 345 494.0 394.5Q466 444 420.0 468.5Q374 493 320 493Q266 493 220.0 468.5Q174 444 146.5 394.5Q119 345 119 273Q119 201 146.5 151.5Q174 102 219.5 77.5Q265 53 319 53Q373 53 419.0 77.5Q465 102 493.5 151.5Q522 201 522 273Z" className={styles.wm} /></g>
@@ -56,7 +56,7 @@ export function ChordlyLogo({ variant = "full", animate = false, className = "" 
       <g className={styles.letter} style={{ "--i": 4 } as CSSVars}><path transform="translate(830.4 202.4) scale(0.24000 -0.24000)" d="M310 554Q382 554 440.0 519.0Q498 484 525 428V740H595V0H525V122Q500 65 443.0 28.5Q386 -8 309 -8Q234 -8 174.5 27.0Q115 62 81.5 126.0Q48 190 48 274Q48 358 82.0 421.5Q116 485 175.5 519.5Q235 554 310 554ZM322 493Q264 493 218.0 467.0Q172 441 145.5 391.5Q119 342 119 274Q119 207 145.5 156.5Q172 106 218.0 79.5Q264 53 322 53Q378 53 424.5 80.0Q471 107 498.0 157.0Q525 207 525 273Q525 339 498.0 389.0Q471 439 424.5 466.0Q378 493 322 493Z" className={styles.wm} /></g>
       <g className={styles.letter} style={{ "--i": 5 } as CSSVars}><path transform="translate(994.8 202.4) scale(0.24000 -0.24000)" d="M233 740V0H62V740Z" fill={`url(#t-${uid})`} /></g>
       <g className={styles.letter} style={{ "--i": 6 } as CSSVars}><path transform="translate(1063.2 202.4) scale(0.24000 -0.24000)" d="M632 558 282 -265H98L226 19L-1 558H190L319 209L447 558Z" fill={`url(#t-${uid})`} /></g>
-    </>
+    </g>
   );
 
   const rootClass = `${styles.root} ${animate ? styles.play : ""} ${className}`.trim();
