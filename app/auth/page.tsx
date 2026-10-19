@@ -50,6 +50,35 @@ export default function AuthPage() {
     }
   }, [user, loading, authMode, router]);
 
+  // Permanently lock document and body scrolling while on the Auth screen
+  useEffect(() => {
+    const origHtmlOverflow = document.documentElement.style.overflow;
+    const origHtmlOverscroll = document.documentElement.style.overscrollBehavior;
+    const origBodyOverflow = document.body.style.overflow;
+    const origBodyOverscroll = document.body.style.overscrollBehavior;
+    const origBodyTouchAction = document.body.style.touchAction;
+
+    document.documentElement.style.overflow = 'hidden';
+    document.documentElement.style.overscrollBehavior = 'none';
+    document.documentElement.style.height = '100dvh';
+
+    document.body.style.overflow = 'hidden';
+    document.body.style.overscrollBehavior = 'none';
+    document.body.style.height = '100dvh';
+    document.body.style.touchAction = 'none';
+
+    return () => {
+      document.documentElement.style.overflow = origHtmlOverflow;
+      document.documentElement.style.overscrollBehavior = origHtmlOverscroll;
+      document.documentElement.style.height = '';
+
+      document.body.style.overflow = origBodyOverflow;
+      document.body.style.overscrollBehavior = origBodyOverscroll;
+      document.body.style.height = '';
+      document.body.style.touchAction = origBodyTouchAction;
+    };
+  }, []);
+
   if (loading || (user && authMode !== 'recovery')) return null;
 
   const handleGuestClick = () => {
@@ -211,34 +240,6 @@ export default function AuthPage() {
     }
   };
 
-  // Permanently lock document and body scrolling while on the Auth screen
-  useEffect(() => {
-    const origHtmlOverflow = document.documentElement.style.overflow;
-    const origHtmlOverscroll = document.documentElement.style.overscrollBehavior;
-    const origBodyOverflow = document.body.style.overflow;
-    const origBodyOverscroll = document.body.style.overscrollBehavior;
-    const origBodyTouchAction = document.body.style.touchAction;
-
-    document.documentElement.style.overflow = 'hidden';
-    document.documentElement.style.overscrollBehavior = 'none';
-    document.documentElement.style.height = '100dvh';
-
-    document.body.style.overflow = 'hidden';
-    document.body.style.overscrollBehavior = 'none';
-    document.body.style.height = '100dvh';
-    document.body.style.touchAction = 'none';
-
-    return () => {
-      document.documentElement.style.overflow = origHtmlOverflow;
-      document.documentElement.style.overscrollBehavior = origHtmlOverscroll;
-      document.documentElement.style.height = '';
-
-      document.body.style.overflow = origBodyOverflow;
-      document.body.style.overscrollBehavior = origBodyOverscroll;
-      document.body.style.height = '';
-      document.body.style.touchAction = origBodyTouchAction;
-    };
-  }, []);
 
   return (
     <div 
