@@ -1,8 +1,3 @@
-/* If splash was already seen in this session and not a hard refresh, suppress completely */
-:global(.no-splash) .root {
-  display: none !important;
-}
-
 /* Smooth launch screen exit transition */
 .root {
   transition: opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1),

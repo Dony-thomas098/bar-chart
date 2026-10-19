@@ -1,35 +1,13 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import { LogoLoading } from '@/components/LogoLoading';
-
-type LoadingVariant = 'rhythm-matrix' | 'harmonic-wave' | 'studio-rack';
+import React from 'react';
+import { ChordlyLogo } from '@/components/ChordlyLogo';
 
 export default function Loading() {
-  const [variant, setVariant] = useState<LoadingVariant>('rhythm-matrix');
-  const [bpm, setBpm] = useState<number>(120);
-  const [status, setStatus] = useState<string>('Tuning chord progression & harmony...');
-
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem('chordly_loading_variant') as LoadingVariant | null;
-      if (saved && ['rhythm-matrix', 'harmonic-wave', 'studio-rack'].includes(saved)) {
-        setVariant(saved);
-      }
-      const savedBpm = localStorage.getItem('chordly_loading_bpm');
-      if (savedBpm) setBpm(Number(savedBpm) || 120);
-
-      const savedStatus = localStorage.getItem('chordly_loading_status');
-      if (savedStatus) setStatus(savedStatus);
-    } catch {}
-  }, []);
-
   return (
-    <LogoLoading 
-      variant="fullscreen" 
-      statusText={status} 
-      bpm={bpm}
-      styleVariant={variant}
-    />
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--bg-canvas)] select-none">
+      <ChordlyLogo variant="stacked" animate className="w-[min(70vw,380px)] h-auto" />
+    </div>
   );
 }
+
