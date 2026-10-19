@@ -87,8 +87,18 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO
 
-      - name: Upload iOS Xcode Archive
+      - name: Package iOS IPA (Unsigned)
+        run: |
+          cd ios/App/build
+          mkdir -p Payload
+          cp -r App.xcarchive/Products/Applications/App.app Payload/
+          zip -qr Chordly.ipa Payload
+          rm -rf Payload
+
+      - name: Upload iOS Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: Chordly-iOS-Archive
-          path: ios/App/build/App.xcarchive
+          name: Chordly-iOS
+          path: |
+            ios/App/build/Chordly.ipa
+            ios/App/build/App.xcarchive
