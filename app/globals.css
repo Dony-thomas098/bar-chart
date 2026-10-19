@@ -312,6 +312,14 @@ body {
     background-clip: text;
   }
 
+  .text-chordly-orange {
+    background: linear-gradient(180deg, #ff7a29 0%, #e65100 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    color: #f97316;
+  }
+
   .shadow-card {
     box-shadow: var(--shadow-card);
   }

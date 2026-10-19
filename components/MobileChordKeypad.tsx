@@ -13,6 +13,7 @@ interface MobileChordKeypadProps {
   onPrevBar: () => void;
   onNextBar: () => void;
   onAddBar?: () => void;
+  onAddLine?: () => void;
   onDeleteBar?: () => void;
   onClose: () => void;
 }
@@ -26,6 +27,7 @@ export function MobileChordKeypad({
   onPrevBar,
   onNextBar,
   onAddBar,
+  onAddLine,
   onDeleteBar,
   onClose,
 }: MobileChordKeypadProps) {
@@ -33,12 +35,30 @@ export function MobileChordKeypad({
   const voicingInfo = activeChord && activeChord !== '_' && activeChord !== '-' ? getChordNotes(activeChord) : null;
   const notesBreakdown = voicingInfo ? voicingInfo.notes : [];
 
+  const lastNextBarTapRef = React.useRef<number>(0);
+
   const triggerHaptic = (duration = 10) => {
     if (typeof window !== 'undefined' && 'vibrate' in navigator) {
       try {
         navigator.vibrate(duration);
       } catch {}
     }
+  };
+
+  const handleNextBarPress = () => {
+    const now = Date.now();
+    const diff = now - lastNextBarTapRef.current;
+    lastNextBarTapRef.current = now;
+
+    if (diff > 0 && diff < 400 && onAddLine) {
+      lastNextBarTapRef.current = 0;
+      triggerHaptic(25);
+      onAddLine();
+      return;
+    }
+
+    triggerHaptic(10);
+    onNextBar();
   };
 
   const handleInputRoot = (root: string) => {
@@ -95,9 +115,9 @@ export function MobileChordKeypad({
             <ChevronLeft size={14} /> Prev
           </button>
           <button
-            onClick={() => { triggerHaptic(8); onNextBar(); }}
+            onClick={handleNextBarPress}
             className="flex items-center gap-0.5 px-3 py-1.5 text-xs font-bold rounded-full bg-white/70 dark:bg-white/10 text-text-primary border border-glass hover:bg-white active:scale-95 transition-all shadow-sm"
-            title="Next Bar"
+            title="Next Bar (Double tap to create new line)"
           >
             Next <ChevronRight size={14} />
           </button>
@@ -194,9 +214,9 @@ export function MobileChordKeypad({
             Clear
           </button>
           <button
-            onClick={() => { triggerHaptic(10); onNextBar(); }}
+            onClick={handleNextBarPress}
             className="col-span-2 h-9 rounded-full bg-btn-dark text-white font-bold text-xs shadow-btn-dark active:scale-90 transition-all flex items-center justify-center gap-1"
-            title="Next Measure"
+            title="Next Measure (Double-tap to create new line)"
           >
             Next Bar <ChevronRight size={14} />
           </button>

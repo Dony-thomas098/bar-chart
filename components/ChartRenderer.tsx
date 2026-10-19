@@ -490,7 +490,7 @@ export function ChartRenderer({
     <div 
       id={id}
       onClick={onClick}
-      className="flex text-left flex-col w-fit min-w-full min-h-full p-4 sm:p-8 md:p-10 print:p-0 bg-white print:bg-transparent rounded-2xl print:rounded-none relative mx-auto my-0 print:min-h-0 print:h-auto print:w-full border border-slate-200/80 shadow-2xl print:border-none print:shadow-none break-inside-avoid print:break-inside-avoid-page print-single-page"
+      className="flex text-left flex-col w-fit p-4 sm:p-8 md:p-10 print:p-0 bg-white print:bg-transparent rounded-2xl print:rounded-none relative mx-auto my-0 print:min-h-0 print:h-auto print:w-full border border-slate-200/80 shadow-2xl print:border-none print:shadow-none break-inside-avoid print:break-inside-avoid-page print-single-page"
     >
       {watermark && (
         <div className="hidden print:grid absolute inset-0 grid-cols-4 gap-y-6 gap-x-4 items-center justify-items-center pointer-events-none overflow-hidden z-[1] opacity-[0.04] rotate-[-30deg] scale-150 select-none">

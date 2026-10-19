@@ -31,7 +31,7 @@ export function SongPickerModal({ isOpen, onClose, onAdd, existingIds = [] }: So
       return;
     }
     setSearching(true);
-    const res = await searchAll(q, null, kind);
+    const res = await searchAll(q, null, kind, false);
     setResults(res);
     setSearching(false);
   }, []);

@@ -55,44 +55,66 @@ export function normalizeChordInput(raw: string): string {
     .replace(/#(?=[0-9])/g, '♯');
 }
 
+const UN_SUPER_MAP: Record<string, string> = {
+  '⁰': '0', '¹': '1', '²': '2', '³': '3', '⁴': '4',
+  '⁵': '5', '⁶': '6', '⁷': '7', '⁸': '8', '⁹': '9',
+  '⁺': '+', '⁻': '-', '⁼': '=',
+  '⁽': '(', '⁾': ')',
+  'ᵃ': 'a', 'ᵇ': 'b', 'ᶜ': 'c', 'ᵈ': 'd', 'ᵉ': 'e',
+  'ᶠ': 'f', 'ᵍ': 'g', 'ʰ': 'h', 'ⁱ': 'i', 'ʲ': 'j',
+  'ᵏ': 'k', 'ˡ': 'l', 'ᵐ': 'm', 'ⁿ': 'n', 'ᵒ': 'o',
+  'ᵖ': 'p', 'ʳ': 'r', 'ˢ': 's', 'ᵗ': 't', 'ᵘ': 'u',
+  'ᵛ': 'v', 'ʷ': 'w', 'ˣ': 'x', 'ʸ': 'y', 'ᶻ': 'z',
+  'ᴬ': 'A', 'ᴮ': 'B', 'ᴰ': 'D', 'ᴱ': 'E', 'ᴳ': 'G',
+  'ᴴ': 'H', 'ᴵ': 'I', 'ᴶ': 'J', 'ᴷ': 'K', 'ᴸ': 'L',
+  'ᴹ': 'M', 'ᴺ': 'N', 'ᴼ': 'O', 'ᴾ': 'P', 'ᴿ': 'R',
+  'ᵀ': 'T', 'ᵁ': 'U', 'ⱽ': 'V', 'ᵂ': 'W',
+};
+
+function unSuperscript(str: string): string {
+  return str.split('').map(c => UN_SUPER_MAP[c] || c).join('');
+}
+
 function parseSingleChord(raw: string): React.ReactNode {
   if (!raw || raw === '_' || raw === '%' || raw === '.') {
     return <span>{raw}</span>;
   }
 
-  const match = raw.match(/^([A-G])([#b♯♭])?(.*)$/);
+  // Convert any existing tiny Unicode superscripts back to standard readable characters
+  const clean = unSuperscript(raw);
+  const match = clean.match(/^([A-G])([#b♯♭])?(.*)$/);
   if (!match) {
     return <span>{raw}</span>;
   }
 
-  const [, root, accidental, rest] = match;
+  const [, root, accidental, rawRest] = match;
   const accChar = accidental === '#' || accidental === '♯' ? '♯' : accidental === 'b' || accidental === '♭' ? '♭' : '';
   const rootStr = root + accChar;
 
   let baseQuality = '';
   let superCluster = '';
 
+  const rest = formatExt(rawRest);
+
   if (rest) {
     if (rest.startsWith('min')) {
       baseQuality = 'm';
-      const ext = rest.slice(3);
-      superCluster = ext ? toSuperscript(ext) : '';
+      superCluster = rest.slice(3);
     } else if (rest.startsWith('m') && !rest.startsWith('maj')) {
       baseQuality = 'm';
-      const ext = rest.slice(1);
-      superCluster = ext ? toSuperscript(ext) : '';
+      superCluster = rest.slice(1);
     } else if (rest.startsWith('maj')) {
-      superCluster = 'Δ' + toSuperscript(rest.slice(3));
+      superCluster = 'Δ' + rest.slice(3);
     } else if (rest.startsWith('dim')) {
-      superCluster = '°' + toSuperscript(rest.slice(3));
+      superCluster = '°' + rest.slice(3);
     } else if (rest.startsWith('aug')) {
-      superCluster = '+' + toSuperscript(rest.slice(3));
+      superCluster = '+' + rest.slice(3);
     } else if (rest.startsWith('sus')) {
-      superCluster = 'sus' + toSuperscript(rest.slice(3));
+      superCluster = 'sus' + rest.slice(3);
     } else if (rest.startsWith('add')) {
-      superCluster = 'add' + toSuperscript(rest.slice(3));
+      superCluster = 'add' + rest.slice(3);
     } else {
-      superCluster = toSuperscript(rest);
+      superCluster = rest;
     }
   }
 
@@ -100,7 +122,7 @@ function parseSingleChord(raw: string): React.ReactNode {
     <span className="inline-flex items-baseline select-none" style={{ verticalAlign: 'baseline' }}>
       <span className="font-bold">{rootStr}{baseQuality}</span>
       {superCluster ? (
-        <sup style={{ fontSize: '0.65em', verticalAlign: 'super', fontWeight: 800, marginLeft: '1px', lineHeight: 1 }}>
+        <sup style={{ fontSize: '0.80em', verticalAlign: '0.35em', fontWeight: 700, marginLeft: '1.5px', lineHeight: 1 }}>
           {superCluster}
         </sup>
       ) : null}

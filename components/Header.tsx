@@ -37,10 +37,10 @@ export function Header() {
               {/* Brand Logo for desktop (>= sm) */}
               <Link href="/" className="hidden sm:flex items-center space-x-2.5 group cursor-pointer select-none">
                 <div className="w-8 h-8 rounded-xl overflow-hidden shadow-sm border border-black/5 dark:border-white/10 flex items-center justify-center bg-white/80 dark:bg-zinc-800 shrink-0">
-                  <img src="/icon.png" alt="ChordCraft" className="w-full h-full object-cover" />
+                  <img src="/icon.png" alt="Chordly" className="w-full h-full object-cover" />
                 </div>
-                <span className="hidden md:inline text-xl font-extrabold tracking-tight text-text-primary">
-                  Chord<span className="text-craft-gradient">Craft</span>
+                <span className="hidden md:inline text-xl font-extrabold tracking-tight text-slate-900 dark:text-white">
+                  chord<span className="text-chordly-orange font-black">ly</span>
                 </span>
               </Link>
             </div>
@@ -48,10 +48,10 @@ export function Header() {
             {/* Mobile Brand Logo (centered on < sm screens) */}
             <Link href="/" className="sm:hidden flex items-center space-x-2 group cursor-pointer select-none">
               <div className="w-8 h-8 rounded-xl overflow-hidden shadow-sm border border-black/5 dark:border-white/10 flex items-center justify-center bg-white/80 dark:bg-zinc-800">
-                <img src="/icon.png" alt="ChordCraft" className="w-full h-full object-cover" />
+                <img src="/icon.png" alt="Chordly" className="w-full h-full object-cover" />
               </div>
-              <span className="text-xl font-extrabold tracking-tight text-text-primary">
-                Chord<span className="text-craft-gradient">Craft</span>
+              <span className="text-xl font-extrabold tracking-tight text-slate-900 dark:text-white">
+                chord<span className="text-chordly-orange font-black">ly</span>
               </span>
             </Link>
 

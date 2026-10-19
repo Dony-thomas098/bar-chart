@@ -1,0 +1,47 @@
+{
+  "name": "Chordly",
+  "short_name": "Chordly",
+  "description": "Professional chord progression and chart editor for musicians",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "theme_color": "#080414",
+  "background_color": "#080414",
+  "icons": [
+    {
+      "src": "/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Library",
+      "url": "/",
+      "description": "Open chord chart library"
+    },
+    {
+      "name": "Perform Mode",
+      "url": "/perform",
+      "description": "Launch live perform queue"
+    },
+    {
+      "name": "Setlists",
+      "url": "/setlists",
+      "description": "Open saved setlists"
+    },
+    {
+      "name": "Lyrics",
+      "url": "/lyrics",
+      "description": "Open lyrics library"
+    }
+  ]
+}

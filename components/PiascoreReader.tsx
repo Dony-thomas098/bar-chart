@@ -12,7 +12,8 @@ import { TransformWrapper, TransformComponent, useControls } from 'react-zoom-pa
 import {
   FolderOpen, Smile, X, Plus, Play, Pause, Bookmark as BookmarkIcon,
   Crop, LayoutGrid, Info, Edit3, ArrowUpDown, BookOpen, Volume2,
-  ChevronRight, ArrowLeft, RotateCcw, Sliders, ScrollText, Printer
+  ChevronRight, ArrowLeft, RotateCcw, Sliders, ScrollText, Printer,
+  Lock, Unlock
 } from 'lucide-react';
 
 interface TabItem {
@@ -48,33 +49,60 @@ function ChartContentWrapper({
     const wrapper = instance.wrapperComponent;
     if (!cardEl || !wrapper) return;
 
-    // Viewport width with safety padding for comfortable margins
+    // Viewport width & height
     const viewportWidth = wrapper.clientWidth;
+    const viewportHeight = wrapper.clientHeight;
+    const isLandscape = viewportWidth > viewportHeight;
+    const isPhone = Math.min(viewportWidth, viewportHeight) <= 600 ||
+      (typeof navigator !== 'undefined' && /iPhone|Android|Mobile/i.test(navigator.userAgent));
+    const isPhoneRotate = isLandscape && isPhone;
+
     const availableWidth = Math.max(260, viewportWidth - 24);
-    // Real full scroll width of the chord chart card
+    // Real full scroll dimensions of the chord chart card
     const cardWidth = Math.max(cardEl.scrollWidth, cardEl.offsetWidth);
+    const cardHeight = Math.max(cardEl.scrollHeight, cardEl.offsetHeight);
 
     let scale = 1;
     if (cardWidth > 0 && availableWidth > 0) {
-      if (availableWidth < cardWidth) {
-        // Content exceeds viewport width: scale down smoothly so whole chart fits
-        scale = Math.max(0.15, (availableWidth / cardWidth) * 0.98);
+      if (isPhoneRotate) {
+        // IN PHONE ROTATE / LANDSCAPE MODE:
+        // Fit by both width and height so full chart fits comfortably initially
+        const availableHeight = Math.max(160, viewportHeight - 16);
+        const scaleX = (availableWidth / cardWidth) * 0.98;
+        const scaleY = cardHeight > 0 ? (availableHeight / cardHeight) * 0.98 : 1;
+        scale = Math.min(1, scaleX, scaleY);
       } else {
-        // Fits comfortably at 100% scale (default fixed size)
-        scale = 1;
+        // IN PORTRAIT MODE:
+        if (availableWidth < cardWidth) {
+          // Content exceeds viewport width: scale down smoothly so whole chart fits
+          scale = Math.max(0.15, (availableWidth / cardWidth) * 0.98);
+        } else {
+          // Fits comfortably at 100% scale (default fixed size)
+          scale = 1;
+        }
       }
     }
 
-    // Immediately constrain zoom engine minScale so user cannot zoom out beyond this scale
+    // In rotate mode on phone: allow freely zooming out (down to 0.1) so user can customize view!
+    // In portrait mode on phone: maintain minimum scale so chart doesn't over-shrink.
+    const effectiveMinScale = isPhoneRotate ? 0.1 : scale;
+
     if (instance.setup) {
-      instance.setup.minScale = scale;
+      instance.setup.minScale = effectiveMinScale;
     }
     if (onBaseScaleChange) {
-      onBaseScaleChange(scale);
+      onBaseScaleChange(effectiveMinScale);
     }
 
-    const posX = Math.max(0, (viewportWidth - cardWidth * scale) / 2);
-    setTransform(posX, 0, scale, 0);
+    const scaledWidth = cardWidth * scale;
+    const scaledHeight = cardHeight * scale;
+
+    // Center horizontally
+    const posX = Math.max(0, (viewportWidth - scaledWidth) / 2);
+    // Center vertically: if chart is shorter than viewport, center it; otherwise top-align with 24px padding
+    const posY = scaledHeight < viewportHeight ? Math.max(0, (viewportHeight - scaledHeight) / 2) : 24;
+
+    setTransform(posX, posY, scale, 0);
   }, [instance, setTransform, onBaseScaleChange]);
 
   useEffect(() => {
@@ -150,6 +178,7 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
 
   // ── UI Auto-hide / Header Toggle ────────────────────────────────────────────
   const [showUI, setShowUI] = useState(true);
+  const [isStageLocked, setIsStageLocked] = useState(false);
   const isDraggingRef = useRef(false);
   const dragStartPosRef = useRef({ x: 0, y: 0 });
 
@@ -177,6 +206,10 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
   const handleCanvasClick = () => {
     if (isDraggingRef.current) {
       isDraggingRef.current = false;
+      return;
+    }
+    if (isStageLocked) {
+      // In stage lock mode, ignore canvas taps to prevent accidental popups on stage
       return;
     }
     const hasOpenPopup = isBookmarkOpen || isAdjustOpen || isPageOverviewOpen || isInfoOpen || isMetronomeOpen;
@@ -435,18 +468,33 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
             {currentChart.title || 'Untitled'} ({currentLineIndex + 1}/{totalLines})
           </h1>
           <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
-            {currentChart.custom_text || 'ChordCraft Score'}
+            {currentChart.custom_text || 'Chordly Score'}
           </p>
         </div>
 
-        {/* Right: Gesture / Sync Button */}
-        <button
-          onClick={() => setIsSyncModalOpen(true)}
-          className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-[#007aff] hover:bg-black/5 dark:hover:bg-white/5 rounded-lg transition-all active:scale-95"
-        >
-          <Smile size={16} className="text-[#007aff]" />
-          <span>Gesture</span>
-        </button>
+        {/* Right: Stage Lock & Gesture / Sync Button */}
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={() => setIsStageLocked(prev => !prev)}
+            className={`flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg transition-all active:scale-95 ${
+              isStageLocked 
+                ? 'bg-amber-500 text-white shadow-xs' 
+                : 'text-slate-600 dark:text-slate-300 hover:bg-black/5 dark:hover:bg-white/5'
+            }`}
+            title={isStageLocked ? "Stage Lock active (taps locked)" : "Lock UI for stage performance"}
+          >
+            {isStageLocked ? <Lock size={15} /> : <Unlock size={15} />}
+            <span className="hidden sm:inline">{isStageLocked ? 'Locked' : 'Lock'}</span>
+          </button>
+
+          <button
+            onClick={() => setIsSyncModalOpen(true)}
+            className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-[#007aff] hover:bg-black/5 dark:hover:bg-white/5 rounded-lg transition-all active:scale-95"
+          >
+            <Smile size={16} className="text-[#007aff]" />
+            <span>Gesture</span>
+          </button>
+        </div>
       </header>
 
       {/* ── 2. DOCUMENT TAB NAVIGATION BAR (Below Header) ──────────────────── */}
@@ -630,6 +678,7 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
           panning={{
             disabled: false,
             velocityDisabled: false,
+            lockAxisX: true, // Locks vertical scroll along Y-axis so chart never snaps left when scrolling down
           }}
           pinch={{
             step: 5,
@@ -640,14 +689,14 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
         >
           <TransformComponent
             wrapperClass="!w-full !h-full"
-            contentClass="min-w-full min-h-full w-max flex items-start justify-center p-2 sm:p-4 md:p-6 pt-24 sm:pt-28 pb-16 sm:pb-20"
+            contentClass="w-max flex flex-col items-start justify-start"
           >
             <div
               onClick={(e) => {
                 e.stopPropagation();
                 toggleUI();
               }}
-              className="w-fit min-w-full max-w-none flex flex-col items-start justify-start"
+              className="w-fit max-w-none flex flex-col items-start justify-start"
             >
               <ChartContentWrapper
                 chart={currentChart}

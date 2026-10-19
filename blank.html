@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chordly - Blank Canvas Background</title>
+  <style>
+    :root {
+      /* Chordly Dark Studio Mode (Active Default) */
+      --bg-canvas: #09090b;
+      --bg-canvas-end: #101014;
+      --blob-1: rgba(249, 115, 22, 0.18);
+      --blob-2: rgba(251, 113, 133, 0.12);
+      --blob-3: rgba(99, 102, 241, 0.10);
+      --text-color: rgba(255, 255, 255, 0.4);
+      --badge-bg: rgba(255, 255, 255, 0.06);
+      --badge-border: rgba(255, 255, 255, 0.12);
+    }
+
+    [data-theme="light"] {
+      /* Chordly Light Mode */
+      --bg-canvas: #ececee;
+      --bg-canvas-end: #f4f4f6;
+      --blob-1: rgba(249, 115, 22, 0.35);
+      --blob-2: rgba(251, 113, 133, 0.25);
+      --blob-3: rgba(56, 189, 248, 0.20);
+      --text-color: rgba(0, 0, 0, 0.45);
+      --badge-bg: rgba(0, 0, 0, 0.05);
+      --badge-border: rgba(0, 0, 0, 0.1);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      width: 100vw;
+      height: 100vh;
+      min-height: 100dvh;
+      background-color: var(--bg-canvas);
+      background-image: radial-gradient(circle at 50% 0%, var(--bg-canvas-end) 0%, var(--bg-canvas) 100%);
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      transition: background-color 0.3s ease;
+      position: relative;
+    }
+
+    /* Ambient Soft Warm Blobs (Exact App Mesh) */
+    .blob {
+      position: absolute;
+      border-radius: 50%;
+      pointer-events: none;
+      filter: blur(80px);
+      user-select: none;
+    }
+
+    .blob-1 {
+      top: -100px;
+      left: -100px;
+      width: 400px;
+      height: 400px;
+      background: var(--blob-1);
+    }
+
+    .blob-2 {
+      top: 25%;
+      right: -80px;
+      width: 360px;
+      height: 360px;
+      background: var(--blob-2);
+    }
+
+    .blob-3 {
+      bottom: 60px;
+      left: 30%;
+      width: 380px;
+      height: 380px;
+      background: var(--blob-3);
+    }
+
+    /* Minimal info badge in bottom corner */
+    .color-badge {
+      position: fixed;
+      bottom: 20px;
+      left: 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 14px;
+      border-radius: 9999px;
+      background: var(--badge-bg);
+      border: 1px solid var(--badge-border);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      color: var(--text-color);
+      font-size: 12px;
+      font-weight: 500;
+      z-index: 100;
+    }
+
+    .swatch {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--bg-canvas);
+      border: 1px solid var(--badge-border);
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+    }
+
+    .toggle-btn {
+      cursor: pointer;
+      background: none;
+      border: none;
+      color: inherit;
+      font: inherit;
+      text-decoration: underline;
+      padding-left: 6px;
+      opacity: 0.75;
+      transition: opacity 0.2s;
+    }
+
+    .toggle-btn:hover {
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+  <!-- Ambient decorative blobs matching Chordly's layout -->
+  <div class="blob blob-1"></div>
+  <div class="blob blob-2"></div>
+  <div class="blob blob-3"></div>
+
+  <!-- Color Info Reference & Mode Switcher -->
+  <div class="color-badge">
+    <div class="swatch" id="color-swatch"></div>
+    <span id="color-hex">#09090b (Dark Studio)</span>
+    <button class="toggle-btn" id="toggle-theme" onclick="toggleMode()">Switch to Light</button>
+  </div>
+
+  <script>
+    function toggleMode() {
+      const root = document.documentElement;
+      const hex = document.getElementById('color-hex');
+      const btn = document.getElementById('toggle-theme');
+      const isLight = root.getAttribute('data-theme') === 'light';
+
+      if (isLight) {
+        root.removeAttribute('data-theme');
+        hex.textContent = '#09090b (Dark Studio)';
+        btn.textContent = 'Switch to Light';
+      } else {
+        root.setAttribute('data-theme', 'light');
+        hex.textContent = '#ececee (Light Canvas)';
+        btn.textContent = 'Switch to Dark';
+      }
+    }
+  </script>
+</body>
+</html>

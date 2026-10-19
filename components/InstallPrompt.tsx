@@ -92,11 +92,11 @@ export function InstallPrompt() {
         <div className="flex items-center gap-3">
           <img
             src="/icon-192x192.png"
-            alt="ChordCraft"
+            alt="Chordly"
             className="w-11 h-11 rounded-xl shadow-md object-cover border border-black/5 dark:border-white/10"
           />
           <div>
-            <h4 className="font-bold text-sm tracking-wide text-[#1c1c1e] dark:text-white">Install ChordCraft</h4>
+            <h4 className="font-bold text-sm tracking-wide text-[#1c1c1e] dark:text-white">Install Chordly</h4>
             <p className="text-xs text-text-secondary dark:text-slate-300">Fast offline access & full-screen stage mode</p>
           </div>
         </div>

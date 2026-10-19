@@ -152,39 +152,76 @@ export default function TrashPage() {
 
   // Single item actions (non-selection mode)
   const executeDelete = async () => {
-    if (deleteItem) {
-      await deleteEntry(deleteItem.id, deleteItem.type);
+    if (!deleteItem) return;
+    const itemToDelete = deleteItem;
+    setDeleteItem(null);
+    if (itemToDelete.type === 'folder') {
+      setFolders(prev => prev.filter(f => f.id !== itemToDelete.id));
+    } else {
+      setCharts(prev => prev.filter(c => c.id !== itemToDelete.id));
+    }
+    try {
+      await deleteEntry(itemToDelete.id, itemToDelete.type);
+    } catch (err) {
+      console.error('Delete from trash error:', err);
+    } finally {
       loadContents();
     }
-    setDeleteItem(null);
   };
 
   const executeRestore = async () => {
-    if (restoreItem) {
-      await restoreFromTrash(restoreItem.id, restoreItem.type, restoreItem.trashedName);
+    if (!restoreItem) return;
+    const itemToRestore = restoreItem;
+    setRestoreItem(null);
+    if (itemToRestore.type === 'folder') {
+      setFolders(prev => prev.filter(f => f.id !== itemToRestore.id));
+    } else {
+      setCharts(prev => prev.filter(c => c.id !== itemToRestore.id));
+    }
+    try {
+      await restoreFromTrash(itemToRestore.id, itemToRestore.type, itemToRestore.trashedName);
+    } catch (err) {
+      console.error('Restore from trash error:', err);
+    } finally {
       loadContents();
     }
-    setRestoreItem(null);
   };
 
   // Bulk delete selected items
   const executeBulkDelete = async () => {
-    const promises = allItems
-      .filter(item => selectedIds.has(item.id))
-      .map(item => deleteEntry(item.id, item.type));
-    await Promise.all(promises);
-    exitSelectionMode();
-    loadContents();
+    const idsToDelete = new Set(selectedIds);
+    setFolders(prev => prev.filter(f => !idsToDelete.has(f.id)));
+    setCharts(prev => prev.filter(c => !idsToDelete.has(c.id)));
     setBulkDeleteModal(false);
+    exitSelectionMode();
+
+    const promises = allItems
+      .filter(item => idsToDelete.has(item.id))
+      .map(item => deleteEntry(item.id, item.type));
+    try {
+      await Promise.all(promises);
+    } catch (err) {
+      console.error('Bulk delete from trash error:', err);
+    } finally {
+      loadContents();
+    }
   };
 
   // Delete ALL items in trash
   const executeDeleteAll = async () => {
-    const promises = allItems.map(item => deleteEntry(item.id, item.type));
-    await Promise.all(promises);
-    exitSelectionMode();
-    loadContents();
+    setFolders([]);
+    setCharts([]);
     setDeleteAllModal(false);
+    exitSelectionMode();
+
+    const promises = allItems.map(item => deleteEntry(item.id, item.type));
+    try {
+      await Promise.all(promises);
+    } catch (err) {
+      console.error('Delete all from trash error:', err);
+    } finally {
+      loadContents();
+    }
   };
 
   if (authLoading) return <div className="min-h-screen flex items-center justify-center text-text-secondary font-medium">Loading...</div>;

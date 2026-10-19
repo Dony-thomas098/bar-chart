@@ -4,7 +4,7 @@ import React, { useState, useEffect, useTransition } from 'react';
 import { useAuth, canModifySection } from '@/components/AuthProvider';
 import { getRecentCharts, createFolder, saveChart } from '@/lib/storage';
 import { saveLyrics } from '@/lib/lyrics';
-import { X, User, LogOut, Settings, Folder as FolderIcon, FileText, Printer, Trash2, Music, Music2, ListMusic, Star, Download, ChevronRight, Plus, Sun, Moon } from 'lucide-react';
+import { X, User, LogOut, Settings, Folder as FolderIcon, FileText, Printer, Trash2, Music, Music2, ListMusic, Star, Download, ChevronRight, Plus, Sun, Moon, Sparkles } from 'lucide-react';
 import { useRouter, usePathname } from 'next/navigation';
 import { getStoredTheme, setTheme, ThemeMode } from '@/lib/theme';
 import './sidebar-drawer.css';
@@ -366,7 +366,20 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
               }}
               className="app-drawer-install-row"
             >
-              <Download size={15} /> Install ChordCraft App
+              <Download size={15} /> Install Chordly App
+            </button>
+            <button
+              onClick={() => {
+                router.push('/logo-review');
+                onClose();
+              }}
+              className="app-drawer-row !px-4 !py-2.5 text-xs text-text-secondary hover:text-text-primary"
+            >
+              <span className="app-drawer-row-left">
+                <span className="app-drawer-row-icon"><Sparkles size={15} className="text-orange-500" /></span>
+                <span className="app-drawer-row-label">Logo Loading Lab</span>
+              </span>
+              <span className="text-[10px] font-mono font-bold uppercase bg-orange-500/10 text-orange-500 px-1.5 py-0.5 rounded border border-orange-500/20">Live</span>
             </button>
           </div>
         </div>

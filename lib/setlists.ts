@@ -141,14 +141,16 @@ export async function listSetlistItems(setlistId: string): Promise<SetlistItem[]
     const { data: charts } = await supabase
       .from('charts')
       .select('id, title')
-      .in('id', chartIds);
+      .in('id', chartIds)
+      .not('title', 'like', '__TRASH__:%');
     (charts || []).forEach(c => { titleMap[c.id] = c.title; });
   }
   if (lyricsIds.length > 0) {
     const { data: lyrics } = await supabase
       .from('lyrics')
       .select('id, title')
-      .in('id', lyricsIds);
+      .in('id', lyricsIds)
+      .not('title', 'like', '__TRASH__:%');
     (lyrics || []).forEach(l => { titleMap[l.id] = l.title; });
   }
 

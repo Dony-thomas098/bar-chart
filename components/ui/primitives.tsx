@@ -33,9 +33,10 @@ interface GlassCardProps extends React.HTMLAttributes<HTMLDivElement> {
 }
 
 export function GlassCard({ children, className = '', selected = false, interactive = false, ...props }: GlassCardProps) {
+  const hasOverflow = className.includes('overflow-');
   return (
     <div
-      className={`glass-card p-5 relative overflow-hidden ${
+      className={`glass-card p-5 relative ${hasOverflow ? '' : 'overflow-hidden'} ${
         interactive ? 'hover:shadow-glass hover:-translate-y-0.5 transition-all duration-200 cursor-pointer' : ''
       } ${
         selected ? 'ring-2 ring-orange-500 shadow-glow' : ''

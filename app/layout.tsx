@@ -8,6 +8,7 @@ import { InstallPrompt } from "@/components/InstallPrompt";
 import { OnboardingModal } from "@/components/OnboardingModal";
 import { BackgroundBlobs } from "@/components/ui/primitives";
 import { ThemeSync } from "@/components/ThemeSync";
+import { SplashScreen } from "@/components/SplashScreen";
 import Script from "next/script";
 
 const plusJakartaSans = Plus_Jakarta_Sans({
@@ -25,13 +26,13 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ChordCraft - Bar Chart Notations",
-  description: "A professional tool for creating, editing, and performing bar chart chord progressions.",
+  title: "Chordly - Bar Chart Notations",
+  description: "A professional tool for creating, editing, and performing bar chart chord progressions and lyrics.",
   generator: "Next.js",
   manifest: "/manifest.json",
   keywords: ["music", "chord", "chart", "editor", "musician", "piascore", "setlist"],
   authors: [
-    { name: "ChordCraft" }
+    { name: "Chordly" }
   ],
   icons: [
     { rel: "apple-touch-icon", url: "/icon-192x192.png" },
@@ -40,7 +41,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "ChordCraft",
+    title: "Chordly",
   },
 };
 
@@ -98,6 +99,7 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-[100dvh] flex flex-col font-sans bg-[var(--bg-canvas)] text-text-primary selection:bg-orange-500/20" suppressHydrationWarning>
+        <SplashScreen />
         <AuthProvider>
           <OfflineSyncProvider>
             <ThemeSync />

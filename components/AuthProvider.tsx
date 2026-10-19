@@ -230,9 +230,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!loading && !user && pathname !== '/auth') {
-      window.location.href = '/auth';
+      router.replace('/auth');
     }
-  }, [user, loading, pathname]);
+  }, [user, loading, pathname, router]);
 
   return (
     <AuthContext.Provider value={{ user, loading, isGuest, profile, enableGuestMode, updateProfile, signOut }}>

@@ -10,7 +10,8 @@ import { TransformWrapper, TransformComponent, useControls } from 'react-zoom-pa
 import {
   FolderOpen, Smile, X, Plus, Play, Pause, Bookmark as BookmarkIcon,
   Crop, LayoutGrid, Info, Edit3, ArrowUpDown, BookOpen, Volume2,
-  ChevronRight, Type, AlignLeft, AlignCenter, AlignRight, ScrollText
+  ChevronRight, Type, AlignLeft, AlignCenter, AlignRight, ScrollText,
+  Lock, Unlock
 } from 'lucide-react';
 
 interface TabItem {
@@ -76,22 +77,46 @@ function PlainLyricsCard({
   );
 }
 
-// ── Inner lyrics zoom reset wrapper ─────────────────────────────────────────────
 function LyricsContentWrapper(props: {
   lyric: Lyric;
   selectedFont: string;
   textColor: string;
   textAlign?: 'center' | 'left' | 'right';
 }) {
-  const { setTransform } = useControls();
+  const { setTransform, instance } = useControls();
+
+  const fitLyrics = useCallback(() => {
+    const cardEl = document.getElementById('piascore-lyrics-card');
+    const wrapper = instance.wrapperComponent;
+    if (!cardEl || !wrapper) return;
+
+    const viewportWidth = wrapper.clientWidth;
+    const viewportHeight = wrapper.clientHeight;
+    const cardWidth = Math.max(cardEl.scrollWidth, cardEl.offsetWidth);
+    const cardHeight = Math.max(cardEl.scrollHeight, cardEl.offsetHeight);
+
+    const availableWidth = Math.max(260, viewportWidth - 24);
+    let scale = 1;
+    if (cardWidth > 0 && availableWidth > 0) {
+      if (availableWidth < cardWidth) {
+        scale = Math.max(0.15, (availableWidth / cardWidth) * 0.98);
+      }
+    }
+
+    const scaledWidth = cardWidth * scale;
+    const scaledHeight = cardHeight * scale;
+
+    const posX = Math.max(0, (viewportWidth - scaledWidth) / 2);
+    const posY = scaledHeight < viewportHeight ? Math.max(0, (viewportHeight - scaledHeight) / 2) : 24;
+
+    setTransform(posX, posY, scale, 0);
+  }, [instance, setTransform]);
 
   useEffect(() => {
     let t: any;
     const fit = () => {
       clearTimeout(t);
-      t = setTimeout(() => {
-        setTransform(0, 0, 1, 0);
-      }, 100);
+      t = setTimeout(fitLyrics, 100);
     };
     fit();
     window.addEventListener('resize', fit);
@@ -101,7 +126,7 @@ function LyricsContentWrapper(props: {
       window.removeEventListener('resize', fit);
       window.removeEventListener('orientationchange', fit);
     };
-  }, [setTransform, props.lyric.id]);
+  }, [fitLyrics, props.lyric.id]);
 
   return <PlainLyricsCard {...props} />;
 }
@@ -148,6 +173,7 @@ export function PiascoreLyricsReader({ initialLyric, folderId }: Props) {
 
   // ── UI Auto-hide / Popups Handler ──────────────────────────────────────────
   const [showUI, setShowUI] = useState(true);
+  const [isStageLocked, setIsStageLocked] = useState(false);
   const isDraggingRef = useRef(false);
   const dragStartPosRef = useRef({ x: 0, y: 0 });
 
@@ -175,6 +201,10 @@ export function PiascoreLyricsReader({ initialLyric, folderId }: Props) {
   const handleCanvasClick = () => {
     if (isDraggingRef.current) {
       isDraggingRef.current = false;
+      return;
+    }
+    if (isStageLocked) {
+      // In stage lock mode, ignore canvas taps to prevent accidental popups on stage
       return;
     }
     const hasOpenPopup =
@@ -381,18 +411,33 @@ export function PiascoreLyricsReader({ initialLyric, folderId }: Props) {
             {currentLyric.title || 'Untitled Lyrics'}
           </h1>
           <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
-            ChordCraft Lyrics Score
+            Chordly Lyrics Score
           </p>
         </div>
 
-        {/* Right: Gesture / Sync Button */}
-        <button
-          onClick={() => setIsSyncModalOpen(true)}
-          className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-accent-start hover:bg-black/5 dark:hover:bg-white/5 rounded-lg transition-all active:scale-95"
-        >
-          <Smile size={16} className="text-accent-start" />
-          <span>Gesture</span>
-        </button>
+        {/* Right: Stage Lock & Gesture / Sync Button */}
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={() => setIsStageLocked(prev => !prev)}
+            className={`flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg transition-all active:scale-95 ${
+              isStageLocked 
+                ? 'bg-amber-500 text-white shadow-xs' 
+                : 'text-slate-600 dark:text-slate-300 hover:bg-black/5 dark:hover:bg-white/5'
+            }`}
+            title={isStageLocked ? "Stage Lock active (taps locked)" : "Lock UI for stage performance"}
+          >
+            {isStageLocked ? <Lock size={15} /> : <Unlock size={15} />}
+            <span className="hidden sm:inline">{isStageLocked ? 'Locked' : 'Lock'}</span>
+          </button>
+
+          <button
+            onClick={() => setIsSyncModalOpen(true)}
+            className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-accent-start hover:bg-black/5 dark:hover:bg-white/5 rounded-lg transition-all active:scale-95"
+          >
+            <Smile size={16} className="text-accent-start" />
+            <span>Gesture</span>
+          </button>
+        </div>
       </header>
 
       {/* ── 2. DOCUMENT TAB NAVIGATION BAR (Below Header) ──────────────────── */}
@@ -570,6 +615,7 @@ export function PiascoreLyricsReader({ initialLyric, folderId }: Props) {
           panning={{
             disabled: false,
             velocityDisabled: false,
+            lockAxisX: true, // Locks vertical scroll along Y-axis so lyrics stay centered
           }}
           pinch={{
             step: 5,
@@ -580,14 +626,14 @@ export function PiascoreLyricsReader({ initialLyric, folderId }: Props) {
         >
           <TransformComponent
             wrapperClass="!w-full !h-full"
-            contentClass="w-full min-w-full min-h-full flex items-start justify-center p-2 sm:p-4 md:p-6 pt-24 sm:pt-28 pb-16 sm:pb-20"
+            contentClass="w-max flex flex-col items-start justify-start"
           >
             <div
               onClick={(e) => {
                 e.stopPropagation();
                 handleCanvasClick();
               }}
-              className="w-full flex items-start justify-center"
+              className="w-fit max-w-none flex flex-col items-start justify-start"
             >
               <LyricsContentWrapper
                 lyric={currentLyric}

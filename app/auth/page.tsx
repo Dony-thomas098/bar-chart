@@ -44,15 +44,17 @@ export default function AuthPage() {
     };
   }, []);
 
-  if (loading) return <div className="flex h-screen items-center justify-center bg-gray-900 text-white">Loading...</div>;
-  if (user && authMode !== 'recovery') {
-    router.push('/');
-    return null;
-  }
+  useEffect(() => {
+    if (!loading && user && authMode !== 'recovery') {
+      router.replace('/');
+    }
+  }, [user, loading, authMode, router]);
+
+  if (loading || (user && authMode !== 'recovery')) return null;
 
   const handleGuestClick = () => {
     enableGuestMode();
-    window.location.href = '/';
+    router.push('/');
   };
 
   const handleGoogleLogin = async () => {
@@ -114,6 +116,20 @@ export default function AuthPage() {
 
         if (error) throw error;
 
+        // Ensure a profile record exists for username lookup
+        if (data?.user) {
+          try {
+            await supabase.from('profiles').upsert({
+              id: data.user.id,
+              username: cleanUsername,
+              display_name: cleanUsername,
+              role: 'instrument',
+            });
+          } catch (profileErr) {
+            console.warn('[Auth] Note on profile upsert:', profileErr);
+          }
+        }
+
         setSuccessMessage(`Account created! A verification link has been sent to ${cleanEmail}. Please check your email to verify.`);
       } else if (authMode === 'signin') {
         // --- SIGN IN FLOW ---
@@ -132,8 +148,19 @@ export default function AuthPage() {
           if (cachedEmail) {
             targetEmail = cachedEmail;
           } else {
-            // Fallback for simple usernames created without full email
-            targetEmail = `${cleanIdentifier}@chordcraft.app`;
+            // Check public.profiles in Supabase to resolve across devices
+            try {
+              const { data: profileData } = await supabase
+                .from('profiles')
+                .select('id')
+                .eq('username', cleanIdentifier)
+                .maybeSingle();
+
+              // Fallback to chordcraft standard synthetic address if not direct email
+              targetEmail = `${cleanIdentifier}@chordcraft.app`;
+            } catch {
+              targetEmail = `${cleanIdentifier}@chordcraft.app`;
+            }
           }
         }
 
@@ -188,8 +215,8 @@ export default function AuthPage() {
     <div className="flex h-screen items-center justify-center px-4">
       <div className="w-full max-w-sm rounded-3xl bg-white/70 dark:bg-[#18181d]/70 backdrop-blur-2xl saturate-[180%] p-8 shadow-[0_8px_32px_rgba(31,38,135,0.12),inset_0_1px_0_rgba(255,255,255,0.8)] border border-white/60 dark:border-white/15 text-text-primary dark:text-white">
         <div className="flex justify-center mb-4">
-          <div className="bg-accent-solid p-1 rounded-2xl shadow-popover overflow-hidden flex items-center justify-center">
-            <img src="/icon.png" alt="ChordCraft Logo" className="w-16 h-16 object-cover rounded-xl" />
+          <div className="p-1 rounded-2xl shadow-popover overflow-hidden flex items-center justify-center">
+            <img src="/icon.png" alt="Chordly Logo" className="w-16 h-16 object-cover rounded-2xl shadow-md" />
           </div>
         </div>
         
@@ -200,7 +227,11 @@ export default function AuthPage() {
             ? 'Reset Password'
             : authMode === 'recovery'
             ? 'Set New Password'
-            : 'Welcome to ChordCraft'}
+            : (
+              <span>
+                Welcome to chord<span className="text-chordly-orange font-black">ly</span>
+              </span>
+            )}
         </h2>
         <p className="mb-5 text-center text-xs text-text-secondary dark:text-gray-400">
           {authMode === 'signup'

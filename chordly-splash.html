@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#09090b">
+  <title>Chordly</title>
+  <style>
+    :root{--bg-canvas:#09090b;--bg-canvas-end:#101014;--blob-1:rgba(249,115,22,.18);--blob-2:rgba(251,113,133,.12);--blob-3:rgba(99,102,241,.10);--text-color:rgba(255,255,255,.4);--badge-bg:rgba(255,255,255,.06);--badge-border:rgba(255,255,255,.12);--logo-text:#f4f4f5;--logo-shadow:rgba(0,0,0,.45);--glow:rgba(249,115,22,.30)}
+    [data-theme="light"]{--bg-canvas:#ececee;--bg-canvas-end:#f4f4f6;--blob-1:rgba(249,115,22,.35);--blob-2:rgba(251,113,133,.25);--blob-3:rgba(56,189,248,.20);--text-color:rgba(0,0,0,.55);--badge-bg:rgba(0,0,0,.05);--badge-border:rgba(0,0,0,.1);--logo-text:#1c1c1e;--logo-shadow:rgba(15,23,42,.18);--glow:rgba(249,115,22,.38)}
+    *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+    html{-webkit-text-size-adjust:100%}
+    body{width:100%;height:100vh;height:100dvh;background-color:var(--bg-canvas);background-image:radial-gradient(circle at 50% 0%,var(--bg-canvas-end) 0%,var(--bg-canvas) 100%);overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;transition:background-color .3s ease;position:relative}
+    .blob{position:absolute;border-radius:50%;pointer-events:none;filter:blur(80px);user-select:none}
+    .blob-1{top:-12vmax;left:-12vmax;width:clamp(260px,42vmax,560px);aspect-ratio:1;background:var(--blob-1);animation:drift 16s ease-in-out infinite alternate}
+    .blob-2{top:25%;right:-10vmax;width:clamp(240px,38vmax,520px);aspect-ratio:1;background:var(--blob-2);animation:drift 20s ease-in-out -6s infinite alternate-reverse}
+    .blob-3{bottom:6vh;left:30%;width:clamp(240px,40vmax,540px);aspect-ratio:1;background:var(--blob-3);animation:drift 18s ease-in-out -3s infinite alternate}
+    @keyframes drift{from{transform:translate(0,0)}to{transform:translate(40px,30px)}}
+
+    /* ---------- Responsive logo ---------- */
+    .stage{position:absolute;inset:0;display:grid;place-items:center;z-index:1;padding:max(20px,env(safe-area-inset-top)) max(20px,env(safe-area-inset-right)) max(20px,env(safe-area-inset-bottom)) max(20px,env(safe-area-inset-left))}
+    .logo{--T:1197;--u:calc(min(88vw,1400px) / var(--T));display:flex;align-items:center;justify-content:center;gap:calc(var(--u) * 36);cursor:pointer;user-select:none;-webkit-user-select:none;border-radius:24px;outline:none}
+    .logo:focus-visible{outline:2px solid #fd944e;outline-offset:12px}
+    .mw{position:relative;flex:none;width:calc(var(--u) * 232);height:calc(var(--u) * 232)}
+    .mw::before{content:"";position:absolute;inset:-35%;border-radius:50%;background:var(--glow);filter:blur(60px);z-index:-1;animation:breathe 4.5s ease-in-out infinite alternate}
+    .mw svg,.word{display:block;overflow:visible;filter:drop-shadow(0 18px 40px var(--logo-shadow))}
+    .mw svg{width:100%;height:100%}
+    .word{flex:none;width:calc(var(--u) * 929);height:calc(var(--u) * 302)}
+    .word .wm{fill:var(--logo-text);transition:fill .3s ease}
+    /* Phones and narrow portrait: stack icon above the name */
+    @media (max-width:520px),(max-aspect-ratio:4/5) and (max-width:820px){
+      .logo{flex-direction:column;gap:clamp(8px,2.5vh,26px);--w:min(82vw,560px)}
+      .mw{width:min(44vw,32vh,250px);height:min(44vw,32vh,250px)}
+      .word{width:var(--w);height:calc(var(--w) * 302 / 929)}
+    }
+    /* Short landscape screens (phones on their side) */
+    @media (max-height:430px) and (orientation:landscape){.logo{--u:calc(min(70vw,78vh * 3.2) / var(--T))}}
+    /* Very large displays */
+    @media (min-width:2200px){.logo{--u:calc(min(70vw,2000px) / var(--T))}}
+
+    /* ---------- Animation ---------- */
+    .logo .tile,.logo .dot{transform-box:fill-box;transform-origin:center;opacity:0}
+    .logo .arc{stroke-dasharray:1;stroke-dashoffset:1}
+    .logo .l{opacity:0}
+    .logo.play .tile{animation:tileIn .8s cubic-bezier(.2,.8,.2,1) forwards}
+    .logo.play .dot{animation:pop .55s cubic-bezier(.3,1.6,.5,1) .4s forwards,dotGlow 2.6s ease-in-out 2s infinite}
+    .logo.play .arc{animation:draw .7s ease-out calc(.55s + var(--i) * .14s) forwards,ripple 2.6s ease-in-out calc(2s + var(--i) * .22s) infinite}
+    .logo.play .l{animation:ltr .75s cubic-bezier(.2,.8,.2,1) calc(1s + var(--i) * .08s) forwards}
+    @keyframes tileIn{from{opacity:0;transform:scale(.55)}to{opacity:1;transform:none}}
+    @keyframes pop{from{opacity:0;transform:scale(0)}to{opacity:1;transform:none}}
+    @keyframes draw{to{stroke-dashoffset:0}}
+    @keyframes ripple{0%,100%{opacity:1}45%{opacity:.3}}
+    @keyframes dotGlow{0%,100%{opacity:1}45%{opacity:.6}}
+    @keyframes ltr{from{opacity:0;transform:translateY(34px)}to{opacity:1;transform:none}}
+    @keyframes breathe{from{opacity:.6}to{opacity:1}}
+    @media (prefers-reduced-motion:reduce){
+      .logo .tile,.logo .dot,.logo .l{opacity:1!important;animation:none!important;transform:none!important}
+      .logo .arc{stroke-dashoffset:0!important;animation:none!important}
+      .mw::before,.blob{animation:none!important}
+    }
+
+    /* ---------- Theme badge ---------- */
+    .color-badge{position:fixed;left:max(16px,env(safe-area-inset-left));bottom:max(16px,env(safe-area-inset-bottom));display:flex;align-items:center;gap:10px;min-height:44px;padding:6px 14px;border-radius:9999px;background:var(--badge-bg);border:1px solid var(--badge-border);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);color:var(--text-color);font-size:12px;font-weight:500;z-index:100;max-width:calc(100vw - 32px)}
+    .swatch{width:14px;height:14px;flex:none;border-radius:50%;background:var(--bg-canvas);border:1px solid var(--badge-border);box-shadow:0 0 10px rgba(0,0,0,.3)}
+    .toggle-btn{cursor:pointer;background:none;border:none;color:inherit;font:inherit;text-decoration:underline;padding:12px 6px;min-height:44px;opacity:.8;transition:opacity .2s;white-space:nowrap}
+    .toggle-btn:hover{opacity:1}
+    @media (max-width:380px){#color-hex{display:none}}
+  </style>
+</head>
+<body>
+  <div class="blob blob-1"></div>
+  <div class="blob blob-2"></div>
+  <div class="blob blob-3"></div>
+
+  <main class="stage">
+    <div class="logo play" id="logo" role="button" tabindex="0" aria-label="Chordly. Press to replay the animation">
+      <span class="mw"><svg viewBox="32 32 448 448" aria-hidden="true"><defs><linearGradient id="k" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4a4547"/><stop offset="1" stop-color="#1f1b1c"/></linearGradient><radialGradient id="h" cx=".85" cy=".05" r=".75"><stop offset="0" stop-color="#fd944e" stop-opacity=".35"/><stop offset="1" stop-color="#fd944e" stop-opacity="0"/></radialGradient><linearGradient id="t" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fd944e"/><stop offset="1" stop-color="#dc4928"/></linearGradient></defs><rect class="tile" x="32" y="32" width="448" height="448" rx="104" fill="url(#k)"/><rect class="tile" x="32" y="32" width="448" height="448" rx="104" fill="url(#h)"/><path class="arc" pathLength="1" style="--i:3" d="M368.2 145.7 A140 140 0 1 0 368.2 366.3" fill="none" stroke="#dc4928" stroke-width="15" stroke-linecap="round"/><path class="arc" pathLength="1" style="--i:2" d="M351.0 167.7 A112 112 0 1 0 351.0 344.3" fill="none" stroke="#e8643a" stroke-width="15" stroke-linecap="round"/><path class="arc" pathLength="1" style="--i:1" d="M333.7 189.8 A84 84 0 1 0 333.7 322.2" fill="none" stroke="#fd944e" stroke-width="15" stroke-linecap="round"/><path class="arc" pathLength="1" style="--i:0" d="M316.5 211.9 A56 56 0 1 0 316.5 300.1" fill="none" stroke="#ffd7b8" stroke-width="15" stroke-linecap="round"/><circle class="dot" cx="282" cy="256" r="22" fill="#fff"/></svg></span>
+      <svg class="word" viewBox="292 -11 929 302" aria-hidden="true"><g class="l" style="--i:0"><path transform="translate(300.0 202.4) scale(0.24000 -0.24000)" d="M313 554Q414 554 479.5 504.0Q545 454 564 368H489Q475 427 428.5 460.5Q382 494 313 494Q258 494 214.0 469.0Q170 444 144.5 394.5Q119 345 119 273Q119 201 144.5 151.0Q170 101 214.0 76.0Q258 51 313 51Q382 51 428.5 84.5Q475 118 489 178H564Q545 94 479.0 43.0Q413 -8 313 -8Q236 -8 176.0 26.5Q116 61 82.0 124.5Q48 188 48 273Q48 358 82.0 421.5Q116 485 176.0 519.5Q236 554 313 554Z" class="wm"/></g><g class="l" style="--i:1"><path transform="translate(444.7 202.4) scale(0.24000 -0.24000)" d="M558 320V0H489V312Q489 401 444.5 448.0Q400 495 323 495Q244 495 197.0 445.0Q150 395 150 298V0H80V740H150V453Q176 502 226.5 529.0Q277 556 340 556Q402 556 451.5 530.0Q501 504 529.5 450.5Q558 397 558 320Z" class="wm"/></g><g class="l" style="--i:2"><path transform="translate(594.2 202.4) scale(0.24000 -0.24000)" d="M48 273Q48 358 84.0 421.5Q120 485 182.0 519.5Q244 554 321 554Q398 554 460.5 519.5Q523 485 558.5 421.5Q594 358 594 273Q594 189 558.0 125.0Q522 61 459.0 26.5Q396 -8 319 -8Q242 -8 180.5 26.5Q119 61 83.5 124.5Q48 188 48 273ZM522 273Q522 345 494.0 394.5Q466 444 420.0 468.5Q374 493 320 493Q266 493 220.0 468.5Q174 444 146.5 394.5Q119 345 119 273Q119 201 146.5 151.5Q174 102 219.5 77.5Q265 53 319 53Q373 53 419.0 77.5Q465 102 493.5 151.5Q522 201 522 273Z" class="wm"/></g><g class="l" style="--i:3"><path transform="translate(745.9 202.4) scale(0.24000 -0.24000)" d="M337 556V483H318Q242 483 196.0 442.0Q150 401 150 305V0H80V546H150V449Q173 500 220.5 528.0Q268 556 337 556Z" class="wm"/></g><g class="l" style="--i:4"><path transform="translate(830.4 202.4) scale(0.24000 -0.24000)" d="M310 554Q382 554 440.0 519.0Q498 484 525 428V740H595V0H525V122Q500 65 443.0 28.5Q386 -8 309 -8Q234 -8 174.5 27.0Q115 62 81.5 126.0Q48 190 48 274Q48 358 82.0 421.5Q116 485 175.5 519.5Q235 554 310 554ZM322 493Q264 493 218.0 467.0Q172 441 145.5 391.5Q119 342 119 274Q119 207 145.5 156.5Q172 106 218.0 79.5Q264 53 322 53Q378 53 424.5 80.0Q471 107 498.0 157.0Q525 207 525 273Q525 339 498.0 389.0Q471 439 424.5 466.0Q378 493 322 493Z" class="wm"/></g><g class="l" style="--i:5"><path transform="translate(994.8 202.4) scale(0.24000 -0.24000)" d="M233 740V0H62V740Z" fill="url(#t)"/></g><g class="l" style="--i:6"><path transform="translate(1063.2 202.4) scale(0.24000 -0.24000)" d="M632 558 282 -265H98L226 19L-1 558H190L319 209L447 558Z" fill="url(#t)"/></g></svg>
+    </div>
+  </main>
+
+  <div class="color-badge">
+    <div class="swatch" id="color-swatch"></div>
+    <span id="color-hex">#09090b (Dark Studio)</span>
+    <button class="toggle-btn" id="toggle-theme" onclick="toggleMode()">Switch to Light</button>
+  </div>
+
+  <script>
+    function toggleMode() {
+      var root = document.documentElement, hex = document.getElementById('color-hex'), btn = document.getElementById('toggle-theme');
+      var meta = document.querySelector('meta[name="theme-color"]');
+      var isLight = root.getAttribute('data-theme') === 'light';
+      if (isLight) { root.removeAttribute('data-theme'); hex.textContent = '#09090b (Dark Studio)'; btn.textContent = 'Switch to Light'; if (meta) meta.content = '#09090b'; }
+      else { root.setAttribute('data-theme', 'light'); hex.textContent = '#ececee (Light Canvas)'; btn.textContent = 'Switch to Dark'; if (meta) meta.content = '#ececee'; }
+    }
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) toggleMode();
+    var logo = document.getElementById('logo');
+    function replay() { logo.classList.remove('play'); void logo.offsetWidth; logo.classList.add('play'); }
+    logo.addEventListener('click', replay);
+    logo.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); replay(); } });
+  </script>
+</body>
+</html>

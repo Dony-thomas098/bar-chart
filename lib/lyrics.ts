@@ -125,7 +125,17 @@ export async function importLyrics(file: File, targetFolderId: string | null) {
     reader.onload = async (e) => {
       try {
         const content = e.target?.result as string;
-        const lyricsData = JSON.parse(content);
+        if (!content || !content.trim()) {
+          reject(new Error('File is empty'));
+          return;
+        }
+        let lyricsData: any;
+        try {
+          lyricsData = JSON.parse(content);
+        } catch (parseErr) {
+          reject(new Error('Invalid JSON format in imported lyrics'));
+          return;
+        }
         const { data: { user } } = await supabase.auth.getUser();
         const newLyric: Lyric = {
           ...lyricsData,

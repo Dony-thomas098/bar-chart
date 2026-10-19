@@ -197,7 +197,9 @@ function SetlistCard({
   onStartPerform: () => void;
   onSendToPerformQueue: () => void;
 }) {
+  const { profile } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [dropUp, setDropUp] = useState(false);
 
   const formattedDate = setlist.date
     ? new Date(setlist.date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })
@@ -207,7 +209,7 @@ function SetlistCard({
     <GlassCard
       onClick={onOpen}
       interactive
-      className="p-4 sm:p-5 group cursor-pointer relative"
+      className={`p-4 sm:p-5 group cursor-pointer relative overflow-visible ${menuOpen ? 'z-40' : 'z-0'}`}
     >
       <div className="flex items-center gap-4">
         {/* Centered Glass Icon Well */}
@@ -235,54 +237,61 @@ function SetlistCard({
           </p>
         </div>
 
-        {/* Actions */}
-        <div className="flex items-center gap-1.5 shrink-0" onClick={e => e.stopPropagation()}>
-          <button
-            onClick={e => { e.stopPropagation(); onDelete(); }}
-            className="p-2 text-text-muted hover:text-red-500 hover:bg-red-500/10 rounded-full transition-all sm:opacity-0 sm:group-hover:opacity-100"
-            title="Delete Setlist"
-          >
-            <Trash2 size={17} />
-          </button>
-          <div className="relative">
-            <IconButton
-              icon={<MoreVertical size={16} />}
-              onClick={e => { e.stopPropagation(); setMenuOpen(v => !v); }}
-              variant="glass"
-              aria-label="More options"
-            />
-            {menuOpen && (
-              <>
-                <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
-                <div className="absolute right-0 top-full mt-2 z-20 min-w-[190px] bg-white/55 dark:bg-[#1e1e24]/55 backdrop-blur-2xl saturate-[180%] border border-white/60 dark:border-white/15 rounded-2xl shadow-[0_8px_32px_rgba(31,38,135,0.12),inset_0_1px_0_rgba(255,255,255,0.8)] overflow-hidden animate-fade-in p-1.5">
-                  <button 
-                    onClick={e => { e.stopPropagation(); setMenuOpen(false); onStartPerform(); }} 
-                    className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-orange-600 dark:text-orange-400 hover:bg-orange-500/10 rounded-xl transition-all"
-                  >
-                    <Play size={14} className="fill-current" /> Start Performance
-                  </button>
-                  <button 
-                    onClick={e => { e.stopPropagation(); setMenuOpen(false); onSendToPerformQueue(); }} 
-                    className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-text-primary hover:bg-black/5 dark:hover:bg-white/5 rounded-xl transition-all"
-                  >
-                    <Radio size={14} className="text-sky-500" /> Send to Perform Queue
-                  </button>
-                  <div className="h-px bg-black/[0.06] dark:bg-white/[0.08] my-1 mx-2" />
-                  <button onClick={e => { e.stopPropagation(); setMenuOpen(false); onRename(); }} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-text-primary hover:bg-black/5 dark:hover:bg-white/5 rounded-xl transition-all">
-                    <Pencil size={14} /> Rename
-                  </button>
-                  <button onClick={e => { e.stopPropagation(); setMenuOpen(false); onDuplicate(); }} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-text-primary hover:bg-black/5 dark:hover:bg-white/5 rounded-xl transition-all">
-                    <Copy size={14} /> Duplicate
-                  </button>
-                  <div className="h-px bg-black/[0.06] dark:bg-white/[0.08] my-1 mx-2" />
-                  <button onClick={e => { e.stopPropagation(); setMenuOpen(false); onDelete(); }} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-red-500 hover:bg-red-500/10 rounded-xl transition-all">
-                    <Trash2 size={14} /> Delete
-                  </button>
-                </div>
-              </>
-            )}
+        {/* Actions - Only visible to admin users */}
+        {profile?.profession === 'admin' && (
+          <div className="flex items-center gap-1.5 shrink-0" onClick={e => e.stopPropagation()}>
+            <button
+              onClick={e => { e.stopPropagation(); onDelete(); }}
+              className="p-2 text-text-muted hover:text-red-500 hover:bg-red-500/10 rounded-full transition-all sm:opacity-0 sm:group-hover:opacity-100"
+              title="Delete Setlist"
+            >
+              <Trash2 size={17} />
+            </button>
+            <div className="relative">
+              <IconButton
+                icon={<MoreVertical size={16} />}
+                onClick={e => {
+                  e.stopPropagation();
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  setDropUp(window.innerHeight - rect.bottom < 260);
+                  setMenuOpen(v => !v);
+                }}
+                variant="glass"
+                aria-label="More options"
+              />
+              {menuOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
+                  <div className={`absolute right-0 ${dropUp ? 'bottom-full mb-2' : 'top-full mt-2'} z-50 min-w-[210px] bg-white/95 dark:bg-[#1e1e24]/95 backdrop-blur-2xl saturate-[180%] border border-slate-200/80 dark:border-white/15 rounded-2xl shadow-[0_12px_40px_rgba(0,0,0,0.18),0_4px_12px_rgba(0,0,0,0.08)] overflow-hidden animate-fade-in p-1.5`}>
+                    <button 
+                      onClick={e => { e.stopPropagation(); setMenuOpen(false); onStartPerform(); }} 
+                      className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs font-bold text-orange-600 dark:text-orange-400 hover:bg-orange-500/10 rounded-xl transition-all"
+                    >
+                      <Play size={14} className="fill-current" /> Start Performance
+                    </button>
+                    <button 
+                      onClick={e => { e.stopPropagation(); setMenuOpen(false); onSendToPerformQueue(); }} 
+                      className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs font-bold text-text-primary hover:bg-black/5 dark:hover:bg-white/5 rounded-xl transition-all"
+                    >
+                      <Radio size={14} className="text-sky-500" /> Send to Perform Queue
+                    </button>
+                    <div className="h-px bg-black/[0.06] dark:bg-white/[0.08] my-1 mx-2" />
+                    <button onClick={e => { e.stopPropagation(); setMenuOpen(false); onRename(); }} className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs font-bold text-text-primary hover:bg-black/5 dark:hover:bg-white/5 rounded-xl transition-all">
+                      <Pencil size={14} /> Rename
+                    </button>
+                    <button onClick={e => { e.stopPropagation(); setMenuOpen(false); onDuplicate(); }} className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs font-bold text-text-primary hover:bg-black/5 dark:hover:bg-white/5 rounded-xl transition-all">
+                      <Copy size={14} /> Duplicate
+                    </button>
+                    <div className="h-px bg-black/[0.06] dark:bg-white/[0.08] my-1 mx-2" />
+                    <button onClick={e => { e.stopPropagation(); setMenuOpen(false); onDelete(); }} className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs font-bold text-red-500 hover:bg-red-500/10 rounded-xl transition-all">
+                      <Trash2 size={14} /> Delete
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </GlassCard>
   );
@@ -364,9 +373,16 @@ export default function SetlistsPage() {
   };
 
   const handleDelete = async (id: string) => {
-    await deleteSetlist(id);
-    setSetlists(prev => prev.filter(s => s.id !== id));
     setDeleting(null);
+    setSetlists(prev => prev.filter(s => s.id !== id));
+    try {
+      await deleteSetlist(id);
+    } catch (err) {
+      console.error('Failed to delete setlist:', err);
+      // Reload on failure
+      const list = await listSetlists();
+      setSetlists(list);
+    }
   };
 
   if (authLoading) return null;

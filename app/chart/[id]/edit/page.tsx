@@ -511,6 +511,55 @@ export default function ChartEditor() {
     });
   }, [activeMobileSelection, getFlatBars, showToast]);
 
+  const lastNextBarTapRef = useRef<number>(0);
+
+  const handleNextBarClick = useCallback(() => {
+    const now = Date.now();
+    const timeDiff = now - lastNextBarTapRef.current;
+    lastNextBarTapRef.current = now;
+
+    if (timeDiff > 0 && timeDiff < 400) {
+      // Double tap detected: create a new line!
+      lastNextBarTapRef.current = 0;
+      if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+        navigator.vibrate([15, 60, 25]);
+      }
+
+      if (!chart) return;
+      const newLine = createDefaultLine();
+      const currentLineIndex = chart.lines.findIndex(l => l.id === activeMobileSelection?.lineId);
+
+      let newLines: Line[];
+      if (currentLineIndex !== -1) {
+        newLines = [...chart.lines];
+        newLines.splice(currentLineIndex + 1, 0, newLine);
+      } else {
+        newLines = [...chart.lines, newLine];
+      }
+
+      handleBlockEdit({ lines: newLines });
+
+      const firstBlock = newLine.blocks[0];
+      if (firstBlock && firstBlock.bars.length > 0) {
+        setIsSlashBassMode(false);
+        setActiveMobileSelection({
+          lineId: newLine.id,
+          blockId: firstBlock.id,
+          barIndex: 0,
+        });
+      }
+
+      showToast('New line created (Double Tap)');
+      return;
+    }
+
+    // Single tap: step to next bar
+    if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+      navigator.vibrate(10);
+    }
+    stepMobileBar(1);
+  }, [chart, activeMobileSelection, handleBlockEdit, stepMobileBar, showToast]);
+
   // Handle Mobile Keypad Key Press (Smart Builder + Slash Bass Picker)
   const handleKeypadPress = useCallback((key: string) => {
     if (!activeMobileSelection) return;
@@ -1151,8 +1200,9 @@ export default function ChartEditor() {
                 <ChevronLeft size={13} /> Prev
               </button>
               <button
-                onClick={() => { if (typeof navigator !== 'undefined' && 'vibrate' in navigator) navigator.vibrate(8); stepMobileBar(1); }}
+                onClick={handleNextBarClick}
                 className="px-3 py-1.5 bg-white/70 dark:bg-white/10 border border-glass text-text-primary rounded-full text-xs font-bold flex items-center gap-0.5 active:scale-95 transition-all shadow-sm"
+                title="Next Bar (Double tap to add new line)"
               >
                 Next <ChevronRight size={13} />
               </button>
@@ -1182,7 +1232,7 @@ export default function ChartEditor() {
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {
                       e.preventDefault();
-                      stepMobileBar(1);
+                      handleNextBarClick();
                     }
                   }}
                   placeholder="Type chord (e.g. Cm7, G/B)..."
@@ -1307,9 +1357,9 @@ export default function ChartEditor() {
                   Delete
                 </button>
                 <button
-                  onClick={() => { if (typeof navigator !== 'undefined' && 'vibrate' in navigator) navigator.vibrate(10); stepMobileBar(1); }}
+                  onClick={handleNextBarClick}
                   className="h-9 bg-btn-dark text-white rounded-full text-xs font-bold flex items-center justify-center active:scale-95 shadow-btn-dark transition-transform"
-                  title="Next measure"
+                  title="Next measure (Double-tap to create new line)"
                 >
                   Next Bar ›
                 </button>
@@ -1339,8 +1389,9 @@ export default function ChartEditor() {
                 Delete
               </button>
               <button
-                onClick={() => stepMobileBar(1)}
+                onClick={handleNextBarClick}
                 className="h-9 bg-btn-dark text-white rounded-full text-xs font-bold flex items-center justify-center active:scale-95 shadow-btn-dark transition-transform"
+                title="Next measure (Double-tap to create new line)"
               >
                 Next Bar ›
               </button>

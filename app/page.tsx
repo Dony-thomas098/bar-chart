@@ -3,12 +3,13 @@
 import { useAuth } from '@/components/AuthProvider';
 import { FolderBrowser } from '@/components/FolderBrowser';
 import { Header } from '@/components/Header';
+import { LogoLoading } from '@/components/LogoLoading';
 
 export default function Home() {
   const { user, profile, loading } = useAuth();
 
   if (loading || !user) {
-    return <div className="flex h-screen items-center justify-center text-white">Loading...</div>;
+    return <LogoLoading variant="fullscreen" statusText="Synchronizing your catalog..." />;
   }
 
   // If the user's profession is singing, home screen is the lyrics section

@@ -39,8 +39,11 @@ interface QueueItem {
 const SETLISTS_KEY = 'chord-grid-perform-setlists';
 
 function loadSavedSetlists(): SavedSetlist[] {
+  if (typeof window === 'undefined') return [];
   try {
-    return JSON.parse(localStorage.getItem(SETLISTS_KEY) || '[]');
+    const raw = localStorage.getItem(SETLISTS_KEY);
+    if (!raw || !raw.trim()) return [];
+    return JSON.parse(raw);
   } catch { return []; }
 }
 

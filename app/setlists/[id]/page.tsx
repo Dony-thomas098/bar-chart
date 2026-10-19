@@ -133,18 +133,20 @@ function SortableItemRow({
   onSetNote: (item: SetlistItem) => void;
   onRemove: (item: SetlistItem) => void;
 }) {
+  const { profile } = useAuth();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
   const [menuOpen, setMenuOpen] = useState(false);
+  const [dropUp, setDropUp] = useState(false);
 
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.7 : 1,
-    zIndex: isDragging ? 50 : 'auto',
+    zIndex: isDragging ? 50 : (menuOpen ? 40 : 'auto'),
   };
 
   return (
-    <div ref={setNodeRef} style={style} className="glass-card p-3.5 sm:p-4 flex items-center gap-3 group relative select-none">
+    <div ref={setNodeRef} style={style} className={`glass-card p-3.5 sm:p-4 flex items-center gap-3 group relative select-none ${menuOpen ? 'z-40' : ''}`}>
       {/* Drag handle */}
       <div {...attributes} {...listeners} className="p-1 -ml-1 text-text-muted cursor-grab active:cursor-grabbing hover:text-text-primary touch-none shrink-0">
         <GripVertical size={18} />
@@ -178,19 +180,25 @@ function SortableItemRow({
         </div>
       </div>
 
-      {/* Menu */}
-      <div className="relative shrink-0">
-        <button
-          onPointerDown={e => e.stopPropagation()}
-          onClick={e => { e.stopPropagation(); setMenuOpen(v => !v); }}
-          className="p-1.5 text-text-muted hover:text-text-primary rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-all"
-        >
-          <MoreVertical size={16} />
-        </button>
-        {menuOpen && (
+      {/* Menu - Only visible to admin users */}
+      {profile?.profession === 'admin' && (
+        <div className="relative shrink-0">
+          <button
+            onPointerDown={e => e.stopPropagation()}
+            onClick={e => {
+              e.stopPropagation();
+              const rect = e.currentTarget.getBoundingClientRect();
+              setDropUp(window.innerHeight - rect.bottom < 200);
+              setMenuOpen(v => !v);
+            }}
+            className="p-1.5 text-text-muted hover:text-text-primary rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-all"
+          >
+            <MoreVertical size={16} />
+          </button>
+          {menuOpen && (
           <>
-            <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
-            <div className="absolute right-0 top-full mt-1 z-20 min-w-[170px] bg-white/55 dark:bg-[#1c1c22]/55 backdrop-blur-2xl saturate-[180%] border border-white/60 dark:border-white/15 rounded-2xl shadow-[0_8px_32px_rgba(31,38,135,0.12),inset_0_1px_0_rgba(255,255,255,0.8)] py-1.5 animate-in fade-in zoom-in-95 duration-150">
+            <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
+            <div className={`absolute right-0 ${dropUp ? 'bottom-full mb-1' : 'top-full mt-1'} z-50 min-w-[180px] bg-white/95 dark:bg-[#1c1c22]/95 backdrop-blur-2xl saturate-[180%] border border-slate-200/80 dark:border-white/15 rounded-2xl shadow-[0_12px_40px_rgba(0,0,0,0.18),0_4px_12px_rgba(0,0,0,0.08)] py-1.5 animate-in fade-in zoom-in-95 duration-150`}>
               {item.item_type === 'chart' && (
                 <button
                   onClick={() => { setMenuOpen(false); onSetTranspose(item); }}
@@ -216,6 +224,7 @@ function SortableItemRow({
           </>
         )}
       </div>
+      )}
     </div>
   );
 }
@@ -410,8 +419,14 @@ export default function SetlistDetailPage() {
   };
 
   const handleRemove = async (item: SetlistItem) => {
-    await removeSetlistItem(item.id, setlistId);
     setItems(prev => prev.filter(i => i.id !== item.id));
+    try {
+      await removeSetlistItem(item.id, setlistId);
+    } catch (err) {
+      console.error('Failed to remove item from setlist:', err);
+      const loaded = await listSetlistItems(setlistId);
+      setItems(loaded);
+    }
   };
 
   const handleNameSave = async () => {
