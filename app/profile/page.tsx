@@ -214,7 +214,7 @@ export default function ProfilePage() {
             <div className="flex items-center gap-3 min-w-0 flex-1">
               <button
                 onClick={() => router.push('/')}
-                className="w-10 h-10 min-w-[40px] min-h-[40px] rounded-2xl flex items-center justify-center text-text-secondary hover:text-text-primary dark:hover:text-white bg-white/70 dark:bg-zinc-800/70 backdrop-blur-md border border-white/60 dark:border-white/10 shadow-xs transition-all cursor-pointer active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 shrink-0"
+                className="hidden lg:flex w-10 h-10 min-w-[40px] min-h-[40px] rounded-2xl items-center justify-center text-text-secondary hover:text-text-primary dark:hover:text-white bg-white/70 dark:bg-zinc-800/70 backdrop-blur-md border border-white/60 dark:border-white/10 shadow-xs transition-all cursor-pointer active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 shrink-0"
                 aria-label="Back to charts"
                 title="Back to Charts"
               >
