@@ -318,7 +318,7 @@ export function ChartRenderer({
         style={fontStyle}
       >
         {/* Header */}
-        <div className="relative flex items-center justify-center mb-6 sm:mb-10 pb-4 border-b border-slate-200 print:border-b print:border-black/20 w-full text-slate-900 print:text-black print:pt-2 print:pb-2 print:mb-4">
+        <div className="relative flex items-center justify-center mb-4 sm:mb-6 md:mb-7 pb-3 md:pb-4 border-b border-slate-200 print:border-b print:border-black/20 w-full text-slate-900 print:text-black print:pt-2 print:pb-2 print:mb-4">
           <div className="flex items-baseline gap-3 sm:gap-6 print:gap-3">
             <h1 className="text-xl sm:text-3xl md:text-4xl font-extrabold print:text-2xl print:!font-bold tracking-tight print:!tracking-normal text-slate-900 print:text-black" style={fontStyle}>
               {chartData.title || 'Untitled Chart'}
@@ -520,7 +520,7 @@ export function ChartRenderer({
     <div 
       id={id}
       onClick={onClick}
-      className="flex text-left flex-col w-fit pt-5 pb-6 px-5 sm:p-8 md:p-10 print:p-0 bg-white print:bg-transparent rounded-[24px] print:rounded-none relative mx-auto my-0 print:min-h-0 print:h-auto print:w-full border border-slate-200/80 shadow-2xl print:border-none print:shadow-none break-inside-avoid print:break-inside-avoid-page print-single-page"
+      className="flex text-left flex-col w-fit p-4 sm:p-6 md:p-8 print:p-0 bg-white print:bg-transparent rounded-[24px] print:rounded-none relative mx-auto my-0 print:min-h-0 print:h-auto print:w-full border border-slate-200/80 shadow-2xl print:border-none print:shadow-none break-inside-avoid print:break-inside-avoid-page print-single-page"
     >
       {watermark && (
         <div className="hidden print:grid absolute inset-0 grid-cols-4 gap-y-6 gap-x-4 items-center justify-items-center pointer-events-none overflow-hidden z-[1] opacity-[0.04] rotate-[-30deg] scale-150 select-none">

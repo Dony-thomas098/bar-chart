@@ -45,6 +45,7 @@ function ChartContentWrapper({
   onBaseScaleChange?: (scale: number) => void;
 }) {
   const { setTransform, instance } = useControls();
+  const isInitialFitRef = useRef(true);
 
   const fitToScreen = useCallback(() => {
     const cardEl = document.getElementById('piascore-chart-card');
@@ -55,44 +56,75 @@ function ChartContentWrapper({
     const viewportWidth = wrapper.clientWidth;
     const viewportHeight = wrapper.clientHeight;
     const isLandscape = viewportWidth > viewportHeight;
-
-    // Top and bottom clearances:
-    // When editing/header UI is visible, move down below tab strip (112px)
-    // When UI is hidden, move up to top edge (14px) to maximize view and fill top area
-    const topOffset = showUI ? 112 : 14;
-    const bottomOffset = showUI ? 88 : 20;
-
-    const availableWidth = Math.max(260, viewportWidth - 28);
-    const availableHeight = Math.max(160, viewportHeight - topOffset - bottomOffset);
+    const isPhone = Math.min(viewportWidth, viewportHeight) <= 600 ||
+      (typeof navigator !== 'undefined' && /iPhone|Android|Mobile/i.test(navigator.userAgent));
+    const isPhoneRotate = isLandscape && isPhone;
+    const isLaptopOrDesktop = !isPhone && (viewportWidth >= 768 || (typeof window !== 'undefined' && window.innerWidth >= 768));
 
     // Real full scroll dimensions of the chord chart card
     const cardWidth = Math.max(cardEl.scrollWidth, cardEl.offsetWidth);
     const cardHeight = Math.max(cardEl.scrollHeight, cardEl.offsetHeight);
 
     let scale = 1;
-    if (cardWidth > 0 && availableWidth > 0) {
-      const scaleX = (availableWidth / cardWidth) * 0.98;
-      const scaleY = cardHeight > 0 ? (availableHeight / cardHeight) * 0.98 : 1;
+    let posX = 0;
+    let posY = 24;
 
-      if (isLandscape) {
-        // Landscape / Tablet / Desktop:
-        // Scale up to maximize chords and fit comfortably within the screen (up to 2.5x)
-        const maxFitScale = Math.min(scaleX, scaleY);
-        scale = Math.min(2.5, Math.max(0.2, maxFitScale));
-      } else {
-        // Portrait mode:
+    if (cardWidth > 0) {
+      if (isLaptopOrDesktop) {
+        // ON WEBSITE AND LAPTOPS:
+        // Maximize chord size to fill the available screen space and extend into the top red area
+        const availableWidth = Math.max(300, viewportWidth - (showUI ? 48 : 28));
+        const availableHeight = Math.max(200, viewportHeight - (showUI ? 24 : 16));
+
+        const scaleX = (availableWidth / cardWidth) * 0.98;
+        const scaleY = cardHeight > 0 ? (availableHeight / cardHeight) * 0.98 : 1;
+
         if (cardHeight > 0 && cardHeight * scaleX <= availableHeight) {
-          // Entire chart fits vertically: scale up/down to maximize screen space
-          const maxFitScale = Math.min(scaleX, scaleY);
-          scale = Math.min(2.5, Math.max(0.2, maxFitScale));
+          // Entire chart fits comfortably within screen height when scaled to width
+          scale = Math.min(1.85, Math.max(1.0, scaleX));
+        } else if (scaleY >= 1.0) {
+          // Fits vertically without vertical scrolling
+          scale = Math.min(1.85, Math.min(scaleX, scaleY));
         } else {
-          // Fits by width, allows vertical scrolling for longer scores
-          scale = Math.min(2.2, Math.max(0.2, scaleX));
+          // Chart has many lines: scale chords up for bold readability while enabling smooth vertical pan/scroll
+          scale = Math.min(1.45, Math.max(1.0, scaleX * 0.92));
         }
+
+        const scaledWidth = cardWidth * scale;
+        // Center horizontally
+        posX = Math.max(0, (viewportWidth - scaledWidth) / 2);
+        // Align near top so it extends into the top area
+        posY = showUI ? 12 : 8;
+      } else if (isPhoneRotate) {
+        // IN PHONE ROTATE / LANDSCAPE MODE:
+        const availableWidth = Math.max(260, viewportWidth - 24);
+        const availableHeight = Math.max(160, viewportHeight - 16);
+        const scaleX = (availableWidth / cardWidth) * 0.98;
+        const scaleY = cardHeight > 0 ? (availableHeight / cardHeight) * 0.98 : 1;
+        scale = Math.min(1, scaleX, scaleY);
+
+        const scaledWidth = cardWidth * scale;
+        const scaledHeight = cardHeight * scale;
+        posX = Math.max(0, (viewportWidth - scaledWidth) / 2);
+        posY = scaledHeight < viewportHeight ? Math.max(0, (viewportHeight - scaledHeight) / 2) : 16;
+      } else {
+        // IN PORTRAIT PHONE MODE:
+        const availableWidth = Math.max(260, viewportWidth - 24);
+        if (availableWidth < cardWidth) {
+          scale = Math.max(0.15, (availableWidth / cardWidth) * 0.98);
+        } else {
+          scale = 1;
+        }
+
+        const scaledWidth = cardWidth * scale;
+        const scaledHeight = cardHeight * scale;
+        posX = Math.max(0, (viewportWidth - scaledWidth) / 2);
+        posY = scaledHeight < viewportHeight ? Math.max(0, (viewportHeight - scaledHeight) / 2) : 24;
       }
     }
 
-    const effectiveMinScale = Math.min(0.2, scale * 0.8);
+    // Allow zooming out comfortably
+    const effectiveMinScale = isLaptopOrDesktop ? Math.min(0.5, scale * 0.7) : (isPhoneRotate ? 0.1 : scale);
 
     if (instance.setup) {
       instance.setup.minScale = effectiveMinScale;
@@ -101,14 +133,10 @@ function ChartContentWrapper({
       onBaseScaleChange(effectiveMinScale);
     }
 
-    const scaledWidth = cardWidth * scale;
+    const animDuration = isInitialFitRef.current ? 0 : 200;
+    isInitialFitRef.current = false;
 
-    // Center horizontally
-    const posX = Math.max(0, (viewportWidth - scaledWidth) / 2);
-    // Align directly at topOffset (14px when UI hidden, 112px when UI visible)
-    const posY = topOffset;
-
-    setTransform(posX, posY, scale, 250);
+    setTransform(posX, posY, scale, animDuration);
   }, [instance, setTransform, onBaseScaleChange, showUI]);
 
   useEffect(() => {
@@ -686,16 +714,25 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
 
       {/* ── 4. MAIN SCORE READER CANVAS OR EMPTY STATE ─────────────────────── */}
       <main
-        className="flex-1 w-full h-full relative overflow-hidden flex items-stretch justify-center cursor-pointer select-none"
+        className={`flex-1 w-full h-full relative overflow-hidden flex items-stretch justify-center cursor-pointer select-none transition-[padding] duration-300 ${
+          showUI ? 'pt-26' : 'pt-2 md:pt-3'
+        }`}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onClick={toggleUI}
+        onWheel={(e) => {
+          if (isStageLocked) return;
+          // Auto-hide UI on scroll down
+          if (e.deltaY > 15 && showUI) {
+            setShowUI(false);
+          }
+        }}
       >
         {tabs.length === 0 ? (
           /* Empty state when last tab is closed */
           <div
             onClick={(e) => e.stopPropagation()}
-            className="flex-1 w-full flex flex-col items-center justify-center p-6 text-center z-10 pt-26"
+            className="flex-1 w-full flex flex-col items-center justify-center p-6 text-center z-10"
           >
             <div className="w-16 h-16 rounded-[24px] bg-[#1A1A20] border border-[#2A2A31] flex items-center justify-center mb-4 shadow-xl">
               <BookOpen size={28} className="text-[#FF6A1F]" />
@@ -718,9 +755,9 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
             initialScale={minZoomScale}
             minScale={minZoomScale}
             maxScale={4}
-            centerOnInit={false}
-            centerZoomedOut={false}
-            limitToBounds={false}
+            centerOnInit={true}
+            centerZoomedOut={true}
+            limitToBounds={true}
             wheel={{
               step: 0.1,
               wheelDisabled: true,
@@ -734,6 +771,13 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
               disabled: false,
               velocityDisabled: false,
               lockAxisX: true,
+            }}
+            onPanning={(ref) => {
+              if (isStageLocked) return;
+              // Auto-hide UI when user pans down past top
+              if (ref.state.positionY < -20 && showUI) {
+                setShowUI(false);
+              }
             }}
             pinch={{
               step: 5,
