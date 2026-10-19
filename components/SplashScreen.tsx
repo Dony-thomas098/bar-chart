@@ -1,36 +1,48 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { ChordlyLogo } from "./ChordlyLogo";
 import styles from "./SplashScreen.module.css";
 
-/** Total time the splash stays on screen, counted from when the page started loading. */
-const TOTAL_MS = 3000;
-const TOTAL_MS_REDUCED_MOTION = 900;
+/** Total duration the splash stays active before smooth fade out starts (in ms) */
+const HOLD_MS = 2500;
+const HOLD_MS_REDUCED_MOTION = 800;
+const FADE_MS = 500;
 
 /**
  * Animated launch screen.
- * - Shows first, on top of everything, every time the app opens or the page is fully reloaded
- *   (including a hard refresh).
- * - Does NOT show again when you move between screens inside the app, because this component
- *   lives in the root layout, which stays mounted.
- * - The fade-out is driven by CSS, so it still happens on time even if the app is slow to load.
- * - Tap anywhere or tap "Skip ›" to dismiss immediately.
+ * - Shows first, on top of everything, every time the app opens or the page is fully reloaded.
+ * - Does NOT show again when navigating between screens inside the app.
+ * - Smoothly fades out with hardware-accelerated easing.
+ * - Tap anywhere or tap "Skip ›" to smoothly dismiss early.
  */
 export function SplashScreen() {
+  const [fading, setFading] = useState(false);
   const [gone, setGone] = useState(false);
+  const dismissedRef = useRef(false);
 
   const dismiss = () => {
-    setGone(true);
+    if (dismissedRef.current) return;
+    dismissedRef.current = true;
+    setFading(true);
+    setTimeout(() => {
+      setGone(true);
+    }, FADE_MS);
   };
 
   useEffect(() => {
     const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-    const total = reduce ? TOTAL_MS_REDUCED_MOTION : TOTAL_MS;
-    // performance.now() = time since the page started loading, so slow starts don't extend the splash.
-    const remaining = Math.max(0, total - performance.now());
-    const t = window.setTimeout(() => setGone(true), remaining);
-    return () => window.clearTimeout(t);
+    const hold = reduce ? HOLD_MS_REDUCED_MOTION : HOLD_MS;
+
+    // Remaining time accounting for load duration
+    const elapsed = performance.now();
+    const remaining = Math.max(200, hold - elapsed);
+
+    const timer = setTimeout(() => {
+      dismiss();
+    }, remaining);
+
+    return () => clearTimeout(timer);
   }, []);
 
   if (gone) return null;
@@ -41,7 +53,7 @@ export function SplashScreen() {
       role="status"
       aria-label="Loading Chordly"
       onClick={dismiss}
-      className={`${styles.root} fixed inset-0 z-[999999] grid place-items-center bg-[var(--bg-canvas)] select-none cursor-pointer`}
+      className={`${styles.root} ${fading ? styles.fading : ""} fixed inset-0 z-[999999] grid place-items-center bg-[var(--bg-canvas)] select-none cursor-pointer`}
       style={{
         paddingTop: "max(20px, env(safe-area-inset-top))",
         paddingBottom: "max(20px, env(safe-area-inset-bottom))",
@@ -50,8 +62,15 @@ export function SplashScreen() {
         touchAction: "manipulation",
       }}
     >
-      <ChordlyLogo variant="stacked" animate className="sm:hidden w-[min(80vw,420px)] h-auto" />
-      <ChordlyLogo variant="full" animate className="hidden sm:block w-[min(86vw,820px)] h-auto" />
+      {/* Mobile stacked logo (phones / narrow screens) */}
+      <div className={styles.mobileLogo}>
+        <ChordlyLogo variant="stacked" animate className="w-[min(80vw,420px)] h-auto" />
+      </div>
+
+      {/* Desktop side-by-side logo (tablets / desktop) */}
+      <div className={styles.desktopLogo}>
+        <ChordlyLogo variant="full" animate className="w-[min(86vw,820px)] h-auto" />
+      </div>
 
       {/* Skip button kept from current splash screen */}
       <button

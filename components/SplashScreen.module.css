@@ -1,18 +1,45 @@
-/* Fade out starts at 2.6s and lasts 0.4s, so the splash is gone at 3.0s after the page starts.
-   Runs in CSS so it does not depend on the app finishing loading. */
+/* Smooth launch screen exit transition */
 .root {
-  animation: splashOut 0.4s ease 2.6s forwards;
+  transition: opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.5s cubic-bezier(0.16, 1, 0.3, 1),
+              visibility 0.5s ease;
+  will-change: opacity, transform;
 }
 
-@keyframes splashOut {
-  to {
-    opacity: 0;
-    visibility: hidden;
+.fading {
+  opacity: 0 !important;
+  transform: scale(0.97);
+  pointer-events: none !important;
+}
+
+.mobileLogo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+.desktopLogo {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+@media (min-width: 640px) {
+  .mobileLogo {
+    display: none;
+  }
+  .desktopLogo {
+    display: flex;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .root {
-    animation-delay: 0.5s;
+    transition-duration: 0.2s !important;
+  }
+  .fading {
+    transform: none !important;
   }
 }

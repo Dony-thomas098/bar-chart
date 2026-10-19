@@ -12,24 +12,28 @@
 .tile, .dot { transform-box: fill-box; transform-origin: center; }
 .arc { stroke-dasharray: 1; }
 
+.play .tile, .play .dot, .play .arc, .play .letter {
+  will-change: transform, opacity;
+}
+
 /* Animation only runs when the "animate" prop adds .play. Without it the logo is the finished static mark. */
-.play .tile { animation: tileIn 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.play .tile { animation: tileIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) both; }
 .play .dot {
   animation: pop 0.55s cubic-bezier(0.3, 1.6, 0.5, 1) 0.4s both,
              dotGlow 2.6s ease-in-out 2s infinite both;
 }
 .play .arc {
-  animation: draw 0.7s ease-out calc(0.55s + var(--i) * 0.14s) both,
+  animation: draw 0.75s ease-out calc(0.55s + var(--i) * 0.14s) both,
              ripple 2.6s ease-in-out calc(2s + var(--i) * 0.22s) infinite both;
 }
-.play .letter { animation: ltr 0.75s cubic-bezier(0.2, 0.8, 0.2, 1) calc(1s + var(--i) * 0.08s) both; }
+.play .letter { animation: ltr 0.75s cubic-bezier(0.16, 1, 0.3, 1) calc(1s + var(--i) * 0.08s) both; }
 
-@keyframes tileIn { from { opacity: 0; transform: scale(0.55); } to { opacity: 1; transform: none; } }
-@keyframes pop { from { opacity: 0; transform: scale(0); } to { opacity: 1; transform: none; } }
+@keyframes tileIn { from { opacity: 0; transform: scale(0.65); } to { opacity: 1; transform: scale(1); } }
+@keyframes pop { from { opacity: 0; transform: scale(0); } to { opacity: 1; transform: scale(1); } }
 @keyframes draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
 @keyframes ripple { 0%, 100% { opacity: 1; } 45% { opacity: 0.3; } }
 @keyframes dotGlow { 0%, 100% { opacity: 1; } 45% { opacity: 0.6; } }
-@keyframes ltr { from { opacity: 0; transform: translateY(34px); } to { opacity: 1; transform: none; } }
+@keyframes ltr { from { opacity: 0; transform: translateY(28px); } to { opacity: 1; transform: translateY(0); } }
 
 @media (prefers-reduced-motion: reduce) {
   .play .tile, .play .dot, .play .arc, .play .letter { animation: none !important; }
