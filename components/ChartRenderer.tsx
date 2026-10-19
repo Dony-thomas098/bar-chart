@@ -26,7 +26,7 @@ function ChordNoteTooltip({ chord }: { chord: string }) {
  *  the || double-bars are black/bold and only the : repeat dots are indigo. */
 function BarMarker({ marker, side }: { marker: string; side: 'left' | 'right' }) {
   const barClass = 'text-slate-500 font-medium text-[1.0em] sm:text-[1.1em] print:text-black print:!text-[1em] print:!font-normal print:!font-mono';
-  const dotClass = 'text-indigo-500 font-black text-[1.0em] sm:text-[1.1em] print:text-black print:!text-[1em] print:!font-normal print:!font-mono';
+  const dotClass = 'text-[#FF6A1F] font-black text-[1.0em] sm:text-[1.1em] print:text-black print:!text-[1em] print:!font-normal print:!font-mono';
 
   // Split into segments: leading ':', '||', trailing ':'
   const parts: { ch: string; isColon: boolean }[] = [];
@@ -56,6 +56,35 @@ function BarMarker({ marker, side }: { marker: string; side: 'left' | 'right' })
       ))}
     </span>
   );
+}
+
+// Section labels warm readable colors (Chordly style: #E8650A, #D1366B, #7A4FD6, #0F9D8A, #C98A0C)
+export const DEFAULT_SECTION_COLORS: Record<string, string> = {
+  intro: '#E8650A',
+  verse: '#D1366B',
+  song: '#D1366B',
+  chorus: '#7A4FD6',
+  'bg 2nd': '#7A4FD6',
+  bg: '#7A4FD6',
+  bridge: '#0F9D8A',
+  ap: '#0F9D8A',
+  outro: '#C98A0C',
+  ending: '#C98A0C',
+  tag: '#C98A0C',
+  interlude: '#E8650A',
+  solo: '#D1366B',
+};
+
+export const WARM_SECTION_PALETTE = ['#E8650A', '#D1366B', '#7A4FD6', '#0F9D8A', '#C98A0C'];
+
+export function getDefaultSectionColor(label: string | undefined, index: number): string {
+  if (!label) return WARM_SECTION_PALETTE[index % WARM_SECTION_PALETTE.length];
+  const cleaned = label.trim().toLowerCase();
+  if (DEFAULT_SECTION_COLORS[cleaned]) return DEFAULT_SECTION_COLORS[cleaned];
+  for (const [key, color] of Object.entries(DEFAULT_SECTION_COLORS)) {
+    if (cleaned.startsWith(key)) return color;
+  }
+  return WARM_SECTION_PALETTE[index % WARM_SECTION_PALETTE.length];
 }
 
 // Color swatches for individual element popovers
@@ -309,13 +338,14 @@ export function ChartRenderer({
             {chartData.lines.map((line, lIdx) => {
               const secName = line.label ? line.label.trim().toLowerCase() : '';
               const sectionKey = secName ? `section-${secName}` : `label-${lIdx}`;
-              const customLabelColor = itemColors[sectionKey] || itemColors[`label-${lIdx}`] || (chordColor !== '#0f172a' ? chordColor : undefined);
+              const defaultWarmColor = getDefaultSectionColor(line.label, lIdx);
+              const customLabelColor = itemColors[sectionKey] || itemColors[`label-${lIdx}`] || (chordColor !== '#0f172a' ? chordColor : defaultWarmColor);
               const popoverPos = lIdx === 0 ? 'below' : 'above';
 
               if (line.blocks.length === 0) {
                 return (
                   <div key={lIdx} className={`flex flex-row items-center justify-start w-full flex-nowrap whitespace-nowrap rounded-lg transition-all duration-300 ${
-                    activeSectionIndex === lIdx ? 'ring-2 ring-indigo-500/40 bg-indigo-50/50 px-2 -mx-2' : ''
+                    activeSectionIndex === lIdx ? 'ring-2 ring-[#FF6A1F]/40 bg-[#FF6A1F]/10 px-2 -mx-2' : ''
                   }`} id={`chart-line-${lIdx}`}>
                     {/* Left Label */}
                     {line.label ? (
@@ -360,7 +390,7 @@ export function ChartRenderer({
 
               return (
                 <div key={lIdx} className={`flex flex-row items-center justify-start flex-nowrap whitespace-nowrap rounded-lg transition-all duration-300 ${
-                  activeSectionIndex === lIdx ? 'ring-2 ring-indigo-500/40 bg-indigo-50/50 px-2 -mx-2' : ''
+                  activeSectionIndex === lIdx ? 'ring-2 ring-[#FF6A1F]/40 bg-[#FF6A1F]/10 px-2 -mx-2' : ''
                 }`} id={`chart-line-${lIdx}`}>
                   {/* Left Label */}
                   <div 
@@ -432,7 +462,7 @@ export function ChartRenderer({
                                     }
                                   }}
                                   className={`relative inline-flex items-center justify-center min-w-[2.2rem] sm:min-w-[3.6rem] md:min-w-[4.8rem] print:!min-w-0 print:!w-auto px-1 sm:px-2 print:!px-1 text-center font-extrabold print:!font-normal print:!font-mono transition-all duration-150 text-sm sm:text-2xl md:text-[1.75rem] print:!text-[1em] print:!font-mono rounded print:!rounded-none select-none ${
-                                    isTooltipActive ? 'bg-indigo-50/90 ring-2 ring-indigo-400/50' : 'hover:bg-slate-50/50'
+                                    isTooltipActive ? 'bg-[#FF6A1F]/10 ring-2 ring-[#FF6A1F]/50' : 'hover:bg-slate-50/50'
                                   }`}
                                   style={{ color: '#0f172a', ...fontStyle }}
                                   title="Double-tap or double-click to view chord notes"
@@ -490,7 +520,7 @@ export function ChartRenderer({
     <div 
       id={id}
       onClick={onClick}
-      className="flex text-left flex-col w-fit p-4 sm:p-8 md:p-10 print:p-0 bg-white print:bg-transparent rounded-2xl print:rounded-none relative mx-auto my-0 print:min-h-0 print:h-auto print:w-full border border-slate-200/80 shadow-2xl print:border-none print:shadow-none break-inside-avoid print:break-inside-avoid-page print-single-page"
+      className="flex text-left flex-col w-fit p-4 sm:p-8 md:p-10 print:p-0 bg-white print:bg-transparent rounded-[24px] print:rounded-none relative mx-auto my-0 print:min-h-0 print:h-auto print:w-full border border-slate-200/80 shadow-2xl print:border-none print:shadow-none break-inside-avoid print:break-inside-avoid-page print-single-page"
     >
       {watermark && (
         <div className="hidden print:grid absolute inset-0 grid-cols-4 gap-y-6 gap-x-4 items-center justify-items-center pointer-events-none overflow-hidden z-[1] opacity-[0.04] rotate-[-30deg] scale-150 select-none">
@@ -506,9 +536,9 @@ export function ChartRenderer({
       {/* Footer Info */}
       <div className={`print:hidden mt-auto pt-6 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-[10px] text-slate-400 font-bold tracking-widest uppercase transition-opacity duration-300 ${showUI ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
         <div className="flex items-center space-x-4">
-          <span className="flex items-center text-indigo-600"><Cloud size={14} className="mr-2" /> Live Sync</span>
+          <span className="flex items-center text-[#FF6A1F]"><Cloud size={14} className="mr-2" /> Live Sync</span>
           {collaborators.length > 0 && (
-            <span className="text-indigo-600">
+            <span className="text-[#FF6A1F]">
               {collaborators.length} viewing
             </span>
           )}
