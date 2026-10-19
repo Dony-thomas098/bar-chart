@@ -400,6 +400,11 @@ export function Navigation() {
     router.push(`/lyrics/${lyrics.id}/edit`);
   };
 
+  // Hide on auth / login page, or if user is unauthenticated
+  if (pathname === '/auth' || pathname.startsWith('/auth') || !user) {
+    return null;
+  }
+
   // Hide on reading mode (lyrics score or chord score viewer), full-screen live performance screens, and print
   const isReadingScreen =
     (pathname.startsWith('/lyrics/') && !pathname.startsWith('/lyrics/folder') && !pathname.endsWith('/edit')) ||

@@ -11,12 +11,15 @@ export function Header() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const pathname = usePathname();
 
-  // Hide the header/tabs on full-screen performance screens
-  const isPerformScreen =
+  // Hide on auth / login page or full-screen performance screens
+  if (
+    pathname === '/auth' ||
+    pathname.startsWith('/auth') ||
     (pathname.startsWith('/perform/') && pathname.split('/').length === 3) ||
-    (pathname.includes('/perform') && pathname.split('/').length >= 4);
-
-  if (isPerformScreen) return null;
+    (pathname.includes('/perform') && pathname.split('/').length >= 4)
+  ) {
+    return null;
+  }
 
   return (
     <>
