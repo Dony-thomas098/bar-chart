@@ -207,6 +207,25 @@ export default function TrashPage() {
     }
   };
 
+  // Bulk restore selected items
+  const executeBulkRestore = async () => {
+    const idsToRestore = new Set(selectedIds);
+    setFolders(prev => prev.filter(f => !idsToRestore.has(f.id)));
+    setCharts(prev => prev.filter(c => !idsToRestore.has(c.id)));
+    exitSelectionMode();
+
+    const promises = allItems
+      .filter(item => idsToRestore.has(item.id))
+      .map(item => restoreFromTrash(item.id, item.type, item.trashedName));
+    try {
+      await Promise.all(promises);
+    } catch (err) {
+      console.error('Bulk restore from trash error:', err);
+    } finally {
+      loadContents();
+    }
+  };
+
   // Delete ALL items in trash
   const executeDeleteAll = async () => {
     setFolders([]);
@@ -281,6 +300,16 @@ export default function TrashPage() {
 
               <div className="flex-1" />
 
+              {/* Restore Selected */}
+              <button
+                onClick={executeBulkRestore}
+                disabled={selectedIds.size === 0}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 cursor-pointer"
+              >
+                <RefreshCw size={13} />
+                Restore ({selectedIds.size})
+              </button>
+
               {/* Delete Selected */}
               <button
                 onClick={() => setBulkDeleteModal(true)}
@@ -349,12 +378,12 @@ export default function TrashPage() {
                     onClick={() => handleItemClick(folder.id)}
                     className="select-none"
                   >
-                    <GlassCard className={`p-5 flex flex-col items-center justify-center group relative transition-all duration-200 ${
+                    <GlassCard className={`p-4 sm:p-5 flex flex-col items-center justify-between h-full min-h-[195px] sm:min-h-[210px] group relative transition-all duration-200 ${
                       isSelected ? 'ring-2 ring-orange-500 bg-orange-500/5 dark:bg-orange-500/10' : ''
                     } ${selectionMode ? 'cursor-pointer active:scale-[0.97]' : ''}`}>
                       {/* Selection checkbox */}
                       {selectionMode && (
-                        <div className={`absolute top-2.5 left-2.5 w-6 h-6 rounded-full flex items-center justify-center transition-all duration-200 ${
+                        <div className={`absolute top-2.5 left-2.5 w-6 h-6 rounded-full flex items-center justify-center transition-all duration-200 z-10 ${
                           isSelected
                             ? 'bg-orange-500 text-white shadow-sm shadow-orange-500/30 scale-100'
                             : 'bg-black/5 dark:bg-white/10 border border-black/10 dark:border-white/20 scale-90'
@@ -363,37 +392,49 @@ export default function TrashPage() {
                         </div>
                       )}
 
+                      {/* Card Content (Icon + Title + Date) */}
+                      <div className="flex flex-col items-center justify-center text-center w-full min-w-0 flex-1 pt-1">
+                        <div className={`w-14 h-14 sm:w-16 sm:h-16 bg-white/80 dark:bg-white/10 rounded-2xl flex items-center justify-center mb-3 shadow-inner-glass border border-glass transition-all group-hover:scale-105 ${selectionMode && !isSelected ? 'opacity-50' : 'opacity-85'}`}>
+                          <FolderIcon size={26} className="text-orange-500/90 stroke-[2.2]" fill="currentColor" fillOpacity={0.2} />
+                        </div>
+                        <p className="text-xs sm:text-sm font-bold text-text-primary text-center w-full line-clamp-1 tracking-tight px-1">
+                          {originalName}
+                        </p>
+                        <p className="text-[10px] text-text-muted mt-1 truncate">
+                          Deleted: {new Date(folder.updated_at).toLocaleDateString()}
+                        </p>
+                      </div>
+
                       {/* Action buttons (only in non-selection mode) */}
                       {!selectionMode && (
-                        <div className="absolute top-2.5 right-2.5 flex space-x-1">
-                          <IconButton
-                            icon={<RefreshCw size={14} />}
+                        <div className="w-full mt-3 pt-2.5 border-t border-black/[0.06] dark:border-white/[0.08] flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
+                          <button
+                            type="button"
                             onClick={(e: React.MouseEvent) => {
                               e.stopPropagation();
                               setRestoreItem({ id: folder.id, type: 'folder', trashedName: folder.name, originalName });
                             }}
-                            variant="glass"
-                            aria-label="Restore"
-                            className="w-8 h-8"
-                          />
-                          <IconButton
-                            icon={<Trash2 size={14} />}
+                            className="flex-1 min-h-[32px] px-2 py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 active:scale-95 text-emerald-600 dark:text-emerald-400 font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer border border-emerald-500/20 shadow-xs"
+                            title="Restore"
+                            aria-label={`Restore ${originalName}`}
+                          >
+                            <RefreshCw size={12} className="stroke-[2.5]" />
+                            <span>Restore</span>
+                          </button>
+                          <button
+                            type="button"
                             onClick={(e: React.MouseEvent) => {
                               e.stopPropagation();
                               setDeleteItem({ id: folder.id, type: 'folder', originalName });
                             }}
-                            variant="glass"
-                            aria-label="Delete Permanently"
-                            className="w-8 h-8 text-red-500 hover:text-red-600"
-                          />
+                            className="w-8 h-8 rounded-xl bg-red-500/10 hover:bg-red-500/20 active:scale-95 text-red-600 dark:text-red-400 font-bold text-xs flex items-center justify-center transition-all cursor-pointer border border-red-500/20 shadow-xs shrink-0"
+                            title="Delete Permanently"
+                            aria-label={`Delete ${originalName} permanently`}
+                          >
+                            <Trash2 size={13} className="stroke-[2.2]" />
+                          </button>
                         </div>
                       )}
-
-                      <div className={`w-16 h-16 bg-white/80 dark:bg-white/10 rounded-full flex items-center justify-center mb-3.5 mt-3 shadow-inner-glass border border-glass transition-opacity ${selectionMode && !isSelected ? 'opacity-50' : 'opacity-70'}`}>
-                        <FolderIcon size={24} className="text-text-secondary" />
-                      </div>
-                      <p className="text-sm font-bold text-text-primary text-center w-full truncate tracking-tight">{originalName}</p>
-                      <p className="text-[10px] text-text-muted mt-1">Deleted: {new Date(folder.updated_at).toLocaleDateString()}</p>
                     </GlassCard>
                   </div>
                 );
@@ -411,12 +452,12 @@ export default function TrashPage() {
                     onClick={() => handleItemClick(chart.id)}
                     className="select-none"
                   >
-                    <GlassCard className={`p-5 flex flex-col items-center justify-center group relative transition-all duration-200 ${
+                    <GlassCard className={`p-4 sm:p-5 flex flex-col items-center justify-between h-full min-h-[195px] sm:min-h-[210px] group relative transition-all duration-200 ${
                       isSelected ? 'ring-2 ring-orange-500 bg-orange-500/5 dark:bg-orange-500/10' : ''
                     } ${selectionMode ? 'cursor-pointer active:scale-[0.97]' : ''}`}>
                       {/* Selection checkbox */}
                       {selectionMode && (
-                        <div className={`absolute top-2.5 left-2.5 w-6 h-6 rounded-full flex items-center justify-center transition-all duration-200 ${
+                        <div className={`absolute top-2.5 left-2.5 w-6 h-6 rounded-full flex items-center justify-center transition-all duration-200 z-10 ${
                           isSelected
                             ? 'bg-orange-500 text-white shadow-sm shadow-orange-500/30 scale-100'
                             : 'bg-black/5 dark:bg-white/10 border border-black/10 dark:border-white/20 scale-90'
@@ -425,37 +466,49 @@ export default function TrashPage() {
                         </div>
                       )}
 
+                      {/* Card Content (Icon + Title + Date) */}
+                      <div className="flex flex-col items-center justify-center text-center w-full min-w-0 flex-1 pt-1">
+                        <div className={`w-14 h-14 sm:w-16 sm:h-16 bg-white/80 dark:bg-white/10 rounded-2xl flex items-center justify-center mb-3 shadow-inner-glass border border-glass transition-all group-hover:scale-105 ${selectionMode && !isSelected ? 'opacity-50' : 'opacity-85'}`}>
+                          <FileText size={26} className="text-orange-500 stroke-[2.2]" />
+                        </div>
+                        <p className="text-xs sm:text-sm font-bold text-text-primary text-center w-full line-clamp-1 tracking-tight px-1">
+                          {originalName}
+                        </p>
+                        <p className="text-[10px] text-text-muted mt-1 truncate">
+                          Deleted: {new Date(chart.updated_at).toLocaleDateString()}
+                        </p>
+                      </div>
+
                       {/* Action buttons (only in non-selection mode) */}
                       {!selectionMode && (
-                        <div className="absolute top-2.5 right-2.5 flex space-x-1">
-                          <IconButton
-                            icon={<RefreshCw size={14} />}
+                        <div className="w-full mt-3 pt-2.5 border-t border-black/[0.06] dark:border-white/[0.08] flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
+                          <button
+                            type="button"
                             onClick={(e: React.MouseEvent) => {
                               e.stopPropagation();
                               setRestoreItem({ id: chart.id, type: 'chart', trashedName: chart.title, originalName });
                             }}
-                            variant="glass"
-                            aria-label="Restore"
-                            className="w-8 h-8"
-                          />
-                          <IconButton
-                            icon={<Trash2 size={14} />}
+                            className="flex-1 min-h-[32px] px-2 py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 active:scale-95 text-emerald-600 dark:text-emerald-400 font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer border border-emerald-500/20 shadow-xs"
+                            title="Restore"
+                            aria-label={`Restore ${originalName}`}
+                          >
+                            <RefreshCw size={12} className="stroke-[2.5]" />
+                            <span>Restore</span>
+                          </button>
+                          <button
+                            type="button"
                             onClick={(e: React.MouseEvent) => {
                               e.stopPropagation();
                               setDeleteItem({ id: chart.id, type: 'chart', originalName });
                             }}
-                            variant="glass"
-                            aria-label="Delete Permanently"
-                            className="w-8 h-8 text-red-500 hover:text-red-600"
-                          />
+                            className="w-8 h-8 rounded-xl bg-red-500/10 hover:bg-red-500/20 active:scale-95 text-red-600 dark:text-red-400 font-bold text-xs flex items-center justify-center transition-all cursor-pointer border border-red-500/20 shadow-xs shrink-0"
+                            title="Delete Permanently"
+                            aria-label={`Delete ${originalName} permanently`}
+                          >
+                            <Trash2 size={13} className="stroke-[2.2]" />
+                          </button>
                         </div>
                       )}
-
-                      <div className={`w-16 h-16 bg-white/80 dark:bg-white/10 rounded-full flex items-center justify-center mb-3.5 mt-3 shadow-inner-glass border border-glass transition-opacity ${selectionMode && !isSelected ? 'opacity-50' : 'opacity-70'}`}>
-                        <FileText size={24} className="text-orange-500" />
-                      </div>
-                      <p className="text-sm font-bold text-text-primary text-center w-full truncate tracking-tight">{originalName}</p>
-                      <p className="text-[10px] text-text-muted mt-1">Deleted: {new Date(chart.updated_at).toLocaleDateString()}</p>
                     </GlassCard>
                   </div>
                 );

@@ -211,16 +211,51 @@ export default function AuthPage() {
     }
   };
 
+  // Permanently lock document and body scrolling while on the Auth screen
+  useEffect(() => {
+    const origHtmlOverflow = document.documentElement.style.overflow;
+    const origHtmlOverscroll = document.documentElement.style.overscrollBehavior;
+    const origBodyOverflow = document.body.style.overflow;
+    const origBodyOverscroll = document.body.style.overscrollBehavior;
+    const origBodyTouchAction = document.body.style.touchAction;
+
+    document.documentElement.style.overflow = 'hidden';
+    document.documentElement.style.overscrollBehavior = 'none';
+    document.documentElement.style.height = '100dvh';
+
+    document.body.style.overflow = 'hidden';
+    document.body.style.overscrollBehavior = 'none';
+    document.body.style.height = '100dvh';
+    document.body.style.touchAction = 'none';
+
+    return () => {
+      document.documentElement.style.overflow = origHtmlOverflow;
+      document.documentElement.style.overscrollBehavior = origHtmlOverscroll;
+      document.documentElement.style.height = '';
+
+      document.body.style.overflow = origBodyOverflow;
+      document.body.style.overscrollBehavior = origBodyOverscroll;
+      document.body.style.height = '';
+      document.body.style.touchAction = origBodyTouchAction;
+    };
+  }, []);
+
   return (
-    <div className="flex h-screen items-center justify-center px-4">
-      <div className="w-full max-w-sm rounded-3xl bg-white/70 dark:bg-[#18181d]/70 backdrop-blur-2xl saturate-[180%] p-8 shadow-[0_8px_32px_rgba(31,38,135,0.12),inset_0_1px_0_rgba(255,255,255,0.8)] border border-white/60 dark:border-white/15 text-text-primary dark:text-white">
-        <div className="flex justify-center mb-4">
-          <div className="p-1 rounded-2xl shadow-popover overflow-hidden flex items-center justify-center">
-            <img src="/icon.png" alt="Chordly Logo" className="w-16 h-16 object-cover rounded-2xl shadow-md" />
+    <div 
+      className="fixed inset-0 h-[100dvh] max-h-[100dvh] w-full overflow-hidden flex flex-col items-center justify-center px-4 pt-[max(env(safe-area-inset-top),8px)] pb-[calc(5rem+env(safe-area-inset-bottom,0px))] overscroll-none select-none z-30"
+      style={{ touchAction: 'none' }}
+    >
+      <div 
+        className="w-full max-w-sm rounded-3xl bg-white/75 dark:bg-[#18181d]/80 backdrop-blur-2xl saturate-[180%] p-5 sm:p-7 shadow-[0_8px_32px_rgba(31,38,135,0.12),inset_0_1px_0_rgba(255,255,255,0.8)] border border-white/60 dark:border-white/15 text-text-primary dark:text-white max-h-[calc(100dvh-5.5rem)] overflow-y-auto overscroll-contain select-auto"
+        style={{ touchAction: 'pan-y' }}
+      >
+        <div className="flex justify-center mb-2.5 sm:mb-3">
+          <div className="p-0.5 rounded-2xl shadow-popover overflow-hidden flex items-center justify-center">
+            <img src="/icon.png" alt="Chordly Logo" className="w-12 h-12 sm:w-14 sm:h-14 object-cover rounded-xl shadow-md" />
           </div>
         </div>
         
-        <h2 className="mb-1 text-center text-2xl font-bold text-text-primary dark:text-white tracking-tight">
+        <h2 className="mb-0.5 text-center text-xl sm:text-2xl font-bold text-text-primary dark:text-white tracking-tight">
           {authMode === 'signup'
             ? 'Create an Account'
             : authMode === 'forgot'
@@ -233,7 +268,7 @@ export default function AuthPage() {
               </span>
             )}
         </h2>
-        <p className="mb-5 text-center text-xs text-text-secondary dark:text-gray-400">
+        <p className="mb-2.5 sm:mb-3 text-center text-[11px] sm:text-xs text-text-secondary dark:text-gray-400">
           {authMode === 'signup'
             ? 'Choose your username, email, and password to get started'
             : authMode === 'forgot'
@@ -247,12 +282,12 @@ export default function AuthPage() {
         {(authMode === 'signin' || authMode === 'signup') && (
           <>
             {/* Google One-Click Login */}
-            <div className="mb-4">
+            <div className="mb-2 sm:mb-2.5">
               <button
                 type="button"
                 onClick={handleGoogleLogin}
                 disabled={isSubmitting}
-                className="w-full py-2.5 px-4 bg-white dark:bg-white/10 hover:bg-gray-50 dark:hover:bg-white/15 text-slate-800 dark:text-white rounded-xl text-xs font-bold shadow-sm border border-black/10 dark:border-white/15 transition-all flex items-center justify-center gap-2.5 cursor-pointer active:scale-95 disabled:opacity-50"
+                className="w-full py-2 sm:py-2.5 px-4 bg-white dark:bg-white/10 hover:bg-gray-50 dark:hover:bg-white/15 text-slate-800 dark:text-white rounded-xl text-xs font-bold shadow-sm border border-black/10 dark:border-white/15 transition-all flex items-center justify-center gap-2.5 cursor-pointer active:scale-95 disabled:opacity-50"
               >
                 <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
                   <path
@@ -275,18 +310,18 @@ export default function AuthPage() {
                 <span>Continue with Google</span>
               </button>
 
-              <div className="w-full flex items-center my-3.5">
+              <div className="w-full flex items-center my-2 sm:my-2.5">
                 <div className="flex-1 border-t border-black/10 dark:border-white/10" />
-                <span className="px-2 text-[10px] text-text-secondary dark:text-gray-400 uppercase tracking-widest font-semibold">Or with password</span>
+                <span className="px-2 text-[9px] sm:text-[10px] text-text-secondary dark:text-gray-400 uppercase tracking-widest font-semibold">Or with password</span>
                 <div className="flex-1 border-t border-black/10 dark:border-white/10" />
               </div>
             </div>
 
-            <div className="flex bg-black/5 dark:bg-white/10 p-1 rounded-xl mb-5 border border-white/60 dark:border-white/10">
+            <div className="flex bg-black/5 dark:bg-white/10 p-0.5 sm:p-1 rounded-xl mb-2.5 sm:mb-3 border border-white/60 dark:border-white/10">
               <button
                 type="button"
                 onClick={() => { setAuthMode('signin'); setError(null); setSuccessMessage(null); }}
-                className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                className={`flex-1 py-1.5 sm:py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
                   authMode === 'signin' ? 'bg-orange-500 text-white shadow-sm' : 'text-text-secondary dark:text-gray-400 hover:text-text-primary dark:hover:text-white'
                 }`}
               >
@@ -295,7 +330,7 @@ export default function AuthPage() {
               <button
                 type="button"
                 onClick={() => { setAuthMode('signup'); setError(null); setSuccessMessage(null); }}
-                className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                className={`flex-1 py-1.5 sm:py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
                   authMode === 'signup' ? 'bg-orange-500 text-white shadow-sm' : 'text-text-secondary dark:text-gray-400 hover:text-text-primary dark:hover:text-white'
                 }`}
               >
@@ -305,23 +340,23 @@ export default function AuthPage() {
           </>
         )}
 
-        <form onSubmit={handleAuth} className="space-y-4">
+        <form onSubmit={handleAuth} className="space-y-2 sm:space-y-2.5">
           {authMode === 'signup' && (
             <>
               {/* Username Input for Signup */}
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-gray-300 mb-1">
+                <label className="block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-gray-300 mb-0.5">
                   Username
                 </label>
                 <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-500">
-                    <User size={16} />
+                  <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-gray-500">
+                    <User size={15} />
                   </div>
                   <input
                     type="text"
                     required
                     placeholder="e.g. donythomas"
-                    className="block w-full pl-9 pr-3 py-2.5 rounded-xl border border-gray-700 bg-gray-800 text-white placeholder-gray-500 shadow-sm focus:border-accent-solid focus:outline-none text-sm transition-all"
+                    className="block w-full pl-8 pr-3 py-2 sm:py-2.5 rounded-xl border border-gray-700 bg-gray-800 text-white placeholder-gray-500 shadow-sm focus:border-accent-solid focus:outline-none text-xs sm:text-sm transition-all"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                   />
@@ -330,18 +365,18 @@ export default function AuthPage() {
 
               {/* Real Email Input for Signup */}
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-gray-300 mb-1">
+                <label className="block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-gray-300 mb-0.5">
                   Email Address (For Verification)
                 </label>
                 <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-500">
-                    <Mail size={16} />
+                  <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-gray-500">
+                    <Mail size={15} />
                   </div>
                   <input
                     type="email"
                     required
                     placeholder="e.g. name@example.com"
-                    className="block w-full pl-9 pr-3 py-2.5 rounded-xl border border-gray-700 bg-gray-800 text-white placeholder-gray-500 shadow-sm focus:border-accent-solid focus:outline-none text-sm transition-all"
+                    className="block w-full pl-8 pr-3 py-2 sm:py-2.5 rounded-xl border border-gray-700 bg-gray-800 text-white placeholder-gray-500 shadow-sm focus:border-accent-solid focus:outline-none text-xs sm:text-sm transition-all"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                   />
@@ -352,18 +387,18 @@ export default function AuthPage() {
 
           {authMode === 'signin' && (
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-gray-300 mb-1">
+              <label className="block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-gray-300 mb-0.5">
                 Username or Email
               </label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-500">
-                  <User size={16} />
+                <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-gray-500">
+                  <User size={15} />
                 </div>
                 <input
                   type="text"
                   required
                   placeholder="e.g. donythomas or email@gmail.com"
-                  className="block w-full pl-9 pr-3 py-2.5 rounded-xl border border-gray-700 bg-gray-800 text-white placeholder-gray-500 shadow-sm focus:border-accent-solid focus:outline-none text-sm transition-all"
+                  className="block w-full pl-8 pr-3 py-2 sm:py-2.5 rounded-xl border border-gray-700 bg-gray-800 text-white placeholder-gray-500 shadow-sm focus:border-accent-solid focus:outline-none text-xs sm:text-sm transition-all"
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
                 />
@@ -373,18 +408,18 @@ export default function AuthPage() {
 
           {authMode === 'forgot' && (
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-gray-300 mb-1">
+              <label className="block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-gray-300 mb-0.5">
                 Registered Email Address
               </label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-500">
-                  <Mail size={16} />
+                <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-gray-500">
+                  <Mail size={15} />
                 </div>
                 <input
                   type="email"
                   required
                   placeholder="e.g. name@example.com"
-                  className="block w-full pl-9 pr-3 py-2.5 rounded-xl border border-gray-700 bg-gray-800 text-white placeholder-gray-500 shadow-sm focus:border-accent-solid focus:outline-none text-sm transition-all"
+                  className="block w-full pl-8 pr-3 py-2 sm:py-2.5 rounded-xl border border-gray-700 bg-gray-800 text-white placeholder-gray-500 shadow-sm focus:border-accent-solid focus:outline-none text-xs sm:text-sm transition-all"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                 />
@@ -394,53 +429,53 @@ export default function AuthPage() {
 
           {(authMode === 'signin' || authMode === 'signup' || authMode === 'recovery') && (
             <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="block text-xs font-bold uppercase tracking-wider text-gray-300">
+              <div className="flex items-center justify-between mb-0.5">
+                <label className="block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-gray-300">
                   {authMode === 'recovery' ? 'New Password' : 'Password'}
                 </label>
                 {authMode === 'signin' && (
                   <button
                     type="button"
                     onClick={() => { setAuthMode('forgot'); setError(null); setSuccessMessage(null); }}
-                    className="text-[11px] font-semibold text-orange-400 hover:text-orange-300 transition-colors cursor-pointer"
+                    className="text-[10px] sm:text-[11px] font-semibold text-orange-400 hover:text-orange-300 transition-colors cursor-pointer"
                   >
                     Forgot password?
                   </button>
                 )}
               </div>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-500">
-                  <Lock size={16} />
+                <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-gray-500">
+                  <Lock size={15} />
                 </div>
                 <input
                   type={showPassword ? 'text' : 'password'}
                   required
                   placeholder="••••••••"
-                  className="block w-full pl-9 pr-10 py-2.5 rounded-xl border border-gray-700 bg-gray-800 text-white placeholder-gray-500 shadow-sm focus:border-accent-solid focus:outline-none text-sm transition-all"
+                  className="block w-full pl-8 pr-9 py-2 sm:py-2.5 rounded-xl border border-gray-700 bg-gray-800 text-white placeholder-gray-500 shadow-sm focus:border-accent-solid focus:outline-none text-xs sm:text-sm transition-all"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-white transition-colors"
+                  className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-gray-400 hover:text-white transition-colors"
                   title={showPassword ? 'Hide password' : 'Show password'}
                 >
-                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
                 </button>
               </div>
             </div>
           )}
 
           {error && (
-            <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-xs text-red-400 font-medium">
+            <div className="p-2 sm:p-2.5 bg-red-500/10 border border-red-500/20 rounded-xl text-xs text-red-400 font-medium">
               {error}
             </div>
           )}
 
           {successMessage && (
-            <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-xl text-xs text-green-400 font-medium flex items-start space-x-2">
-              <CheckCircle2 size={16} className="mt-0.5 shrink-0" />
+            <div className="p-2 sm:p-2.5 bg-green-500/10 border border-green-500/20 rounded-xl text-xs text-green-400 font-medium flex items-start space-x-2">
+              <CheckCircle2 size={15} className="mt-0.5 shrink-0" />
               <span>{successMessage}</span>
             </div>
           )}
@@ -448,7 +483,7 @@ export default function AuthPage() {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full py-2.5 px-4 rounded-xl bg-accent-gradient font-bold text-sm text-white shadow-md hover:brightness-110 focus:outline-none transition-all disabled:opacity-50 cursor-pointer"
+            className="w-full py-2.5 px-4 rounded-xl bg-accent-gradient font-bold text-xs sm:text-sm text-white shadow-md hover:brightness-110 focus:outline-none transition-all disabled:opacity-50 cursor-pointer active:scale-95"
           >
             {isSubmitting
               ? 'Processing...'
@@ -465,35 +500,37 @@ export default function AuthPage() {
             <button
               type="button"
               onClick={() => { setAuthMode('signin'); setError(null); setSuccessMessage(null); }}
-              className="w-full py-2 text-xs font-semibold text-text-secondary dark:text-gray-400 hover:text-white transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+              className="w-full py-1.5 text-xs font-semibold text-text-secondary dark:text-gray-400 hover:text-white transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
             >
-              <ArrowLeft size={14} /> Back to Sign In
+              <ArrowLeft size={13} /> Back to Sign In
             </button>
           )}
         </form>
 
         {(authMode === 'signin' || authMode === 'signup') && (
-          <div className="mt-6 flex flex-col items-center space-y-3">
+          <div className="mt-2.5 sm:mt-3 flex flex-col items-center space-y-1.5 sm:space-y-2">
             <button
+              type="button"
               onClick={() => { 
                 setAuthMode(authMode === 'signup' ? 'signin' : 'signup'); 
                 setError(null); 
                 setSuccessMessage(null); 
               }}
-              className="text-xs font-bold text-accent-start hover:underline transition-all cursor-pointer"
+              className="text-[11px] sm:text-xs font-bold text-accent-start hover:underline transition-all cursor-pointer"
             >
               {authMode === 'signup' ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
             </button>
             
-            <div className="w-full flex items-center my-2">
+            <div className="w-full flex items-center my-1">
               <div className="flex-1 border-t border-gray-800" />
-              <span className="px-2 text-[10px] text-gray-500 uppercase tracking-widest">Or</span>
+              <span className="px-2 text-[9px] text-gray-500 uppercase tracking-widest">Or</span>
               <div className="flex-1 border-t border-gray-800" />
             </div>
 
             <button
+              type="button"
               onClick={handleGuestClick}
-              className="w-full py-2.5 px-4 bg-gray-800 border border-gray-700 rounded-xl text-xs font-bold text-gray-300 hover:text-white hover:bg-gray-700 transition-all flex items-center justify-center cursor-pointer"
+              className="w-full py-2 sm:py-2.5 px-4 bg-gray-800 border border-gray-700 rounded-xl text-xs font-bold text-gray-300 hover:text-white hover:bg-gray-700 transition-all flex items-center justify-center cursor-pointer active:scale-95"
             >
               ⚡ Continue Offline (Guest Mode)
             </button>

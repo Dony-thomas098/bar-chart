@@ -8,6 +8,7 @@ import {
 } from '@/lib/storage';
 import { seedSampleData } from '@/lib/sampleData';
 import { FolderPickerModal } from './FolderPickerModal';
+import { ChordlyLogo } from './ChordlyLogo';
 import { useAuth, canModifySection } from '@/components/AuthProvider';
 import {
   Folder as FolderIcon, FileText, MoreVertical, Search,
@@ -702,9 +703,27 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
         </div>
 
         {loading && !isSearching ? (
-          <div className="p-16 text-center text-text-muted font-semibold flex items-center justify-center gap-2">
-            <div className="w-5 h-5 rounded-full border-2 border-orange-500 border-t-transparent animate-spin" />
-            <span>Loading library...</span>
+          <div className="py-20 sm:py-28 flex flex-col items-center justify-center text-center select-none animate-in fade-in duration-300">
+            {/* Ambient soft glow behind logo */}
+            <div className="relative flex flex-col items-center justify-center">
+              <div
+                className="absolute -inset-6 rounded-full bg-gradient-to-tr from-orange-500/20 via-rose-500/15 to-amber-500/10 blur-2xl animate-pulse pointer-events-none"
+                style={{ animationDuration: '2.6s' }}
+              />
+              <ChordlyLogo
+                variant="stacked"
+                animate
+                className="relative w-36 sm:w-44 h-auto drop-shadow-sm"
+              />
+            </div>
+
+            <div className="mt-5 flex items-center gap-2 text-xs font-semibold text-text-secondary dark:text-zinc-400 tracking-wide">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-orange-500"></span>
+              </span>
+              <span>{folderName ? `Loading ${folderName}...` : (kind === 'lyrics' ? 'Loading lyrics...' : 'Loading library...')}</span>
+            </div>
           </div>
         ) : isSearching ? (
           <div className="flex flex-col gap-6 relative z-0">
