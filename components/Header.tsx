@@ -4,6 +4,7 @@ import { Menu } from 'lucide-react';
 import { useState } from 'react';
 import Link from 'next/link';
 import { Sidebar } from './Sidebar';
+import { ChordlyLogo } from './ChordlyLogo';
 import { usePathname } from 'next/navigation';
 
 export function Header() {
@@ -34,25 +35,15 @@ export function Header() {
                 <Menu size={22} className="stroke-[2.2]" />
               </button>
 
-              {/* Brand Logo for desktop (>= sm) */}
-              <Link href="/" className="hidden sm:flex items-center space-x-2.5 group cursor-pointer select-none">
-                <div className="w-8 h-8 rounded-xl overflow-hidden shadow-sm border border-black/5 dark:border-white/10 flex items-center justify-center bg-white/80 dark:bg-zinc-800 shrink-0">
-                  <img src="/icon.png" alt="Chordly" className="w-full h-full object-cover" />
-                </div>
-                <span className="hidden md:inline text-xl font-extrabold tracking-tight text-slate-900 dark:text-white">
-                  chord<span className="text-chordly-orange font-black">ly</span>
-                </span>
+              {/* Brand logo for desktop (>= sm) */}
+              <Link href="/" aria-label="Chordly home" className="hidden sm:block select-none cursor-pointer">
+                <ChordlyLogo variant="full" className="h-9 w-auto aspect-[1239/302]" />
               </Link>
             </div>
 
-            {/* Mobile Brand Logo (centered on < sm screens) */}
-            <Link href="/" className="sm:hidden flex items-center space-x-2 group cursor-pointer select-none">
-              <div className="w-8 h-8 rounded-xl overflow-hidden shadow-sm border border-black/5 dark:border-white/10 flex items-center justify-center bg-white/80 dark:bg-zinc-800">
-                <img src="/icon.png" alt="Chordly" className="w-full h-full object-cover" />
-              </div>
-              <span className="text-xl font-extrabold tracking-tight text-slate-900 dark:text-white">
-                chord<span className="text-chordly-orange font-black">ly</span>
-              </span>
+            {/* Mobile brand logo (< sm) */}
+            <Link href="/" aria-label="Chordly home" className="sm:hidden block select-none cursor-pointer">
+              <ChordlyLogo variant="full" className="h-7 w-auto aspect-[1239/302]" />
             </Link>
 
           </div>

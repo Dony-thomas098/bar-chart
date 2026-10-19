@@ -30,14 +30,18 @@ export const metadata: Metadata = {
   description: "A professional tool for creating, editing, and performing bar chart chord progressions and lyrics.",
   generator: "Next.js",
   manifest: "/manifest.json",
-  keywords: ["music", "chord", "chart", "editor", "musician", "piascore", "setlist"],
+  keywords: ["music", "chord", "chart", "lyrics", "editor", "musician", "setlist"],
   authors: [
     { name: "Chordly" }
   ],
-  icons: [
-    { rel: "apple-touch-icon", url: "/icon-192x192.png" },
-    { rel: "icon", url: "/icon-192x192.png" },
-  ],
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+      { url: "/icon-192x192.png", sizes: "192x192", type: "image/png" },
+    ],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -51,7 +55,10 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: "cover",
-  themeColor: "#ececee",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ececee" },
+    { media: "(prefers-color-scheme: dark)", color: "#09090b" },
+  ],
 };
 
 export default function RootLayout({

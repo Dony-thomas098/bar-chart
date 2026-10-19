@@ -32,6 +32,8 @@
   ],
   "exclude": [
     "node_modules",
-    "scratch_*.ts"
+    "scratch_*.ts",
+    "chordly-app-update",
+    "shared-bundle"
   ]
 }

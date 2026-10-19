@@ -461,7 +461,7 @@ export default function SettingsPage() {
                       <BookOpen size={15} className="mr-2 text-orange-500" /> User Guide
                     </h3>
                     <div className="space-y-3 text-xs text-text-secondary leading-relaxed">
-                      <p>Welcome to <strong>ChordCraft</strong> — modern zero-wrap chord charts and lyrics sheets built for stage musicians.</p>
+                      <p>Welcome to <strong>Chordly</strong> — modern zero-wrap chord charts and lyrics sheets built for stage musicians.</p>
                       
                       <h4 className="font-bold text-text-primary text-sm pt-2">Zero-Wrap Measure Track</h4>
                       <p>Charts are rendered in consistent 4-bar or 2-bar measure lines with crisp section headers and real-time live sync.</p>

@@ -488,7 +488,7 @@ export default function SetlistDetailPage() {
               <div className="w-12 h-12 rounded-full bg-white/15 backdrop-blur-md flex items-center justify-center mb-1.5 shadow-inner">
                 <Music2 size={24} className="text-orange-300 stroke-[2.2]" />
               </div>
-              <span className="text-[11px] font-extrabold tracking-tight text-white/90">ChordCraft</span>
+              <span className="text-[11px] font-extrabold tracking-tight text-white/90">Chordly</span>
               <span className="text-[9px] text-white/70 font-semibold truncate max-w-[90%]">{setlist.name}</span>
             </div>
 

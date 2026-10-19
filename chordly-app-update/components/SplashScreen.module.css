@@ -1,0 +1,18 @@
+/* Fade out starts at 2.6s and lasts 0.4s, so the splash is gone at 3.0s after the page starts.
+   Runs in CSS so it does not depend on the app finishing loading. */
+.root {
+  animation: splashOut 0.4s ease 2.6s forwards;
+}
+
+@keyframes splashOut {
+  to {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .root {
+    animation-delay: 0.5s;
+  }
+}

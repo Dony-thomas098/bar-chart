@@ -138,7 +138,7 @@ export function OnboardingModal() {
           <div className="relative group">
             <div className="absolute -inset-1.5 rounded-3xl bg-gradient-to-r from-orange-500 to-rose-500 opacity-25 blur-md group-hover:opacity-40 transition-opacity" />
             <div className="relative w-16 h-16 rounded-2xl overflow-hidden shadow-md border border-white/60 dark:border-white/15 bg-white/80 dark:bg-zinc-800/80 p-1 flex items-center justify-center">
-              <img src="/icon.png" alt="ChordCraft Logo" className="w-full h-full object-contain" />
+              <img src="/icon.png" alt="Chordly Logo" className="w-full h-full object-contain" />
             </div>
           </div>
         </div>
@@ -148,7 +148,7 @@ export function OnboardingModal() {
           <div className="space-y-4 pt-1">
             <div className="text-center">
               <h2 className="text-xl font-extrabold tracking-tight text-[#1c1c1e] dark:text-white">
-                Welcome to Chord<span className="text-craft-gradient">Craft</span>
+                Welcome to Chordly
               </h2>
               <p className="text-xs text-[#6b7280] dark:text-[#9ca3af] mt-1">
                 What is your primary musical role?

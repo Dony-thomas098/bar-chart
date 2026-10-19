@@ -7,6 +7,7 @@ import { saveLyrics } from '@/lib/lyrics';
 import { X, User, LogOut, Settings, Folder as FolderIcon, FileText, Printer, Trash2, Music, Music2, ListMusic, Star, Download, ChevronRight, Plus, Sun, Moon, Sparkles } from 'lucide-react';
 import { useRouter, usePathname } from 'next/navigation';
 import { getStoredTheme, setTheme, ThemeMode } from '@/lib/theme';
+import { ChordlyLogo } from './ChordlyLogo';
 import './sidebar-drawer.css';
 
 export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {

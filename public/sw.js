@@ -1,4 +1,4 @@
-const CACHE_NAME = 'chordcraft-v3';
+const CACHE_NAME = 'chordly-v4';
 const PRECACHE_ASSETS = [
   '/',
   '/manifest.json',
@@ -70,7 +70,7 @@ self.addEventListener('fetch', (event) => {
           const cachedResponse = await caches.match(request);
           if (cachedResponse) return cachedResponse;
           const rootCached = await caches.match('/');
-          return rootCached || new Response('Offline - ChordCraft is ready when reconnected', {
+          return rootCached || new Response('Offline - Chordly is ready when reconnected', {
             status: 503,
             statusText: 'Offline',
             headers: { 'Content-Type': 'text/plain' },
