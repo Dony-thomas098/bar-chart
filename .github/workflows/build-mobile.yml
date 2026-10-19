@@ -86,7 +86,6 @@ jobs:
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO
-          fi
 
       - name: Upload iOS Xcode Archive
         uses: actions/upload-artifact@v4
