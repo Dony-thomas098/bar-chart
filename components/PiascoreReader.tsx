@@ -35,11 +35,13 @@ function ChartContentWrapper({
   chart, 
   selectedFont, 
   chordColor,
+  showUI = true,
   onBaseScaleChange,
 }: { 
   chart: ChartData; 
   selectedFont: string; 
   chordColor: string;
+  showUI?: boolean;
   onBaseScaleChange?: (scale: number) => void;
 }) {
   const { setTransform, instance } = useControls();
@@ -53,39 +55,44 @@ function ChartContentWrapper({
     const viewportWidth = wrapper.clientWidth;
     const viewportHeight = wrapper.clientHeight;
     const isLandscape = viewportWidth > viewportHeight;
-    const isPhone = Math.min(viewportWidth, viewportHeight) <= 600 ||
-      (typeof navigator !== 'undefined' && /iPhone|Android|Mobile/i.test(navigator.userAgent));
-    const isPhoneRotate = isLandscape && isPhone;
 
-    const availableWidth = Math.max(260, viewportWidth - 24);
+    // Top and bottom clearances:
+    // When editing/header UI is visible, move down below tab strip (112px)
+    // When UI is hidden, move up to top edge (14px) to maximize view and fill top area
+    const topOffset = showUI ? 112 : 14;
+    const bottomOffset = showUI ? 88 : 20;
+
+    const availableWidth = Math.max(260, viewportWidth - 28);
+    const availableHeight = Math.max(160, viewportHeight - topOffset - bottomOffset);
+
     // Real full scroll dimensions of the chord chart card
     const cardWidth = Math.max(cardEl.scrollWidth, cardEl.offsetWidth);
     const cardHeight = Math.max(cardEl.scrollHeight, cardEl.offsetHeight);
 
     let scale = 1;
     if (cardWidth > 0 && availableWidth > 0) {
-      if (isPhoneRotate) {
-        // IN PHONE ROTATE / LANDSCAPE MODE:
-        // Fit by both width and height so full chart fits comfortably initially
-        const availableHeight = Math.max(160, viewportHeight - 16);
-        const scaleX = (availableWidth / cardWidth) * 0.98;
-        const scaleY = cardHeight > 0 ? (availableHeight / cardHeight) * 0.98 : 1;
-        scale = Math.min(1, scaleX, scaleY);
+      const scaleX = (availableWidth / cardWidth) * 0.98;
+      const scaleY = cardHeight > 0 ? (availableHeight / cardHeight) * 0.98 : 1;
+
+      if (isLandscape) {
+        // Landscape / Tablet / Desktop:
+        // Scale up to maximize chords and fit comfortably within the screen (up to 2.5x)
+        const maxFitScale = Math.min(scaleX, scaleY);
+        scale = Math.min(2.5, Math.max(0.2, maxFitScale));
       } else {
-        // IN PORTRAIT MODE:
-        if (availableWidth < cardWidth) {
-          // Content exceeds viewport width: scale down smoothly so whole chart fits
-          scale = Math.max(0.15, (availableWidth / cardWidth) * 0.98);
+        // Portrait mode:
+        if (cardHeight > 0 && cardHeight * scaleX <= availableHeight) {
+          // Entire chart fits vertically: scale up/down to maximize screen space
+          const maxFitScale = Math.min(scaleX, scaleY);
+          scale = Math.min(2.5, Math.max(0.2, maxFitScale));
         } else {
-          // Fits comfortably at 100% scale (default fixed size)
-          scale = 1;
+          // Fits by width, allows vertical scrolling for longer scores
+          scale = Math.min(2.2, Math.max(0.2, scaleX));
         }
       }
     }
 
-    // In rotate mode on phone: allow freely zooming out (down to 0.1) so user can customize view!
-    // In portrait mode on phone: maintain minimum scale so chart doesn't over-shrink.
-    const effectiveMinScale = isPhoneRotate ? 0.1 : scale;
+    const effectiveMinScale = Math.min(0.2, scale * 0.8);
 
     if (instance.setup) {
       instance.setup.minScale = effectiveMinScale;
@@ -95,15 +102,14 @@ function ChartContentWrapper({
     }
 
     const scaledWidth = cardWidth * scale;
-    const scaledHeight = cardHeight * scale;
 
     // Center horizontally
     const posX = Math.max(0, (viewportWidth - scaledWidth) / 2);
-    // Center vertically: if chart is shorter than viewport, center it; otherwise top-align with 24px padding
-    const posY = scaledHeight < viewportHeight ? Math.max(0, (viewportHeight - scaledHeight) / 2) : 24;
+    // Align directly at topOffset (14px when UI hidden, 112px when UI visible)
+    const posY = topOffset;
 
-    setTransform(posX, posY, scale, 0);
-  }, [instance, setTransform, onBaseScaleChange]);
+    setTransform(posX, posY, scale, 250);
+  }, [instance, setTransform, onBaseScaleChange, showUI]);
 
   useEffect(() => {
     let t1: any;
@@ -127,7 +133,7 @@ function ChartContentWrapper({
       window.removeEventListener('piascore-fit-screen', runFit);
       window.removeEventListener('chord-grid-font-change', runFit);
     };
-  }, [fitToScreen, chart.id]);
+  }, [fitToScreen, chart.id, showUI]);
 
   return <ChartRenderer chart={chart} selectedFont={selectedFont} chordColor={chordColor} id="piascore-chart-card" />;
 }
@@ -680,7 +686,7 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
 
       {/* ── 4. MAIN SCORE READER CANVAS OR EMPTY STATE ─────────────────────── */}
       <main
-        className="flex-1 w-full h-full relative overflow-hidden flex items-stretch justify-center cursor-pointer select-none pt-26"
+        className="flex-1 w-full h-full relative overflow-hidden flex items-stretch justify-center cursor-pointer select-none"
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onClick={toggleUI}
@@ -689,7 +695,7 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
           /* Empty state when last tab is closed */
           <div
             onClick={(e) => e.stopPropagation()}
-            className="flex-1 w-full flex flex-col items-center justify-center p-6 text-center z-10"
+            className="flex-1 w-full flex flex-col items-center justify-center p-6 text-center z-10 pt-26"
           >
             <div className="w-16 h-16 rounded-[24px] bg-[#1A1A20] border border-[#2A2A31] flex items-center justify-center mb-4 shadow-xl">
               <BookOpen size={28} className="text-[#FF6A1F]" />
@@ -712,9 +718,9 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
             initialScale={minZoomScale}
             minScale={minZoomScale}
             maxScale={4}
-            centerOnInit={true}
-            centerZoomedOut={true}
-            limitToBounds={true}
+            centerOnInit={false}
+            centerZoomedOut={false}
+            limitToBounds={false}
             wheel={{
               step: 0.1,
               wheelDisabled: true,
@@ -751,6 +757,7 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
                   chart={currentChart}
                   selectedFont={selectedFont}
                   chordColor={chordColor}
+                  showUI={showUI}
                   onBaseScaleChange={setMinZoomScale}
                 />
               </div>
