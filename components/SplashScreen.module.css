@@ -1,3 +1,10 @@
+/* Instant hide when already shown in current session */
+:global(.no-splash) .root {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
 /* Smooth launch screen exit transition */
 .root {
   transition: opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1),

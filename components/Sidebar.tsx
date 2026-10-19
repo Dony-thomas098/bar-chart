@@ -36,9 +36,7 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
 
   const handleNav = (path: string) => {
     onClose();
-    startTransition(() => {
-      router.push(path);
-    });
+    router.push(path);
   };
 
   let currentFolderId: string | null = null;
@@ -194,7 +192,7 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
                 return (
                   <>
                     <button
-                      onClick={() => { router.push(isSinger ? '/chords' : '/'); onClose(); }}
+                      onClick={() => handleNav(isSinger ? '/chords' : '/')}
                       className={`app-drawer-row${isChordsActive ? ' app-drawer-row--active' : ''}`}
                     >
                       <span className="app-drawer-row-left">
@@ -204,7 +202,7 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
                       <ChevronRight size={14} className="app-drawer-row-chevron" />
                     </button>
                     <button
-                      onClick={() => { router.push(isSinger ? '/' : '/lyrics'); onClose(); }}
+                      onClick={() => handleNav(isSinger ? '/' : '/lyrics')}
                       className={`app-drawer-row${isLyricsActive ? ' app-drawer-row--active' : ''}`}
                     >
                       <span className="app-drawer-row-left">
@@ -218,7 +216,7 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
               })()}
 
               <button
-                onClick={() => { router.push('/bookmarks'); onClose(); }}
+                onClick={() => handleNav('/bookmarks')}
                 className={`app-drawer-row${pathname.startsWith('/bookmarks') ? ' app-drawer-row--active' : ''}`}
               >
                 <span className="app-drawer-row-left">
@@ -228,7 +226,7 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
                 <ChevronRight size={14} className="app-drawer-row-chevron" />
               </button>
               <button
-                onClick={() => { router.push('/setlists'); onClose(); }}
+                onClick={() => handleNav('/setlists')}
                 className={`app-drawer-row${pathname.startsWith('/setlists') ? ' app-drawer-row--active' : ''}`}
               >
                 <span className="app-drawer-row-left">
@@ -247,7 +245,7 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
             </h3>
             <div className="app-drawer-section-items">
               <button
-                onClick={() => { router.push('/perform'); onClose(); }}
+                onClick={() => handleNav('/perform')}
                 className={`app-drawer-row${pathname.startsWith('/perform') ? ' app-drawer-row--active' : ''}`}
               >
                 <span className="app-drawer-row-left">
@@ -257,7 +255,7 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
                 <ChevronRight size={14} className="app-drawer-row-chevron" />
               </button>
               <button
-                onClick={() => { router.push('/printer'); onClose(); }}
+                onClick={() => handleNav('/printer')}
                 className={`app-drawer-row${pathname.startsWith('/printer') ? ' app-drawer-row--active' : ''}`}
               >
                 <span className="app-drawer-row-left">
@@ -363,7 +361,7 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
               </button>
             </div>
             <button
-              onClick={() => { router.push('/trash'); onClose(); }}
+              onClick={() => handleNav('/trash')}
               className="app-drawer-trash-row"
             >
               <Trash2 size={15} /> Trash
@@ -378,10 +376,7 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
               <Download size={15} /> Install Chordly App
             </button>
             <button
-              onClick={() => {
-                router.push('/logo-review');
-                onClose();
-              }}
+              onClick={() => handleNav('/logo-review')}
               className="app-drawer-row !px-4 !py-2.5 text-xs text-text-secondary hover:text-text-primary"
             >
               <span className="app-drawer-row-left">

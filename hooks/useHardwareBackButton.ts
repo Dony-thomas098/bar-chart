@@ -53,13 +53,7 @@ export function useHardwareBackButton({
     return () => {
       window.removeEventListener('popstate', handlePopState);
       window.removeEventListener('keydown', handleKeyDown);
-      // Clean up pushed state if unmounted without user pressing back
-      if (pushedRef.current) {
-        pushedRef.current = false;
-        try {
-          window.history.back();
-        } catch {}
-      }
+      pushedRef.current = false;
     };
   }, [enabled, stateKey]);
 }

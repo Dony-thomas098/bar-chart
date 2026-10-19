@@ -15,14 +15,51 @@ export function LogoLoading({
   statusText = 'Loading...',
   bpm = 120,
   variant = 'card',
-  styleVariant = 'rhythm-matrix',
-  theme = 'dark',
+  styleVariant,
+  theme,
   className = '',
 }: LogoLoadingProps) {
-  const isLight = theme === 'light';
+  const [activeStyle, setActiveStyle] = React.useState<'rhythm-matrix' | 'harmonic-wave' | 'studio-rack'>(
+    styleVariant || 'rhythm-matrix'
+  );
+  const [activeBpm, setActiveBpm] = React.useState<number>(bpm);
+  const [activeTheme, setActiveTheme] = React.useState<'dark' | 'light'>(theme || 'dark');
+
+  React.useEffect(() => {
+    try {
+      if (!styleVariant) {
+        const saved = localStorage.getItem('chordly_loading_variant') as any;
+        if (saved === 'rhythm-matrix' || saved === 'harmonic-wave' || saved === 'studio-rack') {
+          setActiveStyle(saved);
+        }
+      } else {
+        setActiveStyle(styleVariant);
+      }
+
+      if (bpm === 120) {
+        const savedBpm = localStorage.getItem('chordly_loading_bpm');
+        if (savedBpm) setActiveBpm(Number(savedBpm) || 120);
+      } else {
+        setActiveBpm(bpm);
+      }
+
+      if (!theme) {
+        const isDark =
+          document.documentElement.classList.contains('dark') ||
+          localStorage.getItem('chord-grid-theme') === 'dark' ||
+          (localStorage.getItem('chord-grid-theme') !== 'light' &&
+            window.matchMedia('(prefers-color-scheme: dark)').matches);
+        setActiveTheme(isDark ? 'dark' : 'light');
+      } else {
+        setActiveTheme(theme);
+      }
+    } catch {}
+  }, [styleVariant, bpm, theme]);
+
+  const isLight = activeTheme === 'light';
 
   // Musical timing: duration of one beat in seconds
-  const beatSec = Math.max(0.25, Math.min(2.0, 60 / bpm));
+  const beatSec = Math.max(0.25, Math.min(2.0, 60 / activeBpm));
   const barDuration = (beatSec * 4).toFixed(3);
 
   const containerClasses = {
@@ -45,7 +82,7 @@ export function LogoLoading({
           style={{ animationDuration: `${barDuration}s` }}
         />
 
-        {styleVariant === 'rhythm-matrix' && (
+        {activeStyle === 'rhythm-matrix' && (
           /* 4-Beat Chord Grid Matrix */
           <div className="relative flex flex-col items-center">
             {/* Outer Grid Housing */}
@@ -106,7 +143,7 @@ export function LogoLoading({
           </div>
         )}
 
-        {styleVariant === 'harmonic-wave' && (
+        {activeStyle === 'harmonic-wave' && (
           /* Harmonic Strings Resonance Wave */
           <div className="relative flex flex-col items-center justify-center p-4">
             <div
@@ -132,7 +169,7 @@ export function LogoLoading({
           </div>
         )}
 
-        {styleVariant === 'studio-rack' && (
+        {activeStyle === 'studio-rack' && (
           /* Studio Rack Meter */
           <div
             className={`relative flex items-center gap-3 p-3 rounded-2xl ${
@@ -175,7 +212,7 @@ export function LogoLoading({
                   : 'bg-orange-500/10 text-orange-400 border-orange-500/20'
               }`}
             >
-              {bpm} BPM
+              {activeBpm} BPM
             </span>
           </div>
 

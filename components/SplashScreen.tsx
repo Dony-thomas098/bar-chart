@@ -5,13 +5,13 @@ import { ChordlyLogo } from "./ChordlyLogo";
 import styles from "./SplashScreen.module.css";
 
 /** Total duration the splash stays active before smooth fade out starts (in ms) */
-const HOLD_MS = 2500;
-const HOLD_MS_REDUCED_MOTION = 800;
+const HOLD_MS = 2200;
+const HOLD_MS_REDUCED_MOTION = 700;
 const FADE_MS = 500;
 
 /**
- * Animated launch screen.
- * - Shows ONLY when the app is opened for the first time in a session OR on a hard refresh.
+ * Animated Brand Launch Screen.
+ * - Shows ONLY when the app is opened for the first time in a session OR after a hard refresh / reload.
  * - Displays the animated Chordly brand logo (vinyl soundwave arcs + liquid wordmark letter animation).
  * - Smoothly fades out with hardware-accelerated easing.
  * - Tap anywhere or tap "Skip ›" to smoothly dismiss early.
@@ -27,10 +27,51 @@ export function SplashScreen() {
     setFading(true);
     setTimeout(() => {
       setGone(true);
+      try {
+        document.documentElement.classList.add("no-splash");
+      } catch {}
     }, FADE_MS);
   };
 
   useEffect(() => {
+    // 1. Determine if this is the first entry in session OR a hard refresh/reload
+    try {
+      const navEntries = performance.getEntriesByType("navigation") as PerformanceNavigationTiming[];
+      const isReload =
+        (navEntries.length > 0 && navEntries[0].type === "reload") ||
+        (typeof performance !== "undefined" && (performance as any).navigation?.type === 1);
+      const splashShown = sessionStorage.getItem("chordly_splash_shown");
+
+      if (splashShown && !isReload) {
+        // Already shown in this session and NOT a refresh -> dismiss immediately
+        setGone(true);
+        document.documentElement.classList.add("no-splash");
+        return;
+      }
+
+      // First entry or reload: mark shown for this session and present splash
+      sessionStorage.setItem("chordly_splash_shown", "true");
+      document.documentElement.classList.remove("no-splash");
+      setGone(false);
+    } catch {
+      // In case sessionStorage is restricted (incognito/webview security)
+      setGone(false);
+    }
+
+    // 2. Intercept hard refresh key combos so next load displays splash
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (
+        ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === "r" || e.key === "R")) ||
+        (e.ctrlKey && e.key === "F5")
+      ) {
+        try {
+          sessionStorage.removeItem("chordly_splash_shown");
+        } catch {}
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+
+    // 3. Auto dismiss after hold time
     const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
     const hold = reduce ? HOLD_MS_REDUCED_MOTION : HOLD_MS;
 
@@ -39,6 +80,7 @@ export function SplashScreen() {
     }, hold);
 
     return () => {
+      window.removeEventListener("keydown", handleKeyDown);
       clearTimeout(timer);
     };
   }, []);
