@@ -70,8 +70,6 @@ export function Navigation() {
   const wrapRef = useRef<HTMLDivElement>(null);
   const barSvgRef = useRef<SVGSVGElement>(null);
   const pathRef = useRef<SVGPathElement>(null);
-  const rimShelfRef = useRef<SVGPathElement>(null);
-  const rimLineRef = useRef<SVGPathElement>(null);
   const bubbleRef = useRef<HTMLDivElement>(null);
   const spinRef = useRef<HTMLElement>(null);
   const dropsRef = useRef<DropParticle[]>([]);
@@ -221,38 +219,6 @@ export function Navigation() {
           ' A' + R + ' ' + R + ' 0 0 1 0 ' + (TOP + BH - R) +
           ' L0 ' + (TOP + R) +
           ' A' + R + ' ' + R + ' 0 0 1 ' + R + ' ' + TOP + 'Z'
-      );
-    }
-
-    // 3D Beveled Shelf Ribbon (Follows the white marked contour)
-    if (rimShelfRef.current) {
-      const shelfPts: string[] = [];
-      const shelfDepth = 11;
-      for (let i = pts.length - 1; i >= 0; i--) {
-        const parts = pts[i].split(' ');
-        const px = parts[0];
-        const py = (parseFloat(parts[1]) + shelfDepth).toFixed(2);
-        shelfPts.push(`${px} ${py}`);
-      }
-      rimShelfRef.current.setAttribute(
-        'd',
-        'M' + R + ' ' + TOP +
-          ' L' + pts.join(' L') +
-          ' L' + (W - R) + ' ' + TOP +
-          ' A' + R + ' ' + R + ' 0 0 1 ' + W + ' ' + (TOP + R) +
-          ' L' + (W - 2) + ' ' + (TOP + shelfDepth) +
-          ' L' + shelfPts.join(' L') +
-          ' L' + 2 + ' ' + (TOP + shelfDepth) +
-          ' A' + R + ' ' + R + ' 0 0 1 0 ' + (TOP + R) +
-          ' Z'
-      );
-    }
-
-    // 3D Top Specular Crest Line (Highlight along the top edge)
-    if (rimLineRef.current) {
-      rimLineRef.current.setAttribute(
-        'd',
-        'M' + R + ' ' + TOP + ' L' + pts.join(' L') + ' L' + (W - R) + ' ' + TOP
       );
     }
 
@@ -472,42 +438,9 @@ export function Navigation() {
       >
         <nav className={`pointer-events-auto ${styles.navRoot}`} aria-label="Main Navigation">
           <div className={styles.wrap} ref={wrapRef} id="wrap">
-            {/* Liquid SVG Wave Path with 3D Depth, Volumetric Surface & Dynamic Water Dip */}
+            {/* Liquid SVG Wave Path with Dynamic Water Dip */}
             <svg ref={barSvgRef} className={styles.barSvg} id="bar" aria-hidden="true">
-              <defs>
-                {/* 3D Volumetric Body Gradient */}
-                <linearGradient id="bar3DBodyGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <stop offset="0%" stopColor="#2e2e3a" />
-                  <stop offset="16%" stopColor="#22222b" />
-                  <stop offset="60%" stopColor="#181820" />
-                  <stop offset="100%" stopColor="#111116" />
-                </linearGradient>
-
-                {/* 3D Beveled Shelf / Depth Lighting Gradient (White marked area) */}
-                <linearGradient id="rim3DShelfGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <stop offset="0%" stopColor="rgba(255, 255, 255, 0.28)" />
-                  <stop offset="45%" stopColor="rgba(255, 255, 255, 0.12)" />
-                  <stop offset="100%" stopColor="rgba(255, 255, 255, 0)" />
-                </linearGradient>
-
-                {/* 3D Top Crest Specular Highlight Line */}
-                <linearGradient id="rim3DSpecularGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" stopColor="rgba(255, 255, 255, 0.25)" />
-                  <stop offset="20%" stopColor="rgba(255, 255, 255, 0.85)" />
-                  <stop offset="50%" stopColor="rgba(255, 255, 255, 0.45)" />
-                  <stop offset="80%" stopColor="rgba(255, 255, 255, 0.85)" />
-                  <stop offset="100%" stopColor="rgba(255, 255, 255, 0.25)" />
-                </linearGradient>
-              </defs>
-
-              {/* 3D Volumetric Base Body */}
-              <path ref={pathRef} id="p" fill="url(#bar3DBodyGrad)" stroke="rgba(255, 255, 255, 0.12)" strokeWidth="1" />
-
-              {/* 3D Beveled Shelf / Depth Highlight along the white marked area */}
-              <path ref={rimShelfRef} id="rimShelf" fill="url(#rim3DShelfGrad)" opacity="0.9" />
-
-              {/* 3D Top Rim Razor-Sharp Specular Crest Line */}
-              <path ref={rimLineRef} id="rimLine" fill="none" stroke="url(#rim3DSpecularGrad)" strokeWidth="1.6" strokeLinecap="round" />
+              <path ref={pathRef} id="p" />
             </svg>
 
             {/* Row of Tabs */}
