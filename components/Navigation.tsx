@@ -168,11 +168,6 @@ export function Navigation() {
         s,
       });
     }
-    if (typeof navigator !== 'undefined' && navigator.vibrate) {
-      try {
-        navigator.vibrate(12);
-      } catch {}
-    }
   }, []);
 
   const draw = useCallback((now: number) => {
@@ -233,11 +228,6 @@ export function Navigation() {
 
     if (tc >= 1 && !sState.landed) {
       sState.landed = true;
-      if (typeof navigator !== 'undefined' && navigator.vibrate) {
-        try {
-          navigator.vibrate(10);
-        } catch {}
-      }
     }
   }, []);
 
@@ -301,12 +291,6 @@ export function Navigation() {
       sState.landed = false;
 
       setActiveTab(i);
-
-      if (typeof navigator !== 'undefined' && navigator.vibrate) {
-        try {
-          navigator.vibrate(12);
-        } catch {}
-      }
 
       if (!sState.raf) {
         sState.raf = requestAnimationFrame(tick);
