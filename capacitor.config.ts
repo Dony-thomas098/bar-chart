@@ -18,12 +18,6 @@ const config: CapacitorConfig = {
       overlaysWebView: true,
       style: 'DEFAULT',
     },
-    SystemBars: {
-      insetsHandling: 'css',
-      initialViewportFitValueHint: 'cover',
-      style: 'DEFAULT',
-      hidden: false,
-    },
     LiveUpdate: {
       autoDeleteBundles: true,
       readyTimeout: 10000,
