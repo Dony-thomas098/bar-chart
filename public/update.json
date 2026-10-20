@@ -1,9 +1,9 @@
 {
   "version": "0.1.0",
-  "bundleId": "bundle-v0.1.0-20261020065931",
+  "bundleId": "bundle-v0.1.0-20261020081016",
   "url": "https://chordly.vercel.app/bundle.zip",
-  "checksum": "873cf3871ff6d4551542d75440550b6def133b3ff5b75d34c1b4f05c69c55135",
-  "fileSize": 5477237,
-  "releasedAt": "2026-10-20T06:59:41.164Z",
+  "checksum": "f61b169f7cc751ae94b9ae2e71dfef1797e81862cf08155363f5f79f7e308aff",
+  "fileSize": 5479040,
+  "releasedAt": "2026-10-20T08:10:17.500Z",
   "notes": "OTA update package for Chordly v0.1.0"
 }
