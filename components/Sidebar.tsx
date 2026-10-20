@@ -94,7 +94,7 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
       updated_at: new Date().toISOString(),
     };
     await saveChart(chart);
-    router.push(`/chart/${chart.id}/edit`);
+    router.push(`/chart/edit?id=${chart.id}`);
     onClose();
   };
 
@@ -109,7 +109,7 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
       updated_at: new Date().toISOString(),
     };
     await saveLyrics(lyric);
-    router.push(`/lyrics/${lyric.id}/edit`);
+    router.push(`/lyrics/edit?id=${lyric.id}`);
     onClose();
   };
 
@@ -413,7 +413,7 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
                 if (pathname === '/' || pathname === '/lyrics' || pathname === '/chords' || pathname.startsWith('/folder/') || pathname.startsWith('/lyrics/folder/')) {
                   window.dispatchEvent(new Event('refresh-folder'));
                 } else {
-                  router.push(currentFolderId ? (folderKind === 'lyrics' ? `/lyrics/folder/${currentFolderId}` : `/folder/${currentFolderId}`) : (folderKind === 'lyrics' ? (isSinger ? '/' : '/lyrics') : (isSinger ? '/chords' : '/')));
+                  router.push(currentFolderId ? (folderKind === 'lyrics' ? `/lyrics/folder?id=${currentFolderId}` : `/folder?id=${currentFolderId}`) : (folderKind === 'lyrics' ? (isSinger ? '/' : '/lyrics') : (isSinger ? '/chords' : '/')));
                 }
               }
               setCreateFolderModal(false);

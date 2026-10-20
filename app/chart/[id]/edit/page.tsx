@@ -18,18 +18,18 @@ import { useSearchParams } from 'next/navigation';
 export default function ChartEditor() {
   const { user, profile, loading: authLoading } = useAuth();
   const params = useParams();
+  const searchParams = useSearchParams();
   const router = useRouter();
-  const chartId = params.id as string;
+  const chartId = (params?.id as string) || searchParams.get('id') || '';
   const canEdit = canModifySection(profile?.profession, 'chart');
 
   useEffect(() => {
     if (!authLoading && !canEdit) {
-      router.replace(`/chart/${chartId}`);
+      router.replace(chartId ? `/chart?id=${chartId}` : '/');
     }
   }, [authLoading, canEdit, chartId, router]);
   
   const { chart, loading: chartLoading, saveStatus, collaborators, updateChart, forceSave } = useChartSync(chartId);
-  const searchParams = useSearchParams();
   const returnTo = searchParams.get('returnTo');
   const [copied, setCopied] = useState(false);
   const [customText, setCustomText] = useState<string | null>(null);

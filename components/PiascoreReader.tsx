@@ -491,7 +491,7 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
     if (onLeaderStart) {
       onLeaderStart(code);
     } else {
-      router.push(`/perform/${code}`);
+      router.push(`/perform/stage?code=${code}`);
     }
   };
 
@@ -502,7 +502,7 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
       if (onFollowStart) {
         onFollowStart(c);
       } else {
-        router.push(`/perform/${c}`);
+        router.push(`/perform/stage?code=${c}`);
       }
     }
   };
@@ -916,7 +916,7 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
         {/* Button 5: Writing */}
         {canEditChart && currentChart && (
           <button
-            onClick={() => router.push(`/chart/${currentChart.id}/edit`)}
+            onClick={() => router.push(`/chart/edit?id=${currentChart.id}`)}
             className="flex flex-col items-center gap-1 text-[10px] font-semibold text-[#8C8A93] hover:text-[#FF6A1F] transition-all active:scale-95 cursor-pointer"
           >
             <Edit3 size={20} />

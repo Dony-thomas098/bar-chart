@@ -427,7 +427,7 @@ export function PiascoreLyricsReader({ initialLyric, folderId }: Props) {
         {/* Left: Catalog Button */}
         <button
           onClick={() =>
-            router.push(folderId ? `/lyrics/folder/${folderId}` : '/lyrics')
+            router.push(folderId ? `/lyrics/folder?id=${folderId}` : '/lyrics')
           }
           className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-accent-start hover:bg-black/5 dark:hover:bg-white/5 rounded-lg transition-all active:scale-95"
         >
@@ -762,7 +762,7 @@ export function PiascoreLyricsReader({ initialLyric, folderId }: Props) {
         {/* Button 5: Writing */}
         {canEditLyrics && (
           <button
-            onClick={() => router.push(`/lyrics/${currentLyric.id}/edit`)}
+            onClick={() => router.push(`/lyrics/edit?id=${currentLyric.id}`)}
             className="flex flex-col items-center gap-0.5 text-[10px] font-semibold text-slate-600 dark:text-slate-400 hover:text-accent-start transition-all active:scale-95"
           >
             <Edit3 size={20} />
@@ -856,7 +856,7 @@ export function PiascoreLyricsReader({ initialLyric, folderId }: Props) {
               <button
                 onClick={() => {
                   const code = Math.random().toString(36).substr(2, 6).toUpperCase();
-                  router.push(`/perform/${code}`);
+                  router.push(`/perform/stage?code=${code}`);
                 }}
                 className="w-full py-3 text-sm font-bold text-accent-start hover:bg-slate-50 dark:hover:bg-white/5 active:bg-slate-100 transition-colors"
               >
@@ -865,7 +865,7 @@ export function PiascoreLyricsReader({ initialLyric, folderId }: Props) {
               <button
                 onClick={() => {
                   if (syncJoinCodeInput.trim().length === 6) {
-                    router.push(`/perform/${syncJoinCodeInput.trim().toUpperCase()}`);
+                    router.push(`/perform/stage?code=${syncJoinCodeInput.trim().toUpperCase()}`);
                   }
                 }}
                 disabled={syncJoinCodeInput.trim().length !== 6}

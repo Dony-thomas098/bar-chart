@@ -745,7 +745,7 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
                             onPointerMove={handlePointerMove}
                             onPointerUp={handlePointerUp}
                             onPointerCancel={handlePointerUp}
-                            onClick={(e) => handleCardClick(folder.id, 'folder', e, () => router.push(kind === 'lyrics' ? `/lyrics/folder/${folder.id}` : `/folder/${folder.id}`))}
+                            onClick={(e) => handleCardClick(folder.id, 'folder', e, () => router.push(kind === 'lyrics' ? `/lyrics/folder?id=${folder.id}` : `/folder?id=${folder.id}`))}
                             onContextMenu={(e) => {
                               e.preventDefault();
                               if (Date.now() - lastLongPressTime.current > 600) {
@@ -784,7 +784,7 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
                             onPointerMove={handlePointerMove}
                             onPointerUp={handlePointerUp}
                             onPointerCancel={handlePointerUp}
-                            onClick={(e) => handleCardClick(folder.id, 'folder', e, () => router.push(kind === 'lyrics' ? `/lyrics/folder/${folder.id}` : `/folder/${folder.id}`))}
+                            onClick={(e) => handleCardClick(folder.id, 'folder', e, () => router.push(kind === 'lyrics' ? `/lyrics/folder?id=${folder.id}` : `/folder?id=${folder.id}`))}
                             onContextMenu={(e) => {
                               e.preventDefault();
                               if (Date.now() - lastLongPressTime.current > 600) {
@@ -844,7 +844,7 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
                             onPointerMove={handlePointerMove}
                             onPointerUp={handlePointerUp}
                             onPointerCancel={handlePointerUp}
-                            onClick={(e) => handleCardClick(chart.id, kind, e, () => router.push(kind === 'lyrics' ? `/lyrics/${chart.id}` : `/chart/${chart.id}`))}
+                            onClick={(e) => handleCardClick(chart.id, kind, e, () => router.push(kind === 'lyrics' ? `/lyrics/view?id=${chart.id}` : `/chart?id=${chart.id}`))}
                             onContextMenu={(e) => {
                               e.preventDefault();
                               if (Date.now() - lastLongPressTime.current > 600) {
@@ -905,7 +905,7 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
                             onPointerMove={handlePointerMove}
                             onPointerUp={handlePointerUp}
                             onPointerCancel={handlePointerUp}
-                            onClick={(e) => handleCardClick(chart.id, kind, e, () => router.push(kind === 'lyrics' ? `/lyrics/${chart.id}` : `/chart/${chart.id}`))}
+                            onClick={(e) => handleCardClick(chart.id, kind, e, () => router.push(kind === 'lyrics' ? `/lyrics/view?id=${chart.id}` : `/chart?id=${chart.id}`))}
                             onContextMenu={(e) => {
                               e.preventDefault();
                               if (Date.now() - lastLongPressTime.current > 600) {
@@ -1001,7 +1001,7 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
                       onPointerMove={handlePointerMove}
                       onPointerUp={handlePointerUp}
                       onPointerCancel={handlePointerUp}
-                      onClick={(e) => handleCardClick(folder.id, 'folder', e, () => router.push(kind === 'lyrics' ? `/lyrics/folder/${folder.id}` : `/folder/${folder.id}`))}
+                      onClick={(e) => handleCardClick(folder.id, 'folder', e, () => router.push(kind === 'lyrics' ? `/lyrics/folder?id=${folder.id}` : `/folder?id=${folder.id}`))}
                       onContextMenu={(e) => {
                         e.preventDefault();
                         if (Date.now() - lastLongPressTime.current > 600) {
@@ -1038,7 +1038,7 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
                       onPointerMove={handlePointerMove}
                       onPointerUp={handlePointerUp}
                       onPointerCancel={handlePointerUp}
-                      onClick={(e) => handleCardClick(folder.id, 'folder', e, () => router.push(kind === 'lyrics' ? `/lyrics/folder/${folder.id}` : `/folder/${folder.id}`))}
+                      onClick={(e) => handleCardClick(folder.id, 'folder', e, () => router.push(kind === 'lyrics' ? `/lyrics/folder?id=${folder.id}` : `/folder?id=${folder.id}`))}
                       onContextMenu={(e) => {
                         e.preventDefault();
                         if (Date.now() - lastLongPressTime.current > 600) {
@@ -1082,7 +1082,7 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
                       onPointerMove={handlePointerMove}
                       onPointerUp={handlePointerUp}
                       onPointerCancel={handlePointerUp}
-                      onClick={(e) => handleCardClick(chart.id, kind, e, () => router.push(kind === 'lyrics' ? `/lyrics/${chart.id}` : `/chart/${chart.id}`))}
+                      onClick={(e) => handleCardClick(chart.id, kind, e, () => router.push(kind === 'lyrics' ? `/lyrics/view?id=${chart.id}` : `/chart?id=${chart.id}`))}
                       onContextMenu={(e) => {
                         e.preventDefault();
                         if (Date.now() - lastLongPressTime.current > 600) {
@@ -1131,7 +1131,7 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
                       onPointerMove={handlePointerMove}
                       onPointerUp={handlePointerUp}
                       onPointerCancel={handlePointerUp}
-                      onClick={(e) => handleCardClick(chart.id, kind, e, () => router.push(kind === 'lyrics' ? `/lyrics/${chart.id}` : `/chart/${chart.id}`))}
+                      onClick={(e) => handleCardClick(chart.id, kind, e, () => router.push(kind === 'lyrics' ? `/lyrics/view?id=${chart.id}` : `/chart?id=${chart.id}`))}
                       onContextMenu={(e) => {
                         e.preventDefault();
                         if (Date.now() - lastLongPressTime.current > 600) {

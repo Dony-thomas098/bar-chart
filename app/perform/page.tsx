@@ -229,12 +229,12 @@ function PerformContent() {
         JSON.stringify({ chartIds: queue.map(q => q.id), sessionName: setlistName, createdAt: Date.now() }),
       );
     } catch {}
-    router.push(`/perform/${code}`);
+    router.push(`/perform/stage?code=${code}`);
   };
 
   const handleJoin = () => {
     const c = joinCode.trim().toUpperCase();
-    if (c.length === 6) router.push(`/perform/${c}`);
+    if (c.length === 6) router.push(`/perform/stage?code=${c}`);
   };
 
   return (

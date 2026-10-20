@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/components/AuthProvider';
 import { Header } from '@/components/Header';
 import {
@@ -318,8 +318,9 @@ function PrintView({ setlist, items, charts, lyricsMap }: {
 export default function SetlistDetailPage() {
   const { user, loading: authLoading } = useAuth();
   const params = useParams();
+  const searchParams = useSearchParams();
   const router = useRouter();
-  const setlistId = params.id as string;
+  const setlistId = (params?.id as string) || searchParams?.get('id') || '';
 
   const [setlist, setSetlist] = useState<Setlist | null>(null);
   const [items, setItems] = useState<SetlistItem[]>([]);

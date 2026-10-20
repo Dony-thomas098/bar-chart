@@ -2,7 +2,7 @@
 
 import { useAuth, canModifySection } from '@/components/AuthProvider';
 import { useLyricsSync } from '@/hooks/useLyricsSync';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { moveEntry } from '@/lib/storage';
 import { FolderPickerModal } from '@/components/FolderPickerModal';
 import { CornerLeftUp, Folder as FolderIcon, RefreshCw, Cloud, CloudOff, Copy } from 'lucide-react';
@@ -11,13 +11,14 @@ import React, { useState } from 'react';
 export default function LyricsEditor() {
   const { user, profile, loading: authLoading } = useAuth();
   const params = useParams();
+  const searchParams = useSearchParams();
   const router = useRouter();
-  const lyricId = params.id as string;
+  const lyricId = (params?.id as string) || searchParams?.get('id') || '';
   const canEdit = canModifySection(profile?.profession, 'lyrics');
 
   React.useEffect(() => {
     if (!authLoading && !canEdit) {
-      router.replace(`/lyrics/${lyricId}`);
+      router.replace(lyricId ? `/lyrics/view?id=${lyricId}` : '/lyrics');
     }
   }, [authLoading, canEdit, lyricId, router]);
   

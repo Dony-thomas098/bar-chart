@@ -382,7 +382,7 @@ export function Navigation() {
       updated_at: new Date().toISOString(),
     };
     await saveChart(chart);
-    router.push(`/chart/${chart.id}/edit`);
+    router.push(`/chart/edit?id=${chart.id}`);
   };
 
   const handleCreateNewLyrics = async () => {
@@ -397,7 +397,7 @@ export function Navigation() {
       updated_at: new Date().toISOString(),
     };
     await saveLyrics(lyrics);
-    router.push(`/lyrics/${lyrics.id}/edit`);
+    router.push(`/lyrics/edit?id=${lyrics.id}`);
   };
 
   // Hide on auth / login page, or if user is unauthenticated

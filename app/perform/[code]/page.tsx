@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/components/AuthProvider';
 import { usePerformanceSession } from '@/hooks/usePerformanceSession';
 import { readChart } from '@/lib/storage';
@@ -108,8 +108,9 @@ function CodeBadge({ code }: { code: string }) {
 export default function PerformancePage() {
   const { user, loading: authLoading } = useAuth();
   const params = useParams();
+  const searchParams = useSearchParams();
   const router = useRouter();
-  const code = (params.code as string).toUpperCase();
+  const code = ((params?.code as string) || searchParams?.get('code') || '').toUpperCase();
 
   // Read leader payload from sessionStorage (set by builder page on this device)
   const [initialPayload] = useState<{ chartIds: string[]; sessionName: string } | undefined>(() => {

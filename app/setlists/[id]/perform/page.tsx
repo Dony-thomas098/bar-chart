@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/components/AuthProvider';
 import { listSetlistItems, updateSetlistItem, type SetlistItem } from '@/lib/setlists';
 import { readChart, readLyrics } from '@/lib/storage';
@@ -194,8 +194,9 @@ function ChartWrapper({
 export default function SetlistPerformPage() {
   const { user, loading: authLoading } = useAuth();
   const params = useParams();
+  const searchParams = useSearchParams();
   const router = useRouter();
-  const setlistId = params.id as string;
+  const setlistId = (params?.id as string) || searchParams?.get('id') || '';
 
   const [items, setItems] = useState<SetlistItem[]>([]);
   const [setlistName, setSetlistName] = useState('');
