@@ -163,7 +163,26 @@ self.addEventListener('fetch', (event) => {
           const indexHtmlMatch = await caches.match(indexHtmlPath, { ignoreSearch: true });
           if (indexHtmlMatch) return indexHtmlMatch;
 
-          // 4. Fallback to folder or root app shell
+          // 4. Dynamic route fallbacks for stage room codes, charts, and lyrics
+          if (url.pathname.startsWith('/perform/')) {
+            const stageCached = await caches.match('/perform/stage/index.html', { ignoreSearch: true }) ||
+                                 await caches.match('/perform/stage/', { ignoreSearch: true });
+            if (stageCached) return stageCached;
+          }
+
+          if (url.pathname.startsWith('/chart/')) {
+            const chartCached = await caches.match('/chart/index.html', { ignoreSearch: true }) ||
+                                await caches.match('/chart/', { ignoreSearch: true });
+            if (chartCached) return chartCached;
+          }
+
+          if (url.pathname.startsWith('/lyrics/')) {
+            const lyricsCached = await caches.match('/lyrics/view/index.html', { ignoreSearch: true }) ||
+                                 await caches.match('/lyrics/view/', { ignoreSearch: true });
+            if (lyricsCached) return lyricsCached;
+          }
+
+          // 5. Fallback to folder or root app shell
           const folderCached = await caches.match('/folder', { ignoreSearch: true }) ||
                                await caches.match('/folder/', { ignoreSearch: true }) ||
                                await caches.match('/folder/index.html', { ignoreSearch: true });

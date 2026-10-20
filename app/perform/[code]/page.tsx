@@ -89,7 +89,7 @@ function PerformChartWrapper({
 function CodeBadge({ code }: { code: string }) {
   const [copied, setCopied] = useState(false);
   const copy = () => {
-    const url = `${window.location.origin}/perform/${code}`;
+    const url = `${window.location.origin}/perform/stage?code=${code}`;
     navigator.clipboard.writeText(url);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -347,7 +347,7 @@ export default function PerformancePage() {
               onClick={(e) => {
                 e.stopPropagation();
                 if (!currentChart) return;
-                router.push(`/chart/edit?id=${currentChart.id}&returnTo=/perform/${code}`);
+                router.push(`/chart/edit?id=${currentChart.id}&returnTo=/perform/stage?code=${code}`);
               }}
               disabled={!currentChart}
               className="p-2 bg-accent-gradient text-white rounded-lg hover:brightness-110 transition-all disabled:opacity-40"

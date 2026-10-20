@@ -1,0 +1,11 @@
+{
+  "cleanUrls": true,
+  "trailingSlash": true,
+  "rewrites": [
+    { "source": "/perform/stage", "destination": "/perform/stage/index.html" },
+    { "source": "/perform/:code", "destination": "/perform/stage/index.html" },
+    { "source": "/chart/:id", "destination": "/chart/index.html" },
+    { "source": "/lyrics/:id", "destination": "/lyrics/view/index.html" },
+    { "source": "/folder/:id", "destination": "/folder/index.html" }
+  ]
+}
