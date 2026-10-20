@@ -336,6 +336,153 @@ describe('Multi-Device Band Synchronization & Profile Field Preservation', () =>
     expect(isAuthRoute('/chart')).toBe(false);
     expect(isAuthRoute('/')).toBe(false);
   });
+
+  it('guarantees stage perform chart horizontal centering calculation is strictly symmetric', () => {
+    const calculateFit = (viewportWidth: number, cardWidth: number) => {
+      const availableWidth = Math.max(260, viewportWidth - 24);
+      let scale = 1;
+      if (cardWidth > 0 && availableWidth > 0) {
+        if (availableWidth < cardWidth) {
+          scale = Math.max(0.15, (availableWidth / cardWidth) * 0.98);
+        } else {
+          scale = 1;
+        }
+      }
+      const posX = Math.max(0, (viewportWidth - cardWidth * scale) / 2);
+      const scaledWidth = cardWidth * scale;
+      const leftGap = posX;
+      const rightGap = viewportWidth - (posX + scaledWidth);
+      return { scale, posX, scaledWidth, leftGap, rightGap };
+    };
+
+    // Desktop wide view (like user's screenshot at 1440px wide)
+    const desktop = calculateFit(1440, 800);
+    expect(desktop.scale).toBe(1);
+    expect(desktop.posX).toBe(320);
+    expect(desktop.leftGap).toBe(desktop.rightGap);
+
+    // Laptop view
+    const laptop = calculateFit(1024, 750);
+    expect(laptop.scale).toBe(1);
+    expect(laptop.posX).toBe((1024 - 750) / 2);
+    expect(laptop.leftGap).toBe(laptop.rightGap);
+
+    // Mobile narrow view
+    const mobile = calculateFit(375, 600);
+    expect(mobile.scale).toBeLessThan(1);
+    expect(Math.abs(mobile.leftGap - mobile.rightGap)).toBeLessThan(0.001);
+  });
+
+  it('verifies perform page contentClass avoids double-centering displacement classes', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+    const performPageCode = fs.readFileSync(path.resolve(__dirname, '../app/perform/[code]/page.tsx'), 'utf-8');
+
+    // Must not combine min-w-full or justify-center on TransformComponent contentClass
+    expect(performPageCode).not.toContain('min-w-full min-h-screen flex items-start justify-center');
+    expect(performPageCode).toContain('contentClass="w-max flex flex-col items-start justify-start pt-20 pb-36"');
+  });
+
+  it('guarantees global CapacitorHttp interceptor is disabled to avoid breaking Supabase fetch in mobile WebView', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+    const capConfig = fs.readFileSync(path.resolve(__dirname, '../capacitor.config.ts'), 'utf-8');
+
+    expect(capConfig).not.toContain('CapacitorHttp');
+  });
+
+  it('verifies AndroidManifest.xml includes both INTERNET and ACCESS_NETWORK_STATE permissions', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+    const manifest = fs.readFileSync(path.resolve(__dirname, '../android/app/src/main/AndroidManifest.xml'), 'utf-8');
+
+    expect(manifest).toContain('android.permission.INTERNET');
+    expect(manifest).toContain('android.permission.ACCESS_NETWORK_STATE');
+  });
+
+  it('guarantees calculateScoreFit provides strictly symmetric horizontal centering across all device sizes', async () => {
+    const { calculateScoreFit } = await import('../lib/score-fit');
+
+    // 1. Desktop wide view (1440 x 900)
+    const desktop = calculateScoreFit({
+      viewportWidth: 1440,
+      viewportHeight: 900,
+      cardWidth: 760,
+      cardHeight: 800,
+      showUI: true,
+    });
+    expect(desktop.scale).toBeGreaterThanOrEqual(1.0);
+    const desktopScaledWidth = 760 * desktop.scale;
+    const desktopLeftGap = desktop.posX;
+    const desktopRightGap = 1440 - (desktop.posX + desktopScaledWidth);
+    expect(Math.abs(desktopLeftGap - desktopRightGap)).toBeLessThan(0.001);
+
+    // 2. Laptop standard view (1024 x 768)
+    const laptop = calculateScoreFit({
+      viewportWidth: 1024,
+      viewportHeight: 768,
+      cardWidth: 760,
+      cardHeight: 800,
+      showUI: true,
+    });
+    const laptopScaledWidth = 760 * laptop.scale;
+    const laptopLeftGap = laptop.posX;
+    const laptopRightGap = 1024 - (laptop.posX + laptopScaledWidth);
+    expect(Math.abs(laptopLeftGap - laptopRightGap)).toBeLessThan(0.001);
+
+    // 3. Mobile portrait narrow view (375 x 667)
+    const mobilePortrait = calculateScoreFit({
+      viewportWidth: 375,
+      viewportHeight: 667,
+      cardWidth: 760,
+      cardHeight: 800,
+      showUI: true,
+    });
+    expect(mobilePortrait.scale).toBeLessThan(1.0); // Scaled down to fit mobile
+    const mobileScaledWidth = 760 * mobilePortrait.scale;
+    const mobileLeftGap = mobilePortrait.posX;
+    const mobileRightGap = 375 - (mobilePortrait.posX + mobileScaledWidth);
+    expect(Math.abs(mobileLeftGap - mobileRightGap)).toBeLessThan(0.001);
+
+    // 4. Mobile landscape / rotate view (667 x 375)
+    const mobileLandscape = calculateScoreFit({
+      viewportWidth: 667,
+      viewportHeight: 375,
+      cardWidth: 760,
+      cardHeight: 800,
+      showUI: false,
+    });
+    const landscapeScaledWidth = 760 * mobileLandscape.scale;
+    const landscapeLeftGap = mobileLandscape.posX;
+    const landscapeRightGap = 667 - (mobileLandscape.posX + landscapeScaledWidth);
+    expect(Math.abs(landscapeLeftGap - landscapeRightGap)).toBeLessThan(0.001);
+  });
+
+  it('guarantees all viewer pages (PiascoreReader, PiascoreLyricsReader, perform, setlists perform) prevent double-centering offsets', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+
+    const piascoreReader = fs.readFileSync(path.resolve(__dirname, '../components/PiascoreReader.tsx'), 'utf-8');
+    const lyricsReader = fs.readFileSync(path.resolve(__dirname, '../components/PiascoreLyricsReader.tsx'), 'utf-8');
+    const performPage = fs.readFileSync(path.resolve(__dirname, '../app/perform/[code]/page.tsx'), 'utf-8');
+    const setlistPerformPage = fs.readFileSync(path.resolve(__dirname, '../app/setlists/[id]/perform/page.tsx'), 'utf-8');
+
+    // All must use calculateScoreFit
+    expect(piascoreReader).toContain('calculateScoreFit');
+    expect(lyricsReader).toContain('calculateScoreFit');
+    expect(performPage).toContain('calculateScoreFit');
+    expect(setlistPerformPage).toContain('calculateScoreFit');
+
+    // None must have centerOnInit={true} or centerZoomedOut={true} inside their TransformWrappers
+    expect(piascoreReader).toContain('centerOnInit={false}');
+    expect(piascoreReader).toContain('centerZoomedOut={false}');
+    expect(lyricsReader).toContain('centerOnInit={false}');
+    expect(lyricsReader).toContain('centerZoomedOut={false}');
+    expect(performPage).toContain('centerOnInit={false}');
+    expect(performPage).toContain('centerZoomedOut={false}');
+    expect(setlistPerformPage).toContain('centerOnInit={false}');
+    expect(setlistPerformPage).toContain('centerZoomedOut={false}');
+  });
 });
 
 

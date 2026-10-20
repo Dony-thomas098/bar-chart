@@ -6,6 +6,7 @@ import { Lyric, readLyrics } from '@/lib/lyrics';
 import { supabase } from '@/lib/supabase';
 import { SongPickerModal, PickedItem } from '@/components/SongPickerModal';
 import { toggleBookmark, getBookmarks } from '@/lib/storage';
+import { calculateScoreFit } from '@/lib/score-fit';
 import { useAuth, canModifySection } from '@/components/AuthProvider';
 import { TransformWrapper, TransformComponent, useControls } from 'react-zoom-pan-pinch';
 import {
@@ -46,7 +47,7 @@ function PlainLyricsCard({
   return (
     <div
       id="piascore-lyrics-card"
-      className={`inline-flex flex-col w-full max-w-4xl p-6 sm:p-12 md:p-16 bg-white text-slate-900 shadow-2xl rounded-2xl border border-slate-200/80 relative select-none min-h-[70vh] ${
+      className={`flex flex-col w-[min(94vw,760px)] min-w-[320px] p-6 sm:p-12 md:p-16 bg-white text-slate-900 shadow-2xl rounded-[24px] border border-slate-200/80 relative select-none min-h-[70vh] mx-auto my-0 ${
         textAlign === 'left' ? 'text-left items-start' : textAlign === 'right' ? 'text-right items-end' : 'text-center items-center'
       }`}
       style={{
@@ -80,13 +81,23 @@ function PlainLyricsCard({
   );
 }
 
-function LyricsContentWrapper(props: {
+function LyricsContentWrapper({
+  lyric,
+  selectedFont,
+  textColor,
+  textAlign = 'center',
+  showUI = true,
+  onBaseScaleChange,
+}: {
   lyric: Lyric;
   selectedFont: string;
   textColor: string;
   textAlign?: 'center' | 'left' | 'right';
+  showUI?: boolean;
+  onBaseScaleChange?: (scale: number) => void;
 }) {
   const { setTransform, instance } = useControls();
+  const isInitialFitRef = useRef(true);
 
   const fitLyrics = useCallback(() => {
     const cardEl = document.getElementById('piascore-lyrics-card');
@@ -98,40 +109,55 @@ function LyricsContentWrapper(props: {
     const cardWidth = Math.max(cardEl.scrollWidth, cardEl.offsetWidth);
     const cardHeight = Math.max(cardEl.scrollHeight, cardEl.offsetHeight);
 
-    const availableWidth = Math.max(260, viewportWidth - 24);
-    let scale = 1;
-    if (cardWidth > 0 && availableWidth > 0) {
-      if (availableWidth < cardWidth) {
-        scale = Math.max(0.15, (availableWidth / cardWidth) * 0.98);
-      }
+    const { scale, posX, posY, effectiveMinScale } = calculateScoreFit({
+      viewportWidth,
+      viewportHeight,
+      cardWidth,
+      cardHeight,
+      showUI,
+    });
+
+    if (instance.setup) {
+      instance.setup.minScale = effectiveMinScale;
+    }
+    if (onBaseScaleChange) {
+      onBaseScaleChange(effectiveMinScale);
     }
 
-    const scaledWidth = cardWidth * scale;
-    const scaledHeight = cardHeight * scale;
+    const animDuration = isInitialFitRef.current ? 0 : 200;
+    isInitialFitRef.current = false;
 
-    const posX = Math.max(0, (viewportWidth - scaledWidth) / 2);
-    const posY = scaledHeight < viewportHeight ? Math.max(0, (viewportHeight - scaledHeight) / 2) : 24;
-
-    setTransform(posX, posY, scale, 0);
-  }, [instance, setTransform]);
+    setTransform(posX, posY, scale, animDuration);
+  }, [instance, setTransform, onBaseScaleChange, showUI]);
 
   useEffect(() => {
-    let t: any;
-    const fit = () => {
-      clearTimeout(t);
-      t = setTimeout(fitLyrics, 100);
+    let t1: any;
+    let t2: any;
+    const runFit = () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      t1 = setTimeout(fitLyrics, 50);
+      t2 = setTimeout(fitLyrics, 200);
     };
-    fit();
-    window.addEventListener('resize', fit);
-    window.addEventListener('orientationchange', fit);
+    runFit();
+    window.addEventListener('resize', runFit);
+    window.addEventListener('orientationchange', runFit);
     return () => {
-      clearTimeout(t);
-      window.removeEventListener('resize', fit);
-      window.removeEventListener('orientationchange', fit);
+      clearTimeout(t1);
+      clearTimeout(t2);
+      window.removeEventListener('resize', runFit);
+      window.removeEventListener('orientationchange', runFit);
     };
-  }, [fitLyrics, props.lyric.id]);
+  }, [fitLyrics, lyric.id, showUI]);
 
-  return <PlainLyricsCard {...props} />;
+  return (
+    <PlainLyricsCard
+      lyric={lyric}
+      selectedFont={selectedFont}
+      textColor={textColor}
+      textAlign={textAlign}
+    />
+  );
 }
 
 export function PiascoreLyricsReader({ initialLyric, folderId }: Props) {
@@ -149,6 +175,7 @@ export function PiascoreLyricsReader({ initialLyric, folderId }: Props) {
   ]);
   const [activeTabId, setActiveTabId] = useState<string>(initialLyric.id);
   const [isSongPickerOpen, setIsSongPickerOpen] = useState(false);
+  const [minZoomScale, setMinZoomScale] = useState<number>(1);
 
   // Active lyric calculation
   const activeTab = tabs.find((t) => t.id === activeTabId) || tabs[0];
@@ -708,8 +735,8 @@ export function PiascoreLyricsReader({ initialLyric, folderId }: Props) {
         onClick={handleCanvasClick}
       >
         <TransformWrapper
-          initialScale={1}
-          minScale={1}
+          initialScale={minZoomScale}
+          minScale={minZoomScale}
           maxScale={4}
           centerOnInit={false}
           centerZoomedOut={false}
@@ -751,6 +778,8 @@ export function PiascoreLyricsReader({ initialLyric, folderId }: Props) {
                 selectedFont={selectedFont}
                 textColor={textColor}
                 textAlign={textAlign}
+                showUI={showUI}
+                onBaseScaleChange={setMinZoomScale}
               />
             </div>
           </TransformComponent>

@@ -284,7 +284,22 @@ export function OfflineSyncProvider({ children }: { children: React.ReactNode })
 
     // Small delay to let AuthProvider resolve first
     const timer = setTimeout(runInitialSync, 800);
-    return () => clearTimeout(timer);
+
+    // Also trigger immediately on auth state change when session is ready
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session?.user && !initialSyncDone.current && autoSyncRef.current) {
+        const isGuest = localStorage.getItem('chord-grid-guest-mode') === 'true';
+        if (!isGuest) {
+          initialSyncDone.current = true;
+          triggerSync(false).catch(() => {});
+        }
+      }
+    });
+
+    return () => {
+      clearTimeout(timer);
+      authListener.subscription.unsubscribe();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

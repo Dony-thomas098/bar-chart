@@ -7,6 +7,7 @@ import { ChartRenderer } from '@/components/ChartRenderer';
 import { SongPickerModal, PickedItem } from '@/components/SongPickerModal';
 import { transposeChart } from '@/lib/transpose';
 import { readChart, toggleBookmark, getBookmarks } from '@/lib/storage';
+import { calculateScoreFit } from '@/lib/score-fit';
 import { supabase } from '@/lib/supabase';
 import { useAuth, canModifySection } from '@/components/AuthProvider';
 import { TransformWrapper, TransformComponent, useControls } from 'react-zoom-pan-pinch';
@@ -55,79 +56,19 @@ function ChartContentWrapper({
     const wrapper = instance.wrapperComponent;
     if (!cardEl || !wrapper) return;
 
-    // Viewport width & height
     const viewportWidth = wrapper.clientWidth;
     const viewportHeight = wrapper.clientHeight;
-    const isLandscape = viewportWidth > viewportHeight;
-    const isPhone = Math.min(viewportWidth, viewportHeight) <= 600 ||
-      (typeof navigator !== 'undefined' && /iPhone|Android|Mobile/i.test(navigator.userAgent));
-    const isPhoneRotate = isLandscape && isPhone;
-    const isLaptopOrDesktop = !isPhone && (viewportWidth >= 768 || (typeof window !== 'undefined' && window.innerWidth >= 768));
-
     // Real full scroll dimensions of the chord chart card
     const cardWidth = Math.max(cardEl.scrollWidth, cardEl.offsetWidth);
     const cardHeight = Math.max(cardEl.scrollHeight, cardEl.offsetHeight);
 
-    let scale = 1;
-    let posX = 0;
-    let posY = 24;
-
-    if (cardWidth > 0) {
-      if (isLaptopOrDesktop) {
-        // ON WEBSITE AND LAPTOPS:
-        // Maximize chord size to fill the available screen space and extend into the top red area
-        const availableWidth = Math.max(300, viewportWidth - (showUI ? 48 : 28));
-        const availableHeight = Math.max(200, viewportHeight - (showUI ? 24 : 16));
-
-        const scaleX = (availableWidth / cardWidth) * 0.98;
-        const scaleY = cardHeight > 0 ? (availableHeight / cardHeight) * 0.98 : 1;
-
-        if (cardHeight > 0 && cardHeight * scaleX <= availableHeight) {
-          // Entire chart fits comfortably within screen height when scaled to width
-          scale = Math.min(1.85, Math.max(1.0, scaleX));
-        } else if (scaleY >= 1.0) {
-          // Fits vertically without vertical scrolling
-          scale = Math.min(1.85, Math.min(scaleX, scaleY));
-        } else {
-          // Chart has many lines: scale chords up for bold readability while enabling smooth vertical pan/scroll
-          scale = Math.min(1.45, Math.max(1.0, scaleX * 0.92));
-        }
-
-        const scaledWidth = cardWidth * scale;
-        // Center horizontally
-        posX = Math.max(0, (viewportWidth - scaledWidth) / 2);
-        // Align near top so it extends into the top area
-        posY = showUI ? 12 : 8;
-      } else if (isPhoneRotate) {
-        // IN PHONE ROTATE / LANDSCAPE MODE:
-        const availableWidth = Math.max(260, viewportWidth - 24);
-        const availableHeight = Math.max(160, viewportHeight - 16);
-        const scaleX = (availableWidth / cardWidth) * 0.98;
-        const scaleY = cardHeight > 0 ? (availableHeight / cardHeight) * 0.98 : 1;
-        scale = Math.min(1, scaleX, scaleY);
-
-        const scaledWidth = cardWidth * scale;
-        const scaledHeight = cardHeight * scale;
-        posX = Math.max(0, (viewportWidth - scaledWidth) / 2);
-        posY = scaledHeight < viewportHeight ? Math.max(0, (viewportHeight - scaledHeight) / 2) : 16;
-      } else {
-        // IN PORTRAIT PHONE MODE:
-        const availableWidth = Math.max(260, viewportWidth - 24);
-        if (availableWidth < cardWidth) {
-          scale = Math.max(0.15, (availableWidth / cardWidth) * 0.98);
-        } else {
-          scale = 1;
-        }
-
-        const scaledWidth = cardWidth * scale;
-        const scaledHeight = cardHeight * scale;
-        posX = Math.max(0, (viewportWidth - scaledWidth) / 2);
-        posY = scaledHeight < viewportHeight ? Math.max(0, (viewportHeight - scaledHeight) / 2) : 24;
-      }
-    }
-
-    // Allow zooming out comfortably
-    const effectiveMinScale = isLaptopOrDesktop ? Math.min(0.5, scale * 0.7) : (isPhoneRotate ? 0.1 : scale);
+    const { scale, posX, posY, effectiveMinScale } = calculateScoreFit({
+      viewportWidth,
+      viewportHeight,
+      cardWidth,
+      cardHeight,
+      showUI,
+    });
 
     if (instance.setup) {
       instance.setup.minScale = effectiveMinScale;
@@ -899,8 +840,8 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
             initialScale={minZoomScale}
             minScale={minZoomScale}
             maxScale={4}
-            centerOnInit={true}
-            centerZoomedOut={true}
+            centerOnInit={false}
+            centerZoomedOut={false}
             limitToBounds={true}
             wheel={{
               step: 0.1,

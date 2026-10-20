@@ -197,7 +197,14 @@ export async function listFolderFromCache(folderId: string | null, kind: 'chart'
 }
 
 export async function listFolder(folderId: string | null, kind: 'chart' | 'lyrics' = 'chart') {
-  if (isOnline()) {
+  // Always retrieve local cached items first as baseline
+  const local = await listFolderFromCache(folderId, kind);
+  const isGuestMode = typeof window !== 'undefined' && localStorage.getItem('chord-grid-guest-mode') === 'true';
+
+  // Attempt online fetch if online OR if local cache is currently empty
+  const shouldAttemptOnline = !isGuestMode && (isOnline() || (local.folders.length === 0 && local.charts.length === 0));
+
+  if (shouldAttemptOnline) {
     try {
       let foldersQuery = supabase.from('folders').select('*').eq('kind', kind).order('name', { ascending: true }).not('name', 'like', '__TRASH__:%');
       if (folderId) {
@@ -219,8 +226,8 @@ export async function listFolder(folderId: string | null, kind: 'chart' | 'lyric
         itemsQuery = itemsQuery.is('folder_id', null);
       }
 
-      // Race against a 3s timeout so tabs never hang indefinitely on slow connection
-      const timeoutPromise = new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Network timeout')), 3000));
+      // Race against an 8s timeout for mobile networks (cold SSL / DNS)
+      const timeoutPromise = new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Network timeout')), 8000));
       const [foldersRes, itemsRes] = await Promise.race([
         Promise.all([foldersQuery, itemsQuery]),
         timeoutPromise,
@@ -232,36 +239,29 @@ export async function listFolder(folderId: string | null, kind: 'chart' | 'lyric
       const onlineFolders: Folder[] = foldersRes.data || [];
       const onlineItems = itemsRes.data || [];
 
-      // Also get local cached items
-      const local = await listFolderFromCache(folderId, kind);
-
-      const isGuestMode = typeof window !== 'undefined' && localStorage.getItem('chord-grid-guest-mode') === 'true';
-
       const folderMap = new Map<string, Folder>();
       const itemMap = new Map<string, any>();
 
-      if (isGuestMode) {
-        local.folders.forEach(f => folderMap.set(f.id, f));
-        onlineFolders.forEach(f => folderMap.set(f.id, f));
-        local.charts.forEach(c => itemMap.set(c.id, c));
-        onlineItems.forEach(c => itemMap.set(c.id, { ...c, type: kind }));
-      } else {
-        // Authenticated mode: online is authoritative.
-        // Include pending offline saves if any
-        if (dbPromise) {
-          try {
-            const db = await dbPromise;
-            const pending = await db.getAll('pending_saves');
-            const pendingUpserts = new Set(pending.filter(p => p.action === 'upsert').map(p => p.id));
-            local.charts.filter(c => pendingUpserts.has(c.id)).forEach(c => itemMap.set(c.id, c));
-            local.folders.filter(f => pendingUpserts.has(f.id)).forEach(f => folderMap.set(f.id, f));
-          } catch {}
-        }
-        onlineFolders.forEach(f => folderMap.set(f.id, f));
-        onlineItems.forEach(c => itemMap.set(c.id, { ...c, type: kind }));
+      // 1. Foundation: Always populate local cached items so catalog never disappears
+      local.folders.forEach(f => folderMap.set(f.id, f));
+      local.charts.forEach(c => itemMap.set(c.id, c));
+
+      // 2. Include any pending offline saves
+      if (dbPromise) {
+        try {
+          const db = await dbPromise;
+          const pending = await db.getAll('pending_saves');
+          const pendingUpserts = new Set(pending.filter(p => p.action === 'upsert').map(p => p.id));
+          local.charts.filter(c => pendingUpserts.has(c.id)).forEach(c => itemMap.set(c.id, c));
+          local.folders.filter(f => pendingUpserts.has(f.id)).forEach(f => folderMap.set(f.id, f));
+        } catch {}
       }
 
-      // Update local cache with latest online data
+      // 3. Authoritative overlay: Fresh online items take priority
+      onlineFolders.forEach(f => folderMap.set(f.id, f));
+      onlineItems.forEach(c => itemMap.set(c.id, { ...c, type: kind }));
+
+      // 4. Update local cache with latest online data
       if (dbPromise) {
         try {
           const db = await dbPromise;
@@ -269,15 +269,16 @@ export async function listFolder(folderId: string | null, kind: 'chart' | 'lyric
             const tx = db.transaction('folders', 'readwrite');
             onlineFolders.forEach((f) => tx.store.put(f));
           }
-          // Remove any stale local charts in this folder that are no longer online,
-          // UNLESS they have pending offline changes queued in pending_saves
-          const onlineIds = new Set(onlineItems.map(i => i.id));
-          const storeName = kind === 'chart' ? 'charts' : 'lyrics';
-          const pending = await db.getAll('pending_saves');
-          const pendingIds = new Set(pending.map(p => p.id));
-          for (const localItem of local.charts) {
-            if (!onlineIds.has(localItem.id) && !pendingIds.has(localItem.id) && !localItem.title.startsWith('__TRASH__:')) {
-              await db.delete(storeName, localItem.id);
+          // Only prune local items if onlineItems is a confirmed non-empty set of authoritative items
+          if (onlineItems.length > 0) {
+            const onlineIds = new Set(onlineItems.map(i => i.id));
+            const storeName = kind === 'chart' ? 'charts' : 'lyrics';
+            const pending = await db.getAll('pending_saves');
+            const pendingIds = new Set(pending.map(p => p.id));
+            for (const localItem of local.charts) {
+              if (!onlineIds.has(localItem.id) && !pendingIds.has(localItem.id) && !localItem.title.startsWith('__TRASH__:')) {
+                await db.delete(storeName, localItem.id);
+              }
             }
           }
         } catch {}
@@ -292,10 +293,10 @@ export async function listFolder(folderId: string | null, kind: 'chart' | 'lyric
       };
     } catch (e) {
       console.warn('[Storage] listFolder online fetch failed or timed out, using local cache:', e);
-      return listFolderFromCache(folderId, kind);
+      return local;
     }
   } else {
-    return listFolderFromCache(folderId, kind);
+    return local;
   }
 }
 

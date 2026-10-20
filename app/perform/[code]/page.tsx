@@ -9,6 +9,7 @@ import { useChartPrefetch } from '@/hooks/useChartPrefetch';
 import { ChartData } from '@/lib/chart-types';
 import { ChartRenderer } from '@/components/ChartRenderer';
 import { TransformWrapper, TransformComponent, useControls } from 'react-zoom-pan-pinch';
+import { calculateScoreFit } from '@/lib/score-fit';
 import {
   ChevronLeft, ChevronRight, X, Edit2, Copy, Check,
   Users, Radio, StopCircle, WifiOff, RefreshCw, ScrollText, Play, Pause, Crop
@@ -31,37 +32,40 @@ function PerformChartWrapper({
     if (!cardEl || !wrapper) return;
 
     const viewportWidth = wrapper.clientWidth;
-    const availableWidth = Math.max(260, viewportWidth - 24);
+    const viewportHeight = wrapper.clientHeight;
     const cardWidth = Math.max(cardEl.scrollWidth, cardEl.offsetWidth);
+    const cardHeight = Math.max(cardEl.scrollHeight, cardEl.offsetHeight);
 
-    let scale = 1;
-    if (cardWidth > 0 && availableWidth > 0) {
-      if (availableWidth < cardWidth) {
-        scale = Math.max(0.15, (availableWidth / cardWidth) * 0.98);
-      } else {
-        scale = 1;
-      }
-    }
+    const { scale, posX, posY, effectiveMinScale } = calculateScoreFit({
+      viewportWidth,
+      viewportHeight,
+      cardWidth,
+      cardHeight,
+      showUI: true,
+      topPadding: 16,
+    });
 
     if (instance.setup) {
-      instance.setup.minScale = scale;
+      instance.setup.minScale = effectiveMinScale;
     }
     if (onBaseScaleChange) {
-      onBaseScaleChange(scale);
+      onBaseScaleChange(effectiveMinScale);
     }
 
-    const posX = Math.max(0, (viewportWidth - cardWidth * scale) / 2);
-    setTransform(posX, 0, scale, 0);
+    setTransform(posX, posY, scale, 0);
   }, [instance, setTransform, onBaseScaleChange]);
 
   useEffect(() => {
     let t1: any;
     let t2: any;
+    let t3: any;
     const runFit = () => {
       clearTimeout(t1);
       clearTimeout(t2);
+      clearTimeout(t3);
       t1 = setTimeout(fitToScreen, 50);
       t2 = setTimeout(fitToScreen, 200);
+      t3 = setTimeout(fitToScreen, 400);
     };
     runFit();
     window.addEventListener('resize', runFit);
@@ -69,6 +73,7 @@ function PerformChartWrapper({
     return () => {
       clearTimeout(t1);
       clearTimeout(t2);
+      clearTimeout(t3);
       window.removeEventListener('resize', runFit);
       window.removeEventListener('orientationchange', runFit);
     };
@@ -378,8 +383,8 @@ export default function PerformancePage() {
           initialScale={performMinScale}
           minScale={performMinScale}
           maxScale={4}
-          centerOnInit={true}
-          centerZoomedOut={true}
+          centerOnInit={false}
+          centerZoomedOut={false}
           limitToBounds={true}
           wheel={{
             step: 0.1,
@@ -393,6 +398,7 @@ export default function PerformancePage() {
           panning={{
             disabled: false,
             velocityDisabled: false,
+            lockAxisX: true, // Locks vertical scroll along Y-axis so chart remains centered
           }}
           pinch={{
             step: 5,
@@ -403,9 +409,9 @@ export default function PerformancePage() {
         >
           <TransformComponent
             wrapperClass="!w-full !h-screen cursor-pointer"
-            contentClass="w-max min-w-full min-h-screen flex items-start justify-center p-4 sm:p-16 pt-24 pb-36"
+            contentClass="w-max flex flex-col items-start justify-start pt-20 pb-36"
           >
-            <div onClick={(e) => { e.stopPropagation(); toggleHeader(); }} className="w-full h-full flex items-center justify-center">
+            <div onClick={(e) => { e.stopPropagation(); toggleHeader(); }} className="w-fit max-w-none flex flex-col items-start justify-start">
               {chartLoading || !currentChart ? (
                 <div className="flex items-center justify-center w-64 h-64 text-text-secondary">
                   <div className="w-8 h-8 rounded-full border-2 border-accent-start border-t-transparent animate-spin" />

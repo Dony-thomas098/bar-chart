@@ -11,6 +11,7 @@ import { ChartData, Line, createDefaultLine } from '@/lib/chart-types';
 import { supabase } from '@/lib/supabase';
 import { useSetlistPrefetch } from '@/hooks/useSetlistPrefetch';
 import { TransformWrapper, TransformComponent, useControls } from 'react-zoom-pan-pinch';
+import { calculateScoreFit } from '@/lib/score-fit';
 import {
   X, ChevronLeft, ChevronRight, Users, Radio, RefreshCw, FileText, Music,
   Pencil, Plus, Trash2, RotateCcw, Check, Zap, Save
@@ -143,27 +144,27 @@ function ChartWrapper({
     if (!cardEl || !wrapper) return;
 
     const viewportWidth = wrapper.clientWidth;
-    const availableWidth = Math.max(260, viewportWidth - 24);
+    const viewportHeight = wrapper.clientHeight;
     const cardWidth = Math.max(cardEl.scrollWidth, cardEl.offsetWidth);
+    const cardHeight = Math.max(cardEl.scrollHeight, cardEl.offsetHeight);
 
-    let scale = 1;
-    if (cardWidth > 0 && availableWidth > 0) {
-      if (availableWidth < cardWidth) {
-        scale = Math.max(0.15, (availableWidth / cardWidth) * 0.98);
-      } else {
-        scale = 1;
-      }
-    }
+    const { scale, posX, posY, effectiveMinScale } = calculateScoreFit({
+      viewportWidth,
+      viewportHeight,
+      cardWidth,
+      cardHeight,
+      showUI: true,
+      topPadding: 16,
+    });
 
     if (instance.setup) {
-      instance.setup.minScale = scale;
+      instance.setup.minScale = effectiveMinScale;
     }
     if (onBaseScaleChange) {
-      onBaseScaleChange(scale);
+      onBaseScaleChange(effectiveMinScale);
     }
 
-    const posX = Math.max(0, (viewportWidth - cardWidth * scale) / 2);
-    setTransform(posX, 0, scale, 0);
+    setTransform(posX, posY, scale, 0);
   }, [instance, setTransform, onBaseScaleChange]);
 
   useEffect(() => {
@@ -603,8 +604,8 @@ export default function SetlistPerformPage() {
             initialScale={perfMinScale}
             minScale={perfMinScale}
             maxScale={4}
-            centerOnInit={true}
-            centerZoomedOut={true}
+            centerOnInit={false}
+            centerZoomedOut={false}
             limitToBounds={true}
             wheel={{
               step: 0.1,
@@ -618,6 +619,7 @@ export default function SetlistPerformPage() {
             panning={{
               disabled: false,
               velocityDisabled: false,
+              lockAxisX: true, // Locks vertical scroll along Y-axis so chart stays centered
             }}
             pinch={{
               step: 5,
@@ -628,7 +630,7 @@ export default function SetlistPerformPage() {
           >
             <TransformComponent
               wrapperStyle={{ width: '100vw', height: '100dvh' }}
-              contentStyle={{ padding: '32px 24px 120px' }}
+              contentStyle={{ padding: '32px 0 120px' }}
             >
               <ChartWrapper chart={currentChart} songKey={`${songPosition}`} onBaseScaleChange={setPerfMinScale} />
             </TransformComponent>
@@ -636,12 +638,14 @@ export default function SetlistPerformPage() {
         )}
 
         {!contentLoading && currentItem?.item_type === 'lyrics' && currentLyrics && (
-          <div className="px-6 py-8 pb-36 max-w-3xl mx-auto overflow-y-auto">
-            <h1 className="text-3xl font-bold mb-6 text-text-primary">{currentLyrics.title}</h1>
-            {currentItem.notes && <p className="text-sm italic text-text-secondary mb-4">{currentItem.notes}</p>}
-            <pre className="font-sans text-sm leading-relaxed whitespace-pre-wrap text-text-primary"
-              style={selectedFont !== 'system' ? { fontFamily: selectedFont } : {}}
-            >{currentLyrics.body}</pre>
+          <div className="w-full flex justify-center py-8 px-4 pb-36 overflow-y-auto">
+            <div className="w-full max-w-3xl bg-white text-slate-900 rounded-[24px] p-6 sm:p-12 shadow-2xl border border-slate-200/80">
+              <h1 className="text-3xl sm:text-4xl font-extrabold mb-6 text-slate-900 tracking-tight">{currentLyrics.title}</h1>
+              {currentItem.notes && <p className="text-sm italic text-slate-500 mb-6 pb-4 border-b border-slate-200">{currentItem.notes}</p>}
+              <pre className="font-sans text-lg leading-relaxed whitespace-pre-wrap text-slate-900 font-medium"
+                style={selectedFont !== 'system' ? { fontFamily: selectedFont } : {}}
+              >{currentLyrics.body}</pre>
+            </div>
           </div>
         )}
       </div>
