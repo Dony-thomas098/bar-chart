@@ -7,6 +7,7 @@ import { ChartRenderer } from '@/components/ChartRenderer';
 import { SongPickerModal, PickedItem } from '@/components/SongPickerModal';
 import { transposeChart } from '@/lib/transpose';
 import { readChart, toggleBookmark, getBookmarks } from '@/lib/storage';
+import { supabase } from '@/lib/supabase';
 import { useAuth, canModifySection } from '@/components/AuthProvider';
 import { TransformWrapper, TransformComponent, useControls } from 'react-zoom-pan-pinch';
 import {
@@ -214,6 +215,31 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
       });
     }
   }, [activeTabId, activeTab]);
+
+  // Real-time live update: reflect chart edits made by admin or others across devices immediately
+  useEffect(() => {
+    if (!activeTabId) return;
+    const channel = supabase
+      .channel(`piascore-chart-live-${activeTabId}`)
+      .on(
+        'postgres_changes' as any,
+        { event: 'UPDATE', schema: 'public', table: 'charts', filter: `id=eq.${activeTabId}` },
+        (payload: any) => {
+          if (payload.new) {
+            const updated = payload.new as ChartData;
+            setCurrentChart(updated);
+            setTabs((prev) =>
+              prev.map((t) => (t.id === updated.id ? { ...t, chart: updated, title: updated.title } : t))
+            );
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [activeTabId]);
 
   // ── UI Auto-hide / Header Toggle ────────────────────────────────────────────
   const [showUI, setShowUI] = useState(true);

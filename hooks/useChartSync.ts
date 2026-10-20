@@ -49,6 +49,15 @@ export function useChartSync(chartId: string) {
     channelRef.current = channel;
 
     channel
+      .on(
+        'postgres_changes' as any,
+        { event: 'UPDATE', schema: 'public', table: 'charts', filter: `id=eq.${chartId}` },
+        (payload: any) => {
+          if (isMounted && payload.new) {
+            setChart(prev => prev ? { ...prev, ...payload.new } : payload.new);
+          }
+        }
+      )
       .on('broadcast', { event: 'update' }, (payload) => {
         if (isMounted && payload.payload) {
           setChart(prev => prev ? { ...prev, ...payload.payload } : payload.payload);

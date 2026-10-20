@@ -362,7 +362,17 @@ export default function SetlistDetailPage() {
     }
   }, [setlistId, router]);
 
-  useEffect(() => { if (!authLoading && user) load(); }, [authLoading, user, load]);
+  useEffect(() => {
+    if (!authLoading && user) load();
+  }, [authLoading, user, load]);
+
+  useEffect(() => {
+    const handleRefresh = () => {
+      load();
+    };
+    window.addEventListener('refresh-setlists', handleRefresh);
+    return () => window.removeEventListener('refresh-setlists', handleRefresh);
+  }, [load]);
 
   // Pre-load print data whenever items change
   useEffect(() => {

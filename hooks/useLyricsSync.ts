@@ -47,6 +47,15 @@ export function useLyricsSync(lyricId: string) {
     channelRef.current = channel;
 
     channel
+      .on(
+        'postgres_changes' as any,
+        { event: 'UPDATE', schema: 'public', table: 'lyrics', filter: `id=eq.${lyricId}` },
+        (payload: any) => {
+          if (isMounted && payload.new) {
+            setLyric(prev => prev ? { ...prev, ...payload.new } : payload.new);
+          }
+        }
+      )
       .on('broadcast', { event: 'update' }, (payload) => {
         if (isMounted && payload.payload) {
           setLyric(prev => prev ? { ...prev, ...payload.payload } : payload.payload);

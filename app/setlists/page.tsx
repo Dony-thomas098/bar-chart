@@ -330,7 +330,17 @@ export default function SetlistsPage() {
     }
   }, []);
 
-  useEffect(() => { if (!authLoading && user) load(); }, [authLoading, user, load]);
+  useEffect(() => {
+    if (!authLoading && user) load();
+  }, [authLoading, user, load]);
+
+  useEffect(() => {
+    const handleRefresh = () => {
+      load();
+    };
+    window.addEventListener('refresh-setlists', handleRefresh);
+    return () => window.removeEventListener('refresh-setlists', handleRefresh);
+  }, [load]);
 
   const [toastMsg, setToastMsg] = useState<string | null>(null);
 

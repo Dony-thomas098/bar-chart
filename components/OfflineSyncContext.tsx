@@ -122,36 +122,66 @@ export function OfflineSyncProvider({ children }: { children: React.ReactNode })
       .on(
         'postgres_changes' as any,
         { event: '*', schema: 'public', table: 'charts' },
-        (payload: any) => {
-          if (!autoSyncRef.current) return;
-          if (payload.eventType === 'DELETE') {
-            deleteFromCache(payload.old.id, 'charts');
-          } else if (payload.new) {
-            cacheChart(payload.new as Chart);
+        async (payload: any) => {
+          if (autoSyncRef.current) {
+            if (payload.eventType === 'DELETE') {
+              await deleteFromCache(payload.old.id, 'charts');
+            } else if (payload.new) {
+              await cacheChart(payload.new as Chart);
+            }
+          }
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('refresh-folder', { detail: payload }));
           }
         }
       )
       .on(
         'postgres_changes' as any,
         { event: '*', schema: 'public', table: 'lyrics' },
-        (payload: any) => {
-          if (!autoSyncRef.current) return;
-          if (payload.eventType === 'DELETE') {
-            deleteFromCache(payload.old.id, 'lyrics');
-          } else if (payload.new) {
-            cacheLyric(payload.new);
+        async (payload: any) => {
+          if (autoSyncRef.current) {
+            if (payload.eventType === 'DELETE') {
+              await deleteFromCache(payload.old.id, 'lyrics');
+            } else if (payload.new) {
+              await cacheLyric(payload.new);
+            }
+          }
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('refresh-folder', { detail: payload }));
           }
         }
       )
       .on(
         'postgres_changes' as any,
         { event: '*', schema: 'public', table: 'folders' },
-        (payload: any) => {
-          if (!autoSyncRef.current) return;
-          if (payload.eventType === 'DELETE') {
-            deleteFromCache(payload.old.id, 'folders');
-          } else if (payload.new) {
-            cacheFolder(payload.new as Folder);
+        async (payload: any) => {
+          if (autoSyncRef.current) {
+            if (payload.eventType === 'DELETE') {
+              await deleteFromCache(payload.old.id, 'folders');
+            } else if (payload.new) {
+              await cacheFolder(payload.new as Folder);
+            }
+          }
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('refresh-folder', { detail: payload }));
+          }
+        }
+      )
+      .on(
+        'postgres_changes' as any,
+        { event: '*', schema: 'public', table: 'setlists' },
+        () => {
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('refresh-setlists'));
+          }
+        }
+      )
+      .on(
+        'postgres_changes' as any,
+        { event: '*', schema: 'public', table: 'setlist_items' },
+        () => {
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('refresh-setlists'));
           }
         }
       )

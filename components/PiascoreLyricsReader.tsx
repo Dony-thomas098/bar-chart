@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Lyric, readLyrics } from '@/lib/lyrics';
+import { supabase } from '@/lib/supabase';
 import { SongPickerModal, PickedItem } from '@/components/SongPickerModal';
 import { toggleBookmark, getBookmarks } from '@/lib/storage';
 import { useAuth, canModifySection } from '@/components/AuthProvider';
@@ -172,6 +173,31 @@ export function PiascoreLyricsReader({ initialLyric, folderId }: Props) {
       });
     }
   }, [activeTabId, activeTab]);
+
+  // Real-time live update: reflect lyrics edits made by admin or others across devices immediately
+  useEffect(() => {
+    if (!activeTabId) return;
+    const channel = supabase
+      .channel(`piascore-lyrics-live-${activeTabId}`)
+      .on(
+        'postgres_changes' as any,
+        { event: 'UPDATE', schema: 'public', table: 'lyrics', filter: `id=eq.${activeTabId}` },
+        (payload: any) => {
+          if (payload.new) {
+            const updated = payload.new as Lyric;
+            setCurrentLyric(updated);
+            setTabs((prev) =>
+              prev.map((t) => (t.id === updated.id ? { ...t, lyric: updated, title: updated.title } : t))
+            );
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [activeTabId]);
 
   // ── UI Auto-hide / Popups Handler ──────────────────────────────────────────
   const [showUI, setShowUI] = useState(true);
