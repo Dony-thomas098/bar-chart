@@ -27,15 +27,9 @@ export default function FolderPage() {
 
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen flex flex-col bg-[var(--bg-canvas)]">
-        <Header />
-        <main className="flex-1 flex flex-col items-center justify-center select-none p-4 animate-in fade-in duration-300">
-          <LogoLoading
-            variant="card"
-            statusText={folder ? `Loading ${folder.name}...` : 'Loading folder...'}
-          />
-        </main>
-      </div>
+      <LogoLoading
+        statusText={folder ? `Loading ${folder.name}` : 'Loading folder'}
+      />
     );
   }
 

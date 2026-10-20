@@ -6,7 +6,7 @@ $srcMaskablePath = (Resolve-Path "public\icon-maskable-512x512.png").Path
 $srcIcon = [System.Drawing.Bitmap]::FromFile($srcIconPath)
 $srcMaskable = [System.Drawing.Bitmap]::FromFile($srcMaskablePath)
 
-$bgColor = [System.Drawing.ColorTranslator]::FromHtml("#121214")
+$bgColor = [System.Drawing.ColorTranslator]::FromHtml("#0B0B0E")
 
 function Resize-Image($src, $targetW, $targetH, $destPath, $bg = $null, $innerScale = 1.0) {
     $bmp = New-Object System.Drawing.Bitmap $targetW, $targetH

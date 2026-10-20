@@ -64,6 +64,10 @@ export function BandConnectModal({ isOpen, onClose, onSuccess }: Props) {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (profile?.profession !== 'admin') {
+      setErrorMessage('Only band admins can create a new band workspace. Please enter your band PIN to join.');
+      return;
+    }
     if (!createNameInput.trim() || !createCodeInput.trim()) return;
     setLoading(true);
     setErrorMessage(null);
@@ -86,6 +90,10 @@ export function BandConnectModal({ isOpen, onClose, onSuccess }: Props) {
   };
 
   const handleLeave = async () => {
+    if (profile?.profession !== 'admin') {
+      setErrorMessage('Only admins can manage or disconnect the band workspace.');
+      return;
+    }
     await leaveBand();
     setCurrentBand({ id: null, name: null, code: null });
     setSuccessMessage('Disconnected from band.');
@@ -136,16 +144,24 @@ export function BandConnectModal({ isOpen, onClose, onSuccess }: Props) {
                 </span>
                 <p className="text-base font-extrabold text-text-primary">{currentBand.name || 'Shared Choir'}</p>
                 <div className="flex items-center gap-2 mt-1">
-                  <span className="text-xs font-mono font-bold bg-white/60 dark:bg-black/40 px-2 py-0.5 rounded-md border border-orange-500/20">
-                    PIN: {currentBand.code}
-                  </span>
-                  <button
-                    onClick={copyCode}
-                    className="text-xs font-semibold text-orange-600 dark:text-orange-400 hover:underline flex items-center gap-1 cursor-pointer"
-                  >
-                    {copied ? <Check size={12} /> : <Copy size={12} />}
-                    {copied ? 'Copied' : 'Share Code'}
-                  </button>
+                  {profile?.profession === 'admin' ? (
+                    <>
+                      <span className="text-xs font-mono font-bold bg-white/60 dark:bg-black/40 px-2 py-0.5 rounded-md border border-orange-500/20">
+                        PIN: {currentBand.code}
+                      </span>
+                      <button
+                        onClick={copyCode}
+                        className="text-xs font-semibold text-orange-600 dark:text-orange-400 hover:underline flex items-center gap-1 cursor-pointer"
+                      >
+                        {copied ? <Check size={12} /> : <Copy size={12} />}
+                        {copied ? 'Copied' : 'Share Code'}
+                      </button>
+                    </>
+                  ) : (
+                    <span className="text-xs font-medium text-text-secondary">
+                      Band Code: •••• (Admin Managed)
+                    </span>
+                  )}
                 </div>
               </div>
               <ShieldCheck size={28} className="text-orange-500 shrink-0" />
@@ -155,12 +171,14 @@ export function BandConnectModal({ isOpen, onClose, onSuccess }: Props) {
               All folders, charts, and lyrics created by you or your band members are synced live across Vercel, Android APK, and iOS devices.
             </p>
 
-            <button
-              onClick={handleLeave}
-              className="w-full py-2.5 px-4 rounded-xl text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 border border-rose-500/20 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
-            >
-              <LogOut size={14} /> Leave / Switch Band
-            </button>
+            {profile?.profession === 'admin' && (
+              <button
+                onClick={handleLeave}
+                className="w-full py-2.5 px-4 rounded-xl text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 border border-rose-500/20 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <LogOut size={14} /> Leave / Switch Band
+              </button>
+            )}
           </div>
         ) : (
           /* Join or Create Tabs */
@@ -180,14 +198,21 @@ export function BandConnectModal({ isOpen, onClose, onSuccess }: Props) {
               </button>
               <button
                 type="button"
-                onClick={() => { setActiveTab('create'); setErrorMessage(null); }}
+                onClick={() => {
+                  if (profile?.profession !== 'admin') {
+                    setErrorMessage('Only admins can create a new band workspace. Please enter your choir PIN to join.');
+                    return;
+                  }
+                  setActiveTab('create');
+                  setErrorMessage(null);
+                }}
                 className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                   activeTab === 'create'
                     ? 'bg-white dark:bg-zinc-800 text-orange-600 dark:text-orange-400 shadow-sm'
                     : 'text-text-secondary hover:text-text-primary'
                 }`}
               >
-                <Plus size={14} /> Create Band
+                <Plus size={14} /> Create Band {profile?.profession !== 'admin' && <span className="text-[10px] opacity-70">(Admin)</span>}
               </button>
             </div>
 

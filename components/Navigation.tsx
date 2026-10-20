@@ -383,7 +383,7 @@ export function Navigation() {
       updated_at: new Date().toISOString(),
     };
     await saveChart(chart);
-    router.push(`/chart/edit?id=${chart.id}`);
+    router.push(`/chart/edit/?id=${chart.id}`);
   };
 
   const handleCreateNewLyrics = async () => {
@@ -398,7 +398,7 @@ export function Navigation() {
       updated_at: new Date().toISOString(),
     };
     await saveLyrics(lyrics);
-    router.push(`/lyrics/edit?id=${lyrics.id}`);
+    router.push(`/lyrics/edit/?id=${lyrics.id}`);
   };
 
   // Hide on auth / login page, or if user is unauthenticated
@@ -407,14 +407,23 @@ export function Navigation() {
   }
 
   // Hide on reading mode (lyrics score or chord score viewer), full-screen live performance screens, and print
+  const cleanPath = (pathname || '').replace(/\/+$/, '') || '/';
+  const isLyricsMainOrFolder = cleanPath === '/lyrics' || cleanPath.startsWith('/lyrics/folder');
+  const isChartMainOrFolder = cleanPath === '/chart' || cleanPath === '/' || cleanPath.startsWith('/folder');
+  const isEditScreen = cleanPath.endsWith('/edit') || cleanPath.includes('/edit');
+
   const isReadingScreen =
-    (pathname.startsWith('/lyrics/') && !pathname.startsWith('/lyrics/folder') && !pathname.endsWith('/edit')) ||
-    (pathname.startsWith('/chart/') && !pathname.endsWith('/edit'));
+    !isLyricsMainOrFolder &&
+    !isChartMainOrFolder &&
+    !isEditScreen &&
+    (cleanPath.startsWith('/lyrics/view') ||
+      (cleanPath.startsWith('/lyrics/') && cleanPath !== '/lyrics') ||
+      (cleanPath.startsWith('/chart/') && cleanPath !== '/chart'));
 
   const isPerformScreen =
     isReadingScreen ||
-    (pathname.startsWith('/perform/') && pathname.split('/').length === 3) ||
-    (pathname.includes('/perform') && pathname.split('/').length >= 4);
+    (cleanPath.startsWith('/perform/') && cleanPath.split('/').length === 3) ||
+    (cleanPath.includes('/perform') && cleanPath.split('/').length >= 4);
 
   if (isPerformScreen) return null;
 

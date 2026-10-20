@@ -20,11 +20,38 @@ export default function ChartEditor() {
   const params = useParams();
   const searchParams = useSearchParams();
   const router = useRouter();
-  const chartId = (params?.id as string) || searchParams.get('id') || '';
+  const getInitialChartId = () => {
+    if (params?.id && params.id !== 'edit') return params.id as string;
+    const spId = searchParams?.get('id');
+    if (spId) return spId;
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const wId = urlParams.get('id');
+      if (wId) return wId;
+    }
+    return '';
+  };
+  const [resolvedChartId, setResolvedChartId] = useState<string>(getInitialChartId);
+
+  useEffect(() => {
+    const currentId =
+      (params?.id && params.id !== 'edit' ? (params.id as string) : null) ||
+      searchParams?.get('id') ||
+      (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('id') : null) ||
+      '';
+    if (currentId && currentId !== resolvedChartId) {
+      setResolvedChartId(currentId);
+    }
+  }, [params, searchParams, resolvedChartId]);
+
+  const chartId = resolvedChartId;
   const canEdit = canModifySection(profile?.profession, 'chart');
 
   useEffect(() => {
     if (!chartId && !authLoading) {
+      if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('id')) {
+        return;
+      }
       const newId = crypto.randomUUID();
       const currentUserId = user?.id || (typeof window !== 'undefined' ? localStorage.getItem('chord-grid-offline-user-id') : null) || 'guest-user';
       const newChart: ChartData = {
@@ -40,16 +67,10 @@ export default function ChartEditor() {
         updated_at: new Date().toISOString(),
       };
       saveChart(newChart).then(() => {
-        router.replace(`/chart/edit?id=${newId}`);
+        router.replace(`/chart/edit/?id=${newId}`);
       });
     }
   }, [chartId, authLoading, user, router]);
-
-  useEffect(() => {
-    if (!authLoading && !canEdit) {
-      router.replace(chartId ? `/chart?id=${chartId}` : '/');
-    }
-  }, [authLoading, canEdit, chartId, router]);
   
   const { chart, loading: chartLoading, saveStatus, collaborators, updateChart, forceSave } = useChartSync(chartId);
   const returnTo = searchParams.get('returnTo');

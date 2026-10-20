@@ -10,15 +10,42 @@ import { CornerLeftUp, Folder as FolderIcon, RefreshCw, Cloud, CloudOff, Copy } 
 import React, { useState } from 'react';
 
 export default function LyricsEditor() {
+  const router = useRouter();
   const { user, profile, loading: authLoading } = useAuth();
   const params = useParams();
   const searchParams = useSearchParams();
-  const router = useRouter();
-  const lyricId = (params?.id as string) || searchParams?.get('id') || '';
+  const getInitialLyricId = () => {
+    if (params?.id && params.id !== 'edit') return params.id as string;
+    const spId = searchParams?.get('id');
+    if (spId) return spId;
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const wId = urlParams.get('id');
+      if (wId) return wId;
+    }
+    return '';
+  };
+  const [resolvedLyricId, setResolvedLyricId] = useState<string>(getInitialLyricId);
+
+  React.useEffect(() => {
+    const currentId =
+      (params?.id && params.id !== 'edit' ? (params.id as string) : null) ||
+      searchParams?.get('id') ||
+      (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('id') : null) ||
+      '';
+    if (currentId && currentId !== resolvedLyricId) {
+      setResolvedLyricId(currentId);
+    }
+  }, [params, searchParams, resolvedLyricId]);
+
+  const lyricId = resolvedLyricId;
   const canEdit = canModifySection(profile?.profession, 'lyrics');
 
   React.useEffect(() => {
     if (!lyricId && !authLoading) {
+      if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('id')) {
+        return;
+      }
       const newId = crypto.randomUUID();
       const currentUserId = user?.id || (typeof window !== 'undefined' ? localStorage.getItem('chord-grid-offline-user-id') : null) || 'guest-user';
       const newLyric: Lyric = {
@@ -30,22 +57,16 @@ export default function LyricsEditor() {
         updated_at: new Date().toISOString(),
       };
       saveLyrics(newLyric).then(() => {
-        router.replace(`/lyrics/edit?id=${newId}`);
+        router.replace(`/lyrics/edit/?id=${newId}`);
       });
     }
   }, [lyricId, authLoading, user, router]);
-
-  React.useEffect(() => {
-    if (!authLoading && !canEdit) {
-      router.replace(lyricId ? `/lyrics/view?id=${lyricId}` : '/lyrics');
-    }
-  }, [authLoading, canEdit, lyricId, router]);
   
   const { lyric, loading: lyricLoading, saveStatus, collaborators, updateLyric, forceSave } = useLyricsSync(lyricId);
   const [copied, setCopied] = useState(false);
   const [isFolderPickerOpen, setIsFolderPickerOpen] = useState(false);
 
-  if (authLoading || lyricLoading || !canEdit) {
+  if (authLoading || lyricLoading) {
     return <div className="flex h-screen items-center justify-center text-white">Loading...</div>;
   }
 

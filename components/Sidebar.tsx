@@ -108,7 +108,7 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
       updated_at: new Date().toISOString(),
     };
     await saveChart(chart);
-    router.push(`/chart/edit?id=${chart.id}`);
+    router.push(`/chart/edit/?id=${chart.id}`);
     onClose();
   };
 
@@ -123,7 +123,7 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
       updated_at: new Date().toISOString(),
     };
     await saveLyrics(lyric);
-    router.push(`/lyrics/edit?id=${lyric.id}`);
+    router.push(`/lyrics/edit/?id=${lyric.id}`);
     onClose();
   };
 

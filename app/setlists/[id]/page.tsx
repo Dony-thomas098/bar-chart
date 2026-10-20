@@ -147,10 +147,14 @@ function SortableItemRow({
 
   return (
     <div ref={setNodeRef} style={style} className={`glass-card p-3.5 sm:p-4 flex items-center gap-3 group relative select-none ${menuOpen ? 'z-40' : ''}`}>
-      {/* Drag handle */}
-      <div {...attributes} {...listeners} className="p-1 -ml-1 text-text-muted cursor-grab active:cursor-grabbing hover:text-text-primary touch-none shrink-0">
-        <GripVertical size={18} />
-      </div>
+      {/* Drag handle - Admin only */}
+      {profile?.profession === 'admin' ? (
+        <div {...attributes} {...listeners} className="p-1 -ml-1 text-text-muted cursor-grab active:cursor-grabbing hover:text-text-primary touch-none shrink-0" title="Drag to reorder (Admin only)">
+          <GripVertical size={18} />
+        </div>
+      ) : (
+        <div className="w-1.5 shrink-0" />
+      )}
 
       {/* Album / Item Cover Thumb */}
       <div className="w-10 h-10 rounded-xl overflow-hidden bg-gradient-to-br from-indigo-600 via-purple-600 to-orange-500 shadow-sm border border-black/5 dark:border-white/10 flex items-center justify-center shrink-0">
@@ -316,7 +320,7 @@ function PrintView({ setlist, items, charts, lyricsMap }: {
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function SetlistDetailPage() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, profile, loading: authLoading } = useAuth();
   const params = useParams();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -389,8 +393,9 @@ export default function SetlistDetailPage() {
   }, [items]);
 
 
-  // Drag and drop
+  // Drag and drop - Admin only
   const handleDragEnd = async (event: any) => {
+    if (profile?.profession !== 'admin') return;
     const { active, over } = event;
     if (!over || active.id === over.id) return;
     const oldIdx = items.findIndex(i => i.id === active.id);

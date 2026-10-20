@@ -30,15 +30,9 @@ function FolderPageContent() {
 
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen flex flex-col bg-[var(--bg-canvas)]">
-        <Header />
-        <main className="flex-1 flex flex-col items-center justify-center select-none p-4 animate-in fade-in duration-300">
-          <LogoLoading
-            variant="card"
-            statusText={folder ? `Loading ${folder.name}...` : 'Loading folder...'}
-          />
-        </main>
-      </div>
+      <LogoLoading
+        statusText={folder ? `Loading ${folder.name}` : 'Loading folder'}
+      />
     );
   }
 
@@ -59,12 +53,7 @@ function FolderPageContent() {
 export default function FolderPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex flex-col bg-[var(--bg-canvas)]">
-        <Header />
-        <main className="flex-1 flex flex-col items-center justify-center p-4">
-          <LogoLoading variant="card" statusText="Loading..." />
-        </main>
-      </div>
+      <LogoLoading statusText="Loading folder" />
     }>
       <FolderPageContent />
     </Suspense>

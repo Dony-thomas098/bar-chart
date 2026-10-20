@@ -1,18 +1,24 @@
-/* Fade out starts at 2.6s and lasts 0.4s, so the splash is gone at 3.0s after the page starts.
-   Runs in CSS so it does not depend on the app finishing loading. */
+/* Instant hide when already shown in current session */
+:global(.no-splash) .root {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
 .root {
-  animation: splashOut 0.4s ease 2.6s forwards;
+  position: fixed;
+  inset: 0;
+  z-index: 999999;
+  background: #0b0b0e;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+              visibility 0.3s ease;
+  will-change: opacity;
 }
 
-@keyframes splashOut {
-  to {
-    opacity: 0;
-    visibility: hidden;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .root {
-    animation-delay: 0.5s;
-  }
+.fading {
+  opacity: 0 !important;
+  pointer-events: none !important;
 }

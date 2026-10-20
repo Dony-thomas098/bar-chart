@@ -10,15 +10,9 @@ export default function Home() {
 
   if (loading || !user) {
     return (
-      <div className="min-h-screen flex flex-col bg-[var(--bg-canvas)]">
-        <Header />
-        <main className="flex-1 flex flex-col items-center justify-center select-none p-4 animate-in fade-in duration-300">
-          <LogoLoading
-            variant="card"
-            statusText="Synchronizing your catalog..."
-          />
-        </main>
-      </div>
+      <LogoLoading
+        statusText="Synchronizing your catalog"
+      />
     );
   }
 

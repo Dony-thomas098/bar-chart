@@ -154,7 +154,7 @@ export async function listFolderFromCache(folderId: string | null, kind: 'chart'
   const items = allItems.filter((c) => c.folder_id === folderId && !c.title.startsWith('__TRASH__:'));
   return {
     folders,
-    charts: items.map((c) => ({ id: c.id, title: c.title, updated_at: c.updated_at, is_bookmarked: c.is_bookmarked, type: kind })),
+    charts: items.map((c) => ({ id: c.id, title: c.title, updated_at: c.updated_at, is_bookmarked: c.is_bookmarked, created_by: c.created_by, type: kind })),
   };
 }
 
@@ -170,9 +170,9 @@ export async function listFolder(folderId: string | null, kind: 'chart' | 'lyric
 
       let itemsQuery;
       if (kind === 'chart') {
-        itemsQuery = supabase.from('charts').select('id, title, updated_at, is_bookmarked').order('updated_at', { ascending: false }).not('title', 'like', '__TRASH__:%');
+        itemsQuery = supabase.from('charts').select('id, title, updated_at, is_bookmarked, created_by').order('updated_at', { ascending: false }).not('title', 'like', '__TRASH__:%');
       } else {
-        itemsQuery = supabase.from('lyrics').select('id, title, updated_at, is_bookmarked').order('updated_at', { ascending: false }).not('title', 'like', '__TRASH__:%');
+        itemsQuery = supabase.from('lyrics').select('id, title, updated_at, is_bookmarked, created_by').order('updated_at', { ascending: false }).not('title', 'like', '__TRASH__:%');
       }
       
       if (folderId) {
@@ -929,7 +929,7 @@ export async function searchAll(
       const tableName = kind === 'chart' ? 'charts' : 'lyrics';
       const { data } = await supabase
         .from(tableName)
-        .select('id, title, updated_at, folder_id, is_bookmarked')
+        .select('id, title, updated_at, folder_id, is_bookmarked, created_by')
         .ilike('title', `%${query.trim()}%`)
         .not('title', 'like', '__TRASH__:%');
       rawItems = data || [];

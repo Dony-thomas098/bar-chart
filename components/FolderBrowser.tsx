@@ -67,7 +67,7 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
   const [moveItem, setMoveItem] = useState<{ id: string, type: 'folder' | 'chart' | 'lyrics' } | null>(null);
   const [isBulkMove, setIsBulkMove] = useState(false);
   const [renameItem, setRenameItem] = useState<{ id: string, type: 'folder' | 'chart' | 'lyrics', currentName: string } | null>(null);
-  const [deleteItem, setDeleteItem] = useState<{ id: string, type: 'folder' | 'chart' | 'lyrics', name: string } | null>(null);
+  const [deleteItem, setDeleteItem] = useState<{ id: string, type: 'folder' | 'chart' | 'lyrics', name: string, createdBy?: string } | null>(null);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [bulkDeleteModal, setBulkDeleteModal] = useState(false);
   const [createFolderModal, setCreateFolderModal] = useState(false);
@@ -357,7 +357,7 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
       };
       const { saveLyrics } = await import('@/lib/lyrics');
       await saveLyrics(lyrics);
-      router.push(`/lyrics/edit?id=${lyrics.id}`);
+      router.push(`/lyrics/edit/?id=${lyrics.id}`);
     } else {
       const chart = {
         id: crypto.randomUUID(),
@@ -372,7 +372,7 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
         updated_at: new Date().toISOString(),
       };
       await saveChart(chart);
-      router.push(`/chart/edit?id=${chart.id}`);
+      router.push(`/chart/edit/?id=${chart.id}`);
     }
   };
 
@@ -383,6 +383,18 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
     const itemToDelete = deleteItem;
     setDeleteItem(null);
     setDeleteConfirmText('');
+
+    const isAdmin = profile?.profession === 'admin';
+    const currentUserId = user?.id || (typeof window !== 'undefined' ? localStorage.getItem('chord-grid-offline-user-id') : null) || 'guest-user';
+    const isCreator = !itemToDelete.createdBy || itemToDelete.createdBy === currentUserId || (user?.id && itemToDelete.createdBy === user.id);
+
+    if (!isAdmin && !isCreator) {
+      alert("Permission denied: You can only delete items that you created. Admins can delete any item.");
+      return;
+    }
+
+    // Only Admin can perform permanent delete; normal users can only move to trash
+    const isPermanent = permanent && isAdmin;
 
     // Optimistic UI update so the item disappears immediately
     if (itemToDelete.type === 'folder') {
@@ -395,7 +407,7 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
     }
 
     try {
-      if (permanent) {
+      if (isPermanent) {
         await deleteEntry(itemToDelete.id, itemToDelete.type);
       } else {
         await moveToTrash(itemToDelete.id, itemToDelete.type);
@@ -434,23 +446,37 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
   const handleBulkDelete = async (permanent: boolean = false) => {
     if (selectedItems.length === 0) return;
 
-    // Check permission: only Admin or Creator of each item can delete
     const isAdmin = profile?.profession === 'admin';
-    const unauthorized = selectedItems.some(item => {
-      const target = item.type === 'folder'
-        ? folders.find(f => f.id === item.id)
-        : charts.find(c => c.id === item.id);
-      const isCreator = Boolean(user?.id && target?.created_by && user.id === target.created_by);
-      return !isAdmin && !isCreator;
-    });
+    const isPermanent = permanent && isAdmin;
 
-    if (unauthorized) {
-      alert("Permission denied: You can only delete items that you created. Admin permission is required to delete items created by others.");
-      setBulkDeleteModal(false);
-      return;
+    if (permanent && !isAdmin) {
+      alert("Permission denied: Only Admins can permanently delete items. Items will be moved to trash instead.");
     }
 
-    const itemsToDelete = [...selectedItems];
+    const currentUserId = user?.id || (typeof window !== 'undefined' ? localStorage.getItem('chord-grid-offline-user-id') : null) || 'guest-user';
+    let itemsToDelete = [...selectedItems];
+
+    if (!isAdmin) {
+      const nonOwned = itemsToDelete.filter(item => {
+        const itemObj = (item.type === 'folder' ? folders : charts).find(x => x.id === item.id);
+        const cb = itemObj?.created_by;
+        return cb && cb !== currentUserId && cb !== user?.id;
+      });
+      if (nonOwned.length > 0) {
+        alert(`Permission denied: ${nonOwned.length} item(s) were created by others and cannot be deleted.`);
+        itemsToDelete = itemsToDelete.filter(item => {
+          const itemObj = (item.type === 'folder' ? folders : charts).find(x => x.id === item.id);
+          const cb = itemObj?.created_by;
+          return !cb || cb === currentUserId || cb === user?.id;
+        });
+        if (itemsToDelete.length === 0) {
+          setSelectedItems([]);
+          setBulkDeleteModal(false);
+          return;
+        }
+      }
+    }
+
     const itemIdsToDelete = new Set(itemsToDelete.map(i => i.id));
 
     setSelectedItems([]);
@@ -465,7 +491,7 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
     }
 
     try {
-      if (permanent) {
+      if (isPermanent) {
         await Promise.all(itemsToDelete.map(item => deleteEntry(item.id, item.type)));
       } else {
         await Promise.all(itemsToDelete.map(item => moveToTrash(item.id, item.type)));
@@ -509,7 +535,8 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
 
   const RowMenu = ({ id, type, name, createdBy }: { id: string, type: 'folder' | 'chart' | 'lyrics', name: string, createdBy?: string }) => {
     const isAdmin = profile?.profession === 'admin';
-    const isCreator = Boolean(user?.id && createdBy && user.id === createdBy);
+    const currentUserId = user?.id || (typeof window !== 'undefined' ? localStorage.getItem('chord-grid-offline-user-id') : null) || 'guest-user';
+    const isCreator = !createdBy || createdBy === currentUserId || (user?.id && createdBy === user.id);
     const canDelete = isAdmin || isCreator;
 
     // Both admin and members can view the 3-dots options menu for editing/renaming/moving
@@ -587,21 +614,23 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
                   <Printer size={14} className="mr-2.5 text-slate-400" /> Add to Printer
                 </button>
               )}
-              <div className="h-px bg-black/[0.06] dark:bg-white/[0.08] my-1 mx-2" />
               {canDelete ? (
-                <button
-                  onClick={(e) => { e.stopPropagation(); setActiveDropdown(null); setDeleteItem({ id, type, name }); setDeleteConfirmText(''); }}
-                  className="flex items-center w-full px-4 py-2 text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer"
-                >
-                  <Trash2 size={14} className="mr-2.5 text-rose-500" /> Delete
-                </button>
+                <>
+                  <div className="h-px bg-black/[0.06] dark:bg-white/[0.08] my-1 mx-2" />
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setActiveDropdown(null); setDeleteItem({ id, type, name, createdBy }); setDeleteConfirmText(''); }}
+                    className="flex items-center w-full px-4 py-2 text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer"
+                  >
+                    <Trash2 size={14} className="mr-2.5 text-rose-500" /> Move to Trash
+                  </button>
+                </>
               ) : (
-                <div
-                  title="Only Admin or Creator can delete this item"
-                  className="flex items-center w-full px-4 py-2 text-[11px] font-medium text-slate-400 dark:text-slate-500 cursor-not-allowed select-none opacity-60"
-                >
-                  <Trash2 size={13} className="mr-2.5 text-slate-400" /> Delete (Admin/Creator)
-                </div>
+                <>
+                  <div className="h-px bg-black/[0.06] dark:bg-white/[0.08] my-1 mx-2" />
+                  <div className="px-4 py-1.5 text-[10px] text-text-muted italic select-none">
+                    Created by another member
+                  </div>
+                </>
               )}
             </div>
           </>
@@ -1262,7 +1291,7 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
                   onClick={() => { setBulkDeleteModal(true); setDeleteConfirmText(''); }}
                   className="px-4 py-1.5 text-xs font-bold text-white bg-rose-500 rounded-full hover:bg-rose-600 shadow-sm transition-all cursor-pointer"
                 >
-                  Delete
+                  Move to Trash
                 </button>
               </>
             )}
@@ -1316,25 +1345,31 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
             <div className="w-14 h-14 mx-auto icon-well flex items-center justify-center mb-4">
               <Trash2 size={22} className="text-rose-500" />
             </div>
-            <h3 className="text-base font-bold text-text-primary mb-2">Delete {deleteItem.type}?</h3>
+            <h3 className="text-base font-bold text-text-primary mb-2">Move {deleteItem.type} to Trash?</h3>
             <p className="text-xs text-text-secondary mb-5 font-medium px-2 leading-relaxed">
-              Are you sure you want to delete "{deleteItem.name}"?
-              {deleteItem.type === 'folder' && " All nested folders and charts will also be permanently deleted."}
+              Are you sure you want to move "{deleteItem.name}" to trash?
+              {deleteItem.type === 'folder' && " All nested contents will also be moved to trash."}
+              <br />
+              <span className="text-[11px] text-orange-600 dark:text-orange-400 mt-1 block">
+                It can be restored anytime from the Trash section.
+              </span>
             </p>
             <div className="flex flex-col gap-2">
               <button 
                 onClick={() => executeDelete(false)} 
-                className="w-full py-2.5 text-xs font-bold text-white bg-gradient-to-r from-orange-500 to-rose-400 rounded-full shadow-glow hover:brightness-105 transition-all"
+                className="w-full py-2.5 text-xs font-bold text-white bg-gradient-to-r from-orange-500 to-rose-400 rounded-full shadow-glow hover:brightness-105 transition-all cursor-pointer"
               >
                 Move to Trash
               </button>
-              <button 
-                onClick={() => executeDelete(true)} 
-                className="w-full py-2 text-xs font-bold text-rose-500 hover:bg-rose-500/10 rounded-full transition-all"
-              >
-                Delete Permanently
-              </button>
-              <button onClick={() => { setDeleteItem(null); setDeleteConfirmText(''); }} className="w-full py-2 text-xs font-semibold text-text-muted hover:text-text-primary transition-all">Cancel</button>
+              {profile?.profession === 'admin' && (
+                <button 
+                  onClick={() => executeDelete(true)} 
+                  className="w-full py-2 text-xs font-bold text-rose-500 hover:bg-rose-500/10 rounded-full transition-all cursor-pointer"
+                >
+                  Delete Permanently (Admin)
+                </button>
+              )}
+              <button onClick={() => { setDeleteItem(null); setDeleteConfirmText(''); }} className="w-full py-2 text-xs font-semibold text-text-muted hover:text-text-primary transition-all cursor-pointer">Cancel</button>
             </div>
           </div>
         </div>
@@ -1347,24 +1382,26 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
             <div className="w-14 h-14 mx-auto icon-well flex items-center justify-center mb-4">
               <Trash2 size={22} className="text-rose-500" />
             </div>
-            <h3 className="text-base font-bold text-text-primary mb-2">Delete {selectedItems.length} items?</h3>
+            <h3 className="text-base font-bold text-text-primary mb-2">Move {selectedItems.length} items to Trash?</h3>
             <p className="text-xs text-text-secondary mb-5 font-medium px-2 leading-relaxed">
-              Are you sure you want to delete {selectedItems.length} items? All nested contents will be affected.
+              Are you sure you want to move {selectedItems.length} items to trash? All items will be preserved and can be restored anytime.
             </p>
             <div className="flex flex-col gap-2">
               <button 
                 onClick={() => handleBulkDelete(false)} 
-                className="w-full py-2.5 text-xs font-bold text-white bg-gradient-to-r from-orange-500 to-rose-400 rounded-full shadow-glow hover:brightness-105 transition-all"
+                className="w-full py-2.5 text-xs font-bold text-white bg-gradient-to-r from-orange-500 to-rose-400 rounded-full shadow-glow hover:brightness-105 transition-all cursor-pointer"
               >
                 Move to Trash
               </button>
-              <button 
-                onClick={() => handleBulkDelete(true)} 
-                className="w-full py-2 text-xs font-bold text-rose-500 hover:bg-rose-500/10 rounded-full transition-all"
-              >
-                Delete Permanently
-              </button>
-              <button onClick={() => { setBulkDeleteModal(false); setDeleteConfirmText(''); }} className="w-full py-2 text-xs font-semibold text-text-muted hover:text-text-primary transition-all">Cancel</button>
+              {profile?.profession === 'admin' && (
+                <button 
+                  onClick={() => handleBulkDelete(true)} 
+                  className="w-full py-2 text-xs font-bold text-rose-500 hover:bg-rose-500/10 rounded-full transition-all cursor-pointer"
+                >
+                  Delete Permanently (Admin)
+                </button>
+              )}
+              <button onClick={() => { setBulkDeleteModal(false); setDeleteConfirmText(''); }} className="w-full py-2 text-xs font-semibold text-text-muted hover:text-text-primary transition-all cursor-pointer">Cancel</button>
             </div>
           </div>
         </div>

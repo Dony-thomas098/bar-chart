@@ -1,52 +1,91 @@
-"use client";
+'use client';
 
-import { useEffect, useState } from "react";
-import { ChordlyLogo } from "./ChordlyLogo";
-import styles from "./SplashScreen.module.css";
-
-/** Total time the splash stays on screen, counted from when the page started loading. */
-const TOTAL_MS = 3000;
-const TOTAL_MS_REDUCED_MOTION = 900;
+import React, { useEffect, useState, useRef } from 'react';
+import { useAuth } from './AuthProvider';
+import { ChordlyLoader } from './ChordlyLoader';
+import styles from './SplashScreen.module.css';
 
 /**
- * Animated launch screen.
- * - Shows first, on top of everything, every time the app opens or the page is fully reloaded
- *   (including a hard refresh).
- * - Does NOT show again when you move between screens inside the app, because this component
- *   lives in the root layout, which stays mounted.
- * - The fade-out is driven by CSS, so it still happens on time even if the app is slow to load.
- * - Tap anywhere to skip.
+ * Animated Brand Launch / Splash Screen.
+ * - Shows on app cold launch or hard reload.
+ * - Loops the new animated logo loader until initial authentication and catalog sync finish.
+ * - Enforces minimum 800ms display time to avoid UI flashes.
+ * - Fades out smoothly over 300ms upon completion.
+ * - Respects prefers-reduced-motion and tab backgrounding.
  */
 export function SplashScreen() {
+  let authLoading = false;
+  try {
+    const auth = useAuth();
+    authLoading = auth.loading;
+  } catch {
+    // If rendered outside AuthProvider
+  }
+
   const [gone, setGone] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-    const total = reduce ? TOTAL_MS_REDUCED_MOTION : TOTAL_MS;
-    // performance.now() = time since the page started loading, so slow starts don't extend the splash.
-    const remaining = Math.max(0, total - performance.now());
-    const t = window.setTimeout(() => setGone(true), remaining);
-    return () => window.clearTimeout(t);
+    setMounted(true);
+
+    try {
+      const navEntries = performance.getEntriesByType('navigation') as PerformanceNavigationTiming[];
+      const isReload =
+        (navEntries.length > 0 && navEntries[0].type === 'reload') ||
+        (typeof performance !== 'undefined' && (performance as any).navigation?.type === 1);
+      const splashShown = sessionStorage.getItem('chordly_splash_shown');
+
+      if (splashShown && !isReload) {
+        setGone(true);
+        document.documentElement.classList.add('no-splash');
+        return;
+      }
+
+      sessionStorage.setItem('chordly_splash_shown', 'true');
+      document.documentElement.classList.remove('no-splash');
+    } catch {
+      // In case sessionStorage is restricted
+    }
+
+    // Intercept hard refresh key combos so next load displays splash
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (
+        ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'r' || e.key === 'R')) ||
+        (e.ctrlKey && e.key === 'F5')
+      ) {
+        try {
+          sessionStorage.removeItem('chordly_splash_shown');
+        } catch {}
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
   }, []);
 
-  if (gone) return null;
+  if (!mounted || gone) return null;
 
   return (
     <div
       data-splash
       role="status"
       aria-label="Loading Chordly"
-      onClick={() => setGone(true)}
-      className={`${styles.root} fixed inset-0 z-[9999] grid place-items-center bg-[var(--bg-canvas)]`}
-      style={{
-        paddingTop: "max(20px, env(safe-area-inset-top))",
-        paddingBottom: "max(20px, env(safe-area-inset-bottom))",
-        paddingLeft: "max(20px, env(safe-area-inset-left))",
-        paddingRight: "max(20px, env(safe-area-inset-right))",
-      }}
+      className={styles.root}
     >
-      <ChordlyLogo variant="stacked" animate className="sm:hidden w-[min(80vw,420px)] h-auto" />
-      <ChordlyLogo variant="full" animate className="hidden sm:block w-[min(86vw,820px)] h-auto" />
+      <ChordlyLoader
+        statusText="Synchronizing your catalog"
+        isDone={!authLoading}
+        minDisplayMs={800}
+        fadeDurationMs={300}
+        onFadeComplete={() => {
+          setGone(true);
+          try {
+            document.documentElement.classList.add('no-splash');
+          } catch {}
+        }}
+      />
     </div>
   );
 }

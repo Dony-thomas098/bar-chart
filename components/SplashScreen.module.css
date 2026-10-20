@@ -5,48 +5,20 @@
   pointer-events: none !important;
 }
 
-/* Smooth launch screen exit transition */
 .root {
-  transition: opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1),
-              transform 0.5s cubic-bezier(0.16, 1, 0.3, 1),
-              visibility 0.5s ease;
-  will-change: opacity, transform;
+  position: fixed;
+  inset: 0;
+  z-index: 999999;
+  background: #0b0b0e;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+              visibility 0.3s ease;
+  will-change: opacity;
 }
 
 .fading {
   opacity: 0 !important;
-  transform: scale(0.97);
   pointer-events: none !important;
-}
-
-.mobileLogo {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-}
-
-.desktopLogo {
-  display: none;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-}
-
-@media (min-width: 640px) {
-  .mobileLogo {
-    display: none;
-  }
-  .desktopLogo {
-    display: flex;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .root {
-    transition-duration: 0.2s !important;
-  }
-  .fading {
-    transform: none !important;
-  }
 }

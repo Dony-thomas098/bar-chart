@@ -18,7 +18,8 @@ type TrashItem = {
 
 export default function TrashPage() {
   const router = useRouter();
-  const { user, loading: authLoading } = useAuth();
+  const { user, profile, loading: authLoading } = useAuth();
+  const isAdmin = profile?.profession === 'admin';
   const [folders, setFolders] = useState<Folder[]>([]);
   const [charts, setCharts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -152,6 +153,11 @@ export default function TrashPage() {
 
   // Single item actions (non-selection mode)
   const executeDelete = async () => {
+    if (!isAdmin) {
+      alert("Permission denied: Only Admins can permanently delete items from trash.");
+      setDeleteItem(null);
+      return;
+    }
     if (!deleteItem) return;
     const itemToDelete = deleteItem;
     setDeleteItem(null);
@@ -189,6 +195,11 @@ export default function TrashPage() {
 
   // Bulk delete selected items
   const executeBulkDelete = async () => {
+    if (!isAdmin) {
+      alert("Permission denied: Only Admins can permanently delete items from trash.");
+      setBulkDeleteModal(false);
+      return;
+    }
     const idsToDelete = new Set(selectedIds);
     setFolders(prev => prev.filter(f => !idsToDelete.has(f.id)));
     setCharts(prev => prev.filter(c => !idsToDelete.has(c.id)));
@@ -226,8 +237,13 @@ export default function TrashPage() {
     }
   };
 
-  // Delete ALL items in trash
+  // Delete ALL items in trash (Admin only)
   const executeDeleteAll = async () => {
+    if (!isAdmin) {
+      alert("Permission denied: Only Admins can empty the trash.");
+      setDeleteAllModal(false);
+      return;
+    }
     setFolders([]);
     setCharts([]);
     setDeleteAllModal(false);
@@ -310,15 +326,17 @@ export default function TrashPage() {
                 Restore ({selectedIds.size})
               </button>
 
-              {/* Delete Selected */}
-              <button
-                onClick={() => setBulkDeleteModal(true)}
-                disabled={selectedIds.size === 0}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 border border-red-500/20 disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 cursor-pointer"
-              >
-                <Trash2 size={14} />
-                Delete ({selectedIds.size})
-              </button>
+              {/* Delete Selected (Admin only) */}
+              {isAdmin && (
+                <button
+                  onClick={() => setBulkDeleteModal(true)}
+                  disabled={selectedIds.size === 0}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 border border-red-500/20 disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 cursor-pointer"
+                >
+                  <Trash2 size={14} />
+                  Delete ({selectedIds.size})
+                </button>
+              )}
 
               {/* Cancel */}
               <button
@@ -343,13 +361,15 @@ export default function TrashPage() {
               <CheckCircle2 size={14} />
               Select
             </button>
-            <button
-              onClick={() => setDeleteAllModal(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 border border-red-500/20 active:scale-95 cursor-pointer"
-            >
-              <Trash2 size={14} />
-              Empty Trash
-            </button>
+            {isAdmin && (
+              <button
+                onClick={() => setDeleteAllModal(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 border border-red-500/20 active:scale-95 cursor-pointer"
+              >
+                <Trash2 size={14} />
+                Empty Trash
+              </button>
+            )}
           </div>
         )}
 
@@ -421,18 +441,20 @@ export default function TrashPage() {
                             <RefreshCw size={12} className="stroke-[2.5]" />
                             <span>Restore</span>
                           </button>
-                          <button
-                            type="button"
-                            onClick={(e: React.MouseEvent) => {
-                              e.stopPropagation();
-                              setDeleteItem({ id: folder.id, type: 'folder', originalName });
-                            }}
-                            className="w-8 h-8 rounded-xl bg-red-500/10 hover:bg-red-500/20 active:scale-95 text-red-600 dark:text-red-400 font-bold text-xs flex items-center justify-center transition-all cursor-pointer border border-red-500/20 shadow-xs shrink-0"
-                            title="Delete Permanently"
-                            aria-label={`Delete ${originalName} permanently`}
-                          >
-                            <Trash2 size={13} className="stroke-[2.2]" />
-                          </button>
+                          {isAdmin && (
+                            <button
+                              type="button"
+                              onClick={(e: React.MouseEvent) => {
+                                e.stopPropagation();
+                                setDeleteItem({ id: folder.id, type: 'folder', originalName });
+                              }}
+                              className="w-8 h-8 rounded-xl bg-red-500/10 hover:bg-red-500/20 active:scale-95 text-red-600 dark:text-red-400 font-bold text-xs flex items-center justify-center transition-all cursor-pointer border border-red-500/20 shadow-xs shrink-0"
+                              title="Delete Permanently"
+                              aria-label={`Delete ${originalName} permanently`}
+                            >
+                              <Trash2 size={13} className="stroke-[2.2]" />
+                            </button>
+                          )}
                         </div>
                       )}
                     </GlassCard>
@@ -505,18 +527,20 @@ export default function TrashPage() {
                             <RefreshCw size={12} className="stroke-[2.5]" />
                             <span>Restore</span>
                           </button>
-                          <button
-                            type="button"
-                            onClick={(e: React.MouseEvent) => {
-                              e.stopPropagation();
-                              setDeleteItem({ id: chart.id, type: itemType, originalName });
-                            }}
-                            className="w-8 h-8 rounded-xl bg-red-500/10 hover:bg-red-500/20 active:scale-95 text-red-600 dark:text-red-400 font-bold text-xs flex items-center justify-center transition-all cursor-pointer border border-red-500/20 shadow-xs shrink-0"
-                            title="Delete Permanently"
-                            aria-label={`Delete ${originalName} permanently`}
-                          >
-                            <Trash2 size={13} className="stroke-[2.2]" />
-                          </button>
+                          {isAdmin && (
+                            <button
+                              type="button"
+                              onClick={(e: React.MouseEvent) => {
+                                e.stopPropagation();
+                                setDeleteItem({ id: chart.id, type: itemType, originalName });
+                              }}
+                              className="w-8 h-8 rounded-xl bg-red-500/10 hover:bg-red-500/20 active:scale-95 text-red-600 dark:text-red-400 font-bold text-xs flex items-center justify-center transition-all cursor-pointer border border-red-500/20 shadow-xs shrink-0"
+                              title="Delete Permanently"
+                              aria-label={`Delete ${originalName} permanently`}
+                            >
+                              <Trash2 size={13} className="stroke-[2.2]" />
+                            </button>
+                          )}
                         </div>
                       )}
                     </GlassCard>

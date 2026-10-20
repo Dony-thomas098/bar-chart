@@ -99,8 +99,8 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-[100dvh] flex flex-col font-sans bg-[var(--bg-canvas)] text-text-primary selection:bg-orange-500/20" suppressHydrationWarning>
-        <SplashScreen />
         <AuthProvider>
+          <SplashScreen />
           <OfflineSyncProvider>
             <ThemeSync />
             {/* Soft Glass Decorative Canvas Blobs */}

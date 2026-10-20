@@ -21,7 +21,7 @@ export function CapacitorInit() {
           const { StatusBar, Style } = await import('@capacitor/status-bar');
           await StatusBar.setStyle({ style: Style.Dark });
           if (Capacitor.getPlatform() === 'android') {
-            await StatusBar.setBackgroundColor({ color: '#121214' });
+            await StatusBar.setBackgroundColor({ color: '#0B0B0E' });
             await StatusBar.setOverlaysWebView({ overlay: false });
           }
         } catch (e) {
