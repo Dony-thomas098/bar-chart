@@ -400,9 +400,15 @@ export default function SetlistDetailPage() {
     if (!over || active.id === over.id) return;
     const oldIdx = items.findIndex(i => i.id === active.id);
     const newIdx = items.findIndex(i => i.id === over.id);
+    const previousItems = items;
     const reordered = arrayMove(items, oldIdx, newIdx).map((item, pos) => ({ ...item, position: pos }));
     setItems(reordered);
-    await reorderSetlistItems(reordered.map(i => ({ id: i.id, position: i.position })));
+    try {
+      await reorderSetlistItems(reordered.map(i => ({ id: i.id, position: i.position })));
+    } catch (err) {
+      console.error('Failed to persist setlist reorder:', err);
+      setItems(previousItems);
+    }
   };
 
   const handleAddSongs = async (picked: PickedItem[]) => {

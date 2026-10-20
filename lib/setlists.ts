@@ -22,6 +22,7 @@ export type SetlistItem = {
   lines_override?: any;
   // display fields populated by join
   title?: string;
+  is_deleted?: boolean;
 };
 
 // ─── Setlist CRUD ─────────────────────────────────────────────────────────────
@@ -113,6 +114,7 @@ export async function duplicateSetlist(id: string): Promise<Setlist> {
       position: item.position,
       transpose_override: item.transpose_override,
       notes: item.notes,
+      lines_override: item.lines_override || null,
     }));
     await supabase.from('setlist_items').insert(newItems);
   }
@@ -156,7 +158,8 @@ export async function listSetlistItems(setlistId: string): Promise<SetlistItem[]
 
   return rawItems.map(item => ({
     ...item,
-    title: titleMap[item.item_id] || 'Unknown',
+    title: titleMap[item.item_id] || 'Unknown (Item Removed)',
+    is_deleted: !titleMap[item.item_id],
   }));
 }
 

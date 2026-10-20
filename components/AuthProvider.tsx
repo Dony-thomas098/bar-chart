@@ -277,6 +277,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signOut = async () => {
+    try {
+      await flushPendingSaves();
+    } catch (e) {
+      console.warn('[Auth] Error flushing pending saves during signout:', e);
+    }
     // Clear active session keys so another user logging in on the device doesn't inherit prior state
     if (typeof window !== 'undefined') {
       localStorage.removeItem(GUEST_KEY);
@@ -322,8 +327,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           window.location.hash.includes('access_token=')
         );
 
-        // Race supabase session fetch against timeout (extended to 6s during OAuth token exchange)
-        const timeoutDuration = isOAuthRedirect ? 6000 : 1500;
+        // Race supabase session fetch against timeout (extended to 6s during OAuth token exchange, 4.5s default for mobile)
+        const timeoutDuration = isOAuthRedirect ? 6000 : 4500;
         const timeout = new Promise<{ data: { session: null } }>((resolve) =>
           setTimeout(() => resolve({ data: { session: null } }), timeoutDuration)
         );

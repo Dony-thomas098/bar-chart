@@ -64,6 +64,9 @@ if (typeof window !== 'undefined' && typeof indexedDB !== 'undefined') {
         }
       }
     },
+  }).catch((err) => {
+    console.warn('[Storage] IndexedDB initialization failed:', err);
+    return null as any;
   });
 }
 
@@ -77,38 +80,57 @@ const isOnline = () => {
   return typeof navigator !== 'undefined' && navigator.onLine;
 };
 
+// Mutex lock to prevent concurrent flushes
+let isFlushingPendingSaves = false;
+
 // Flush pending saves when coming back online or logging in
 export async function flushPendingSaves() {
-  if (!dbPromise || !isOnline()) return;
+  if (!dbPromise || !isOnline() || isFlushingPendingSaves) return;
+  isFlushingPendingSaves = true;
   try {
     const db = await dbPromise;
+    if (!db) return;
     const pending = await db.getAll('pending_saves');
     for (const item of pending) {
+      let success = false;
       if (item.action === 'upsert') {
         if (item.type === 'chart') {
           const { custom_text, type, ...dbPayload } = item.data;
-          await supabase.from('charts').upsert(dbPayload);
+          const { error } = await supabase.from('charts').upsert(dbPayload);
+          if (!error) success = true;
+          else console.warn('[Storage] flushPendingSaves chart error:', error);
         } else if (item.type === 'lyrics') {
           const { type, ...dbPayload } = item.data;
-          await supabase.from('lyrics').upsert(dbPayload);
+          const { error } = await supabase.from('lyrics').upsert(dbPayload);
+          if (!error) success = true;
+          else console.warn('[Storage] flushPendingSaves lyrics error:', error);
         } else if (item.type === 'folder') {
-          await supabase.from('folders').upsert(item.data);
+          const { error } = await supabase.from('folders').upsert(item.data);
+          if (!error) success = true;
+          else console.warn('[Storage] flushPendingSaves folder error:', error);
         }
       } else if (item.action === 'delete') {
         if (item.type === 'chart') {
           await supabase.from('setlist_items').delete().eq('item_id', item.id);
-          await supabase.from('charts').delete().eq('id', item.id);
+          const { error } = await supabase.from('charts').delete().eq('id', item.id);
+          if (!error) success = true;
         } else if (item.type === 'lyrics') {
           await supabase.from('setlist_items').delete().eq('item_id', item.id);
-          await supabase.from('lyrics').delete().eq('id', item.id);
+          const { error } = await supabase.from('lyrics').delete().eq('id', item.id);
+          if (!error) success = true;
         } else if (item.type === 'folder') {
-          await supabase.from('folders').delete().eq('id', item.id);
+          const { error } = await supabase.from('folders').delete().eq('id', item.id);
+          if (!error) success = true;
         }
       }
-      await db.delete('pending_saves', item.id);
+      if (success) {
+        await db.delete('pending_saves', item.id);
+      }
     }
   } catch (err) {
     console.warn('[Storage] flushPendingSaves error:', err);
+  } finally {
+    isFlushingPendingSaves = false;
   }
 }
 
@@ -119,26 +141,42 @@ if (typeof window !== 'undefined') {
 // Cache updating utilities — exported so OfflineSyncContext can use them for realtime event handling
 export async function cacheChart(chart: Chart) {
   if (!dbPromise) return;
-  const db = await dbPromise;
-  await db.put('charts', chart);
+  try {
+    const db = await dbPromise;
+    if (db) await db.put('charts', chart);
+  } catch (err) {
+    console.warn('[Storage] Failed to cache chart:', err);
+  }
 }
 
 export async function cacheFolder(folder: Folder) {
   if (!dbPromise) return;
-  const db = await dbPromise;
-  await db.put('folders', folder);
+  try {
+    const db = await dbPromise;
+    if (db) await db.put('folders', folder);
+  } catch (err) {
+    console.warn('[Storage] Failed to cache folder:', err);
+  }
 }
 
 export async function cacheLyric(lyric: any) {
   if (!dbPromise) return;
-  const db = await dbPromise;
-  await db.put('lyrics', lyric);
+  try {
+    const db = await dbPromise;
+    if (db) await db.put('lyrics', lyric);
+  } catch (err) {
+    console.warn('[Storage] Failed to cache lyric:', err);
+  }
 }
 
 export async function deleteFromCache(id: string, store: 'charts' | 'lyrics' | 'folders') {
   if (!dbPromise) return;
-  const db = await dbPromise;
-  await db.delete(store, id);
+  try {
+    const db = await dbPromise;
+    if (db) await db.delete(store, id);
+  } catch (err) {
+    console.warn('[Storage] Failed to delete from cache:', err);
+  }
 }
 
 // --- Data Access Layer ---
@@ -231,11 +269,14 @@ export async function listFolder(folderId: string | null, kind: 'chart' | 'lyric
             const tx = db.transaction('folders', 'readwrite');
             onlineFolders.forEach((f) => tx.store.put(f));
           }
-          // Remove any stale local charts in this folder that are no longer online
+          // Remove any stale local charts in this folder that are no longer online,
+          // UNLESS they have pending offline changes queued in pending_saves
           const onlineIds = new Set(onlineItems.map(i => i.id));
           const storeName = kind === 'chart' ? 'charts' : 'lyrics';
+          const pending = await db.getAll('pending_saves');
+          const pendingIds = new Set(pending.map(p => p.id));
           for (const localItem of local.charts) {
-            if (!onlineIds.has(localItem.id) && !localItem.title.startsWith('__TRASH__:')) {
+            if (!onlineIds.has(localItem.id) && !pendingIds.has(localItem.id) && !localItem.title.startsWith('__TRASH__:')) {
               await db.delete(storeName, localItem.id);
             }
           }
@@ -683,18 +724,54 @@ export async function listTrash() {
   return { folders, charts };
 }
 
-export async function moveEntry(id: string, type: 'folder' | 'chart' | 'lyrics', newParentId: string | null) {
+export async function isDescendantFolder(
+  folderId: string,
+  potentialAncestorId: string,
+  foldersList?: Folder[]
+): Promise<boolean> {
+  if (folderId === potentialAncestorId) return true;
+  const allFolders = foldersList || (await getAllFolders());
+  const folderMap = new Map(allFolders.map(f => [f.id, f]));
+  let curr = folderMap.get(folderId);
+  const visited = new Set<string>();
+  while (curr && curr.parent_id) {
+    if (visited.has(curr.id)) break;
+    visited.add(curr.id);
+    if (curr.parent_id === potentialAncestorId) return true;
+    curr = folderMap.get(curr.parent_id);
+  }
+  return false;
+}
+
+export async function moveEntry(id: string, type: 'folder' | 'chart' | 'lyrics', newParentId: string | null): Promise<boolean> {
+  if (type === 'folder') {
+    if (newParentId === id) {
+      console.warn('[Storage] Cannot move folder into itself');
+      return false;
+    }
+    if (newParentId !== null) {
+      const isDescendant = await isDescendantFolder(newParentId, id);
+      if (isDescendant) {
+        console.warn('[Storage] Cannot move folder into its own child/descendant');
+        return false;
+      }
+    }
+  }
+
   const updated_at = new Date().toISOString();
   const storeName = type === 'folder' ? 'folders' : type === 'chart' ? 'charts' : 'lyrics';
 
   if (isOnline()) {
     try {
       if (type === 'folder') {
-        await supabase.from('folders').update({ parent_id: newParentId, updated_at }).eq('id', id);
+        const { error } = await supabase.from('folders').update({ parent_id: newParentId, updated_at }).eq('id', id);
+        if (error) console.warn('[Storage] Supabase moveEntry error:', error);
       } else if (type === 'chart') {
-        await supabase.from('charts').update({ folder_id: newParentId, updated_at }).eq('id', id);
+        const { error } = await supabase.from('charts').update({ folder_id: newParentId, updated_at }).eq('id', id);
+        if (error) console.warn('[Storage] Supabase moveEntry error:', error);
       } else if (type === 'lyrics') {
-        await supabase.from('lyrics').update({ folder_id: newParentId, updated_at }).eq('id', id);
+        const { error } = await supabase.from('lyrics').update({ folder_id: newParentId, updated_at }).eq('id', id);
+        if (error) console.warn('[Storage] Supabase moveEntry error:', error);
       }
     } catch (err) {
       console.warn('[Storage] Supabase moveEntry error:', err);
@@ -704,25 +781,32 @@ export async function moveEntry(id: string, type: 'folder' | 'chart' | 'lyrics',
   if (dbPromise) {
     try {
       const db = await dbPromise;
-      const existing = await db.get(storeName, id);
-      if (existing) {
-        const updated: any = { ...existing, updated_at };
-        if (type === 'folder') updated.parent_id = newParentId;
-        else updated.folder_id = newParentId;
-        await db.put(storeName, updated);
-        if (!isOnline()) {
-          await db.put('pending_saves', { id, type, data: updated, action: 'upsert' });
+      if (db) {
+        const existing = await db.get(storeName, id);
+        if (existing) {
+          const updated: any = { ...existing, updated_at };
+          if (type === 'folder') updated.parent_id = newParentId;
+          else updated.folder_id = newParentId;
+          await db.put(storeName, updated);
+          if (!isOnline()) {
+            await db.put('pending_saves', { id, type, data: updated, action: 'upsert' });
+          }
         }
       }
     } catch (err) {
       console.warn('[Storage] DB moveEntry error:', err);
     }
   }
+  return true;
 }
 
 export async function saveChart(chart: Chart) {
   chart.updated_at = new Date().toISOString();
-  await cacheChart(chart);
+  try {
+    await cacheChart(chart);
+  } catch (err) {
+    console.warn('[Storage] Error caching chart locally:', err);
+  }
   let savedOnline = false;
   if (isOnline()) {
     try {
@@ -736,8 +820,14 @@ export async function saveChart(chart: Chart) {
     }
   }
   if (!savedOnline && dbPromise) {
-    const db = await dbPromise;
-    await db.put('pending_saves', { id: chart.id, type: 'chart', data: chart, action: 'upsert' });
+    try {
+      const db = await dbPromise;
+      if (db) {
+        await db.put('pending_saves', { id: chart.id, type: 'chart', data: chart, action: 'upsert' });
+      }
+    } catch (err) {
+      console.warn('[Storage] Failed to queue pending save:', err);
+    }
   }
 }
 

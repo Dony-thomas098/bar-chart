@@ -413,6 +413,7 @@ export function Navigation() {
   // - Lyrics reader or editor (/lyrics/view, /lyrics/* except /lyrics and /lyrics/folder)
   // - Live performance screens (/perform, /perform/*)
   // - Printer screen (/printer, /printer/*)
+  const isAuthScreen = cleanPath === '/auth';
   const isChartScreen = cleanPath === '/chart' || cleanPath.startsWith('/chart/');
   const isLyricsReaderOrEditor =
     cleanPath.startsWith('/lyrics/view') ||
@@ -421,7 +422,7 @@ export function Navigation() {
   const isPerformScreen = cleanPath.startsWith('/perform');
   const isPrinterScreen = cleanPath.startsWith('/printer');
 
-  if (isChartScreen || isLyricsReaderOrEditor || isPerformScreen || isPrinterScreen) {
+  if (isAuthScreen || isChartScreen || isLyricsReaderOrEditor || isPerformScreen || isPrinterScreen) {
     return null;
   }
 

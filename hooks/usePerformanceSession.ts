@@ -53,7 +53,9 @@ export function usePerformanceSession(
   const currentIndexRef = useRef(0);
   const isFollowingRef = useRef(true);
   const isMountedRef = useRef(true);
+  const modeRef = useRef<PerformRole>(mode);
 
+  useEffect(() => { modeRef.current = mode; }, [mode]);
   useEffect(() => { currentIndexRef.current = currentIndex; }, [currentIndex]);
   useEffect(() => { isFollowingRef.current = isFollowing; }, [isFollowing]);
 
@@ -138,6 +140,7 @@ export function usePerformanceSession(
           setCurrentIndex(idx);
           currentIndexRef.current = idx;
           setMode('follower');
+          modeRef.current = 'follower';
           if (requestInterval) {
             clearInterval(requestInterval);
             requestInterval = null;
@@ -155,6 +158,7 @@ export function usePerformanceSession(
         .on('broadcast', { event: 'session-end' }, () => {
           if (!isMountedRef.current) return;
           setMode('loading');
+          modeRef.current = 'loading';
           window.dispatchEvent(new CustomEvent('perform-session-end'));
         })
         .on('presence', { event: 'sync' }, () => {
@@ -175,11 +179,14 @@ export function usePerformanceSession(
               setCurrentIndex(leader.currentIndex ?? 0);
               currentIndexRef.current = leader.currentIndex ?? 0;
               setMode('follower');
+              modeRef.current = 'follower';
               if (requestInterval) {
                 clearInterval(requestInterval);
                 requestInterval = null;
               }
             }
+          } else if (!isLeader && modeRef.current === 'follower') {
+            window.dispatchEvent(new CustomEvent('perform-leader-left', { detail: { message: 'Leader has disconnected from the session.' } }));
           }
 
           const followers = presences.filter(p => p.role === 'follower');
@@ -198,6 +205,7 @@ export function usePerformanceSession(
               sessionName: initialPayload!.sessionName,
             });
             setMode('leader');
+            modeRef.current = 'leader';
           } else {
             await channel.track({
               role: 'follower',
@@ -209,8 +217,11 @@ export function usePerformanceSession(
 
             // Periodic retry while still loading
             requestInterval = setInterval(() => {
-              if (mode === 'loading' && channelRef.current) {
+              if (modeRef.current === 'loading' && channelRef.current) {
                 channelRef.current.send({ type: 'broadcast', event: 'request-state', payload: {} });
+              } else if (modeRef.current !== 'loading' && requestInterval) {
+                clearInterval(requestInterval);
+                requestInterval = null;
               }
             }, 1500);
           }

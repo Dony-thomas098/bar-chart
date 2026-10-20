@@ -124,10 +124,25 @@ export function OfflineSyncProvider({ children }: { children: React.ReactNode })
         { event: '*', schema: 'public', table: 'charts' },
         async (payload: any) => {
           if (autoSyncRef.current) {
-            if (payload.eventType === 'DELETE') {
-              await deleteFromCache(payload.old.id, 'charts');
-            } else if (payload.new) {
-              await cacheChart(payload.new as Chart);
+            let hasPending = false;
+            try {
+              const { getDBPromise } = await import('@/lib/storage');
+              const db = await getDBPromise();
+              if (db) {
+                const targetId = payload.new?.id || payload.old?.id;
+                if (targetId) {
+                  const pending = await db.get('pending_saves', targetId);
+                  if (pending) hasPending = true;
+                }
+              }
+            } catch {}
+
+            if (!hasPending) {
+              if (payload.eventType === 'DELETE') {
+                await deleteFromCache(payload.old.id, 'charts');
+              } else if (payload.new) {
+                await cacheChart(payload.new as Chart);
+              }
             }
           }
           if (typeof window !== 'undefined') {
@@ -140,10 +155,25 @@ export function OfflineSyncProvider({ children }: { children: React.ReactNode })
         { event: '*', schema: 'public', table: 'lyrics' },
         async (payload: any) => {
           if (autoSyncRef.current) {
-            if (payload.eventType === 'DELETE') {
-              await deleteFromCache(payload.old.id, 'lyrics');
-            } else if (payload.new) {
-              await cacheLyric(payload.new);
+            let hasPending = false;
+            try {
+              const { getDBPromise } = await import('@/lib/storage');
+              const db = await getDBPromise();
+              if (db) {
+                const targetId = payload.new?.id || payload.old?.id;
+                if (targetId) {
+                  const pending = await db.get('pending_saves', targetId);
+                  if (pending) hasPending = true;
+                }
+              }
+            } catch {}
+
+            if (!hasPending) {
+              if (payload.eventType === 'DELETE') {
+                await deleteFromCache(payload.old.id, 'lyrics');
+              } else if (payload.new) {
+                await cacheLyric(payload.new);
+              }
             }
           }
           if (typeof window !== 'undefined') {
@@ -156,10 +186,25 @@ export function OfflineSyncProvider({ children }: { children: React.ReactNode })
         { event: '*', schema: 'public', table: 'folders' },
         async (payload: any) => {
           if (autoSyncRef.current) {
-            if (payload.eventType === 'DELETE') {
-              await deleteFromCache(payload.old.id, 'folders');
-            } else if (payload.new) {
-              await cacheFolder(payload.new as Folder);
+            let hasPending = false;
+            try {
+              const { getDBPromise } = await import('@/lib/storage');
+              const db = await getDBPromise();
+              if (db) {
+                const targetId = payload.new?.id || payload.old?.id;
+                if (targetId) {
+                  const pending = await db.get('pending_saves', targetId);
+                  if (pending) hasPending = true;
+                }
+              }
+            } catch {}
+
+            if (!hasPending) {
+              if (payload.eventType === 'DELETE') {
+                await deleteFromCache(payload.old.id, 'folders');
+              } else if (payload.new) {
+                await cacheFolder(payload.new as Folder);
+              }
             }
           }
           if (typeof window !== 'undefined') {
@@ -207,7 +252,7 @@ export function OfflineSyncProvider({ children }: { children: React.ReactNode })
     }
 
     return () => {
-      // Cleanup when component unmounts — channel cleanup handled above
+      unsubscribeFromRealtime();
     };
   }, [autoSync, subscribeToRealtime, unsubscribeFromRealtime]);
 

@@ -34,11 +34,18 @@ export function transposeSingleChord(raw: string, semitones: number, preferFlats
 }
 
 export function transposeChordString(raw: string, semitones: number, preferFlats: boolean): string {
-  if (!raw || !/^[A-G]/.test(raw)) return raw;
-  
-  const parts = raw.split('/');
-  const newParts = parts.map(p => transposeSingleChord(p, semitones, preferFlats));
-  return newParts.join('/');
+  if (!raw || raw.trim() === '') return raw;
+
+  // Split by whitespace tokens while preserving spacing delimiters
+  const tokens = raw.split(/(\s+)/);
+  return tokens.map(token => {
+    if (/^\s*$/.test(token)) return token;
+    if (!/^[A-G]/.test(token)) return token;
+
+    const parts = token.split('/');
+    const newParts = parts.map(p => transposeSingleChord(p, semitones, preferFlats));
+    return newParts.join('/');
+  }).join('');
 }
 
 export function transposeChart(chart: ChartData, deltaSemitones: number, newPreferFlats: boolean): ChartData {

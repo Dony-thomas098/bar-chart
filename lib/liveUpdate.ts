@@ -114,6 +114,8 @@ async function fetchUpdateManifest(candidateUrls: string[]): Promise<UpdateManif
   throw lastError || new Error('Failed to fetch update manifest from all candidate endpoints.');
 }
 
+let isInitialized = false;
+
 /**
  * Initializes Live Update on native devices.
  * 1. Calls ready() to notify native watchdog that the current bundle booted cleanly.
@@ -124,29 +126,42 @@ export async function initLiveUpdate(): Promise<void> {
     return;
   }
 
+  if (isInitialized) {
+    return;
+  }
+  isInitialized = true;
+
   try {
     const { LiveUpdate } = await import('@capawesome/capacitor-live-update');
 
-    // 1. Mark app as ready to prevent rollback watchdog timeout
-    const readyResult = await LiveUpdate.ready();
-    console.log('[LiveUpdate] App marked ready:', readyResult);
+    // 1. Mark app as ready immediately to prevent rollback watchdog timeout
+    try {
+      const readyResult = await LiveUpdate.ready();
+      console.log('[LiveUpdate] App marked ready:', readyResult);
+    } catch (readyErr) {
+      console.warn('[LiveUpdate] LiveUpdate.ready() warning:', readyErr);
+    }
 
-    const current = await LiveUpdate.getCurrentBundle();
-    updateState.currentBundleId = current.bundleId;
-    notifyListeners();
+    try {
+      const current = await LiveUpdate.getCurrentBundle();
+      updateState.currentBundleId = current.bundleId;
+      notifyListeners();
+    } catch {}
 
     // 2. Listen for download progress
-    LiveUpdate.addListener('downloadBundleProgress', (event) => {
-      updateState.downloadProgress = Math.round(event.progress * 100);
-      notifyListeners();
-    });
+    try {
+      LiveUpdate.addListener('downloadBundleProgress', (event) => {
+        updateState.downloadProgress = Math.round(event.progress * 100);
+        notifyListeners();
+      });
+    } catch {}
 
-    // 3. Trigger background update check after 2 seconds
+    // 3. Trigger background update check safely after 3 seconds
     setTimeout(() => {
       checkForLiveUpdate().catch((err) => {
         console.debug('[LiveUpdate] Background check error (non-fatal):', err);
       });
-    }, 2000);
+    }, 3000);
   } catch (err) {
     console.debug('[LiveUpdate] Initialization skipped or failed:', err);
   }
@@ -157,6 +172,11 @@ export async function initLiveUpdate(): Promise<void> {
  */
 export async function checkForLiveUpdate(customUrl?: string): Promise<boolean> {
   if (!Capacitor.isNativePlatform()) {
+    return false;
+  }
+
+  // Prevent multiple concurrent update checks or downloads
+  if (updateState.isChecking || updateState.isDownloading) {
     return false;
   }
 

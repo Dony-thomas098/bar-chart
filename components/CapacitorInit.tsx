@@ -1,11 +1,13 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 
 export function CapacitorInit() {
   const router = useRouter();
   const pathname = usePathname();
+  const pathnameRef = useRef(pathname);
+  pathnameRef.current = pathname;
 
   useEffect(() => {
     let cleanupBackButton: (() => void) | undefined;
@@ -16,7 +18,15 @@ export function CapacitorInit() {
         const { Capacitor } = await import('@capacitor/core');
         if (!Capacitor.isNativePlatform()) return;
 
-        // 1. Configure Status Bar
+        // 1. Initialize Over-The-Air (OTA) Live Updates FIRST (calls LiveUpdate.ready() immediately)
+        try {
+          const { initLiveUpdate } = await import('@/lib/liveUpdate');
+          await initLiveUpdate();
+        } catch (e) {
+          console.debug('[Capacitor] LiveUpdate initialization skipped', e);
+        }
+
+        // 2. Configure Status Bar
         try {
           const { StatusBar, Style } = await import('@capacitor/status-bar');
           // Allow content to render edge-to-edge under transparent status bar
@@ -34,7 +44,7 @@ export function CapacitorInit() {
           console.debug('[Capacitor] StatusBar plugin not available', e);
         }
 
-        // 2. Hide Splash Screen after React mounts
+        // 3. Hide native Splash Screen after React mounts
         try {
           const { SplashScreen } = await import('@capacitor/splash-screen');
           await SplashScreen.hide();
@@ -42,11 +52,12 @@ export function CapacitorInit() {
           console.debug('[Capacitor] SplashScreen plugin not available', e);
         }
 
-        // 3. Handle Android Hardware Back Button
+        // 4. Handle Android Hardware Back Button (uses pathnameRef to avoid re-binding)
         try {
           const { App } = await import('@capacitor/app');
           const listener = await App.addListener('backButton', ({ canGoBack }) => {
-            if (pathname === '/' || pathname === '/chords' || pathname === '') {
+            const currentPath = pathnameRef.current;
+            if (currentPath === '/' || currentPath === '/chords' || currentPath === '') {
               App.exitApp();
             } else if (canGoBack || window.history.length > 1) {
               router.back();
@@ -56,13 +67,15 @@ export function CapacitorInit() {
           });
 
           cleanupBackButton = () => {
-            listener.remove();
+            try {
+              listener.remove();
+            } catch {}
           };
         } catch (e) {
           console.debug('[Capacitor] App plugin not available', e);
         }
 
-        // 4. Handle OAuth Deep Links (appUrlOpen for Android & iOS)
+        // 5. Handle OAuth Deep Links (appUrlOpen for Android & iOS)
         try {
           const { App } = await import('@capacitor/app');
           const { supabase } = await import('@/lib/supabase');
@@ -110,18 +123,12 @@ export function CapacitorInit() {
           });
 
           cleanupUrlListener = () => {
-            urlListener.remove();
+            try {
+              urlListener.remove();
+            } catch {}
           };
         } catch (e) {
           console.debug('[Capacitor] App plugin not available for URL listener', e);
-        }
-
-        // 5. Initialize Over-The-Air (OTA) Live Updates
-        try {
-          const { initLiveUpdate } = await import('@/lib/liveUpdate');
-          await initLiveUpdate();
-        } catch (e) {
-          console.debug('[Capacitor] LiveUpdate initialization skipped', e);
         }
       } catch (err) {
         console.debug('[Capacitor] Native initialization skipped', err);
@@ -134,7 +141,7 @@ export function CapacitorInit() {
       if (cleanupBackButton) cleanupBackButton();
       if (cleanupUrlListener) cleanupUrlListener();
     };
-  }, [router, pathname]);
+  }, [router]);
 
   return null;
 }

@@ -332,20 +332,24 @@ export default function SetlistPerformPage() {
     if (!currentItem || !currentChart) return;
     setIsSavingPerf(true);
     try {
+      // If the item has a transpose override, untranspose editingLines so base lines are stored cleanly
+      const baseLines = currentItem.transpose_override
+        ? transposeChart({ ...currentChart, lines: editingLines }, -currentItem.transpose_override, currentChart.prefer_flats).lines
+        : editingLines;
+
       if (typeof window !== 'undefined') {
-        localStorage.setItem(`perf_lines_${currentItem.id}`, JSON.stringify(editingLines));
+        localStorage.setItem(`perf_lines_${currentItem.id}`, JSON.stringify(baseLines));
       }
       try {
-        await updateSetlistItem(currentItem.id, { lines_override: editingLines });
+        await updateSetlistItem(currentItem.id, { lines_override: baseLines });
       } catch (err) {
         console.warn('DB update failed, kept local performance copy:', err);
       }
 
-      let updated: ChartData = { ...currentChart, lines: editingLines, is_performance_copy: true };
-      if (currentItem.transpose_override) {
-        updated = transposeChart(updated, currentItem.transpose_override, updated.prefer_flats);
-      }
+      // Display the edited lines directly (they are already in display key) without compounding transpose
+      const updated: ChartData = { ...currentChart, lines: editingLines, is_performance_copy: true };
       setCurrentChart(updated);
+      addToCache(currentItem, { chart: updated });
       setPerfModalOpen(false);
     } catch (e) {
       alert('Failed to save performance copy');

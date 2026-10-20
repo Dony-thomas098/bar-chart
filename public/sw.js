@@ -43,14 +43,18 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Bypass dev mode, HMR, chrome extensions, and Supabase API / database calls
+  const isLocalhost = url.hostname === 'localhost' || url.hostname === '127.0.0.1';
+  const allowLocalSw = url.searchParams.has('test_sw');
+
+  // Bypass dev mode unless test_sw flag is present, chrome extensions, and Supabase API calls
   if (
     request.method !== 'GET' ||
-    url.hostname === 'localhost' ||
-    url.hostname === '127.0.0.1' ||
+    (isLocalhost && !allowLocalSw) ||
     url.pathname.startsWith('/_next/webpack-hmr') ||
     url.hostname.includes('supabase.co') ||
-    url.protocol.startsWith('chrome-extension')
+    url.protocol.startsWith('chrome-extension') ||
+    url.pathname.endsWith('/update.json') ||
+    url.pathname === '/update.json'
   ) {
     return;
   }

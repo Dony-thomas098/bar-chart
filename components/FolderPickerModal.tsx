@@ -32,15 +32,33 @@ export function FolderPickerModal({ isOpen, onClose, onMoveHere, title = "Move t
     if (!isOpen) return;
     let isMounted = true;
     setLoading(true);
-    
-    listFolder(currentFolderId).then(res => {
+
+    Promise.all([
+      listFolder(currentFolderId),
+      import('@/lib/storage').then(m => m.getAllFolders())
+    ]).then(([res, allF]) => {
       if (isMounted) {
-        // Exclude the folders we are trying to move
-        setFolders((res?.folders || []).filter(f => !excludeIds.includes(f.id)));
+        // Collect all descendants of excludeIds to completely block circular navigation
+        const allExcluded = new Set(excludeIds);
+        if (excludeIds.length > 0) {
+          let changed = true;
+          while (changed) {
+            changed = false;
+            for (const f of allF) {
+              if (f.parent_id && allExcluded.has(f.parent_id) && !allExcluded.has(f.id)) {
+                allExcluded.add(f.id);
+                changed = true;
+              }
+            }
+          }
+        }
+        setFolders((res?.folders || []).filter(f => !allExcluded.has(f.id)));
         setLoading(false);
       }
+    }).catch(() => {
+      if (isMounted) setLoading(false);
     });
-    
+
     return () => { isMounted = false; };
   }, [isOpen, currentFolderId, excludeIds.join(',')]);
 

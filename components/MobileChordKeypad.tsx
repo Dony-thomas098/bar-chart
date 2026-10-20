@@ -189,7 +189,7 @@ export function MobileChordKeypad({
         </div>
 
         {/* Row 4: Action Controls */}
-        <div className="grid grid-cols-5 gap-1.5 pt-0.5">
+        <div className={`grid ${onDeleteBar ? 'grid-cols-6' : 'grid-cols-5'} gap-1.5 pt-0.5`}>
           <button
             onClick={handleBackspace}
             className="h-9 rounded-[14px] bg-white/80 dark:bg-white/10 hover:bg-white text-text-secondary font-bold text-xs border border-glass shadow-sm active:scale-90 transition-all flex items-center justify-center"
@@ -197,6 +197,15 @@ export function MobileChordKeypad({
           >
             ⌫
           </button>
+          {onDeleteBar && (
+            <button
+              onClick={() => { triggerHaptic(15); onDeleteBar(); }}
+              className="h-9 rounded-[14px] bg-rose-50 dark:bg-rose-950/30 hover:bg-rose-100 text-rose-600 dark:text-rose-400 font-bold text-xs border border-rose-200/60 dark:border-rose-500/20 active:scale-90 transition-all flex items-center justify-center"
+              title="Delete Measure"
+            >
+              - Bar
+            </button>
+          )}
           {onAddBar && (
             <button
               onClick={() => { triggerHaptic(10); onAddBar(); }}

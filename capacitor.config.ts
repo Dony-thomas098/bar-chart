@@ -20,7 +20,7 @@ const config: CapacitorConfig = {
     },
     LiveUpdate: {
       autoDeleteBundles: true,
-      readyTimeout: 10000,
+      readyTimeout: 25000,
       autoBlockRolledBackBundles: true
     },
     CapacitorHttp: {

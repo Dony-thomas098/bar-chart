@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/AuthProvider';
+import { isRunningNatively } from '@/lib/platform';
 import { 
   User, 
   Mail,
@@ -125,14 +126,12 @@ export default function AuthPage() {
         } catch {}
 
         // Check if user is in an external mobile browser (e.g. Chrome/Safari) and needs redirect back to native app
-        const isMobileBrowser = typeof window !== 'undefined' && /android|iphone|ipad|ipod/i.test(navigator.userAgent);
-        let isNative = false;
-        try {
-          const { Capacitor } = await import('@capacitor/core');
-          isNative = Capacitor.isNativePlatform();
-        } catch {}
+        const isNative = isRunningNatively();
+        const isExternalMobileBrowser = typeof window !== 'undefined' && 
+          /android|iphone|ipad|ipod/i.test(navigator.userAgent) && 
+          !isNative;
 
-        if (isMobileBrowser && !isNative) {
+        if (isExternalMobileBrowser) {
           const tokens = session ? `#access_token=${session.access_token}&refresh_token=${session.refresh_token}` : '';
           const deepLink = `com.chordly.app://auth${tokens}`;
           const isAndroid = /android/i.test(navigator.userAgent);
@@ -181,14 +180,12 @@ export default function AuthPage() {
             console.error('[Auth] OAuth exchange error:', error);
             setGeneralError(error.message || 'Failed to complete sign-in from redirect.');
           } else if (data?.session) {
-            const isMobileBrowser = typeof window !== 'undefined' && /android|iphone|ipad|ipod/i.test(navigator.userAgent);
-            let isNative = false;
-            try {
-              const { Capacitor } = await import('@capacitor/core');
-              isNative = Capacitor.isNativePlatform();
-            } catch {}
+            const isNative = isRunningNatively();
+            const isExternalMobileBrowser = typeof window !== 'undefined' && 
+              /android|iphone|ipad|ipod/i.test(navigator.userAgent) && 
+              !isNative;
 
-            if (isMobileBrowser && !isNative) {
+            if (isExternalMobileBrowser) {
               const tokens = `#access_token=${data.session.access_token}&refresh_token=${data.session.refresh_token}`;
               const isAndroid = /android/i.test(navigator.userAgent);
               const deepLink = `com.chordly.app://auth${tokens}`;
@@ -284,11 +281,7 @@ export default function AuthPage() {
     setSuccessMessage(null);
     setIsSubmitting(true);
     try {
-      let isNative = false;
-      try {
-        const { Capacitor } = await import('@capacitor/core');
-        isNative = Capacitor.isNativePlatform();
-      } catch {}
+      const isNative = isRunningNatively();
 
       const redirectUrl = isNative
         ? 'com.chordly.app://auth'
@@ -327,11 +320,7 @@ export default function AuthPage() {
     setSuccessMessage(null);
     setIsSubmitting(true);
     try {
-      let isNative = false;
-      try {
-        const { Capacitor } = await import('@capacitor/core');
-        isNative = Capacitor.isNativePlatform();
-      } catch {}
+      const isNative = isRunningNatively();
 
       const redirectUrl = isNative
         ? 'com.chordly.app://auth'

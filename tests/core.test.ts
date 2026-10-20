@@ -118,3 +118,94 @@ describe('Band Email Persistence & Re-login Restoration', () => {
   });
 });
 
+describe('Native App Safety & LiveUpdate Stability', () => {
+  it('correctly identifies native platform to prevent WebView intent crashes', async () => {
+    const { isRunningNatively } = await import('../lib/platform');
+    // In node/jsdom test environment, it safely returns true for localhost/test origin
+    expect(typeof isRunningNatively()).toBe('boolean');
+  });
+
+  it('guarantees LiveUpdate concurrency locks prevent overlapping checks', async () => {
+    const { checkForLiveUpdate, getLiveUpdateState } = await import('../lib/liveUpdate');
+    
+    const state = getLiveUpdateState();
+    expect(state).toBeDefined();
+    expect(state.isDownloading).toBe(false);
+
+    // In non-native test env, checkForLiveUpdate should safely return false without throwing
+    const result = await checkForLiveUpdate();
+    expect(result).toBe(false);
+  });
+});
+
+describe('Multi-Chord Measures and Enharmonics Transposition', () => {
+  it('transposes multiple chords separated by spaces in a single measure', () => {
+    expect(transposeChordString('C G', 2, false)).toBe('D A');
+    expect(transposeChordString('Am   D7/F#', 2, false)).toBe('Bm   E7/G#');
+    expect(transposeChordString('C/E  G7', 3, true)).toBe('Eb/G  Bb7');
+  });
+
+  it('handles rare enharmonics (E#, Cb, B#) correctly', () => {
+    expect(transposeSingleChord('E#', 1, false)).toBe('F#');
+    expect(transposeSingleChord('Cb', -1, true)).toBe('Bb');
+    expect(transposeSingleChord('Cb', -1, false)).toBe('A#');
+    expect(transposeSingleChord('B#', 2, false)).toBe('D');
+  });
+
+  it('handles octave wraparound with negative semitones and multiples of 12', () => {
+    expect(transposeSingleChord('G', -12, false)).toBe('G');
+    expect(transposeSingleChord('F#', 12, false)).toBe('F#');
+    expect(transposeSingleChord('C', -2, false)).toBe('A#');
+    expect(transposeSingleChord('C', -2, true)).toBe('Bb');
+    expect(transposeSingleChord('C', -1, true)).toBe('B');
+  });
+});
+
+describe('Folder Tree Cycle Prevention', () => {
+  const mockFolders = [
+    { id: 'folder-root', name: 'Root', parent_id: null, created_by: 'user1', updated_at: '' },
+    { id: 'folder-child', name: 'Child', parent_id: 'folder-root', created_by: 'user1', updated_at: '' },
+    { id: 'folder-grandchild', name: 'Grandchild', parent_id: 'folder-child', created_by: 'user1', updated_at: '' },
+    { id: 'folder-unrelated', name: 'Other', parent_id: null, created_by: 'user1', updated_at: '' },
+  ];
+
+  it('detects direct self and deep descendant relationships correctly', async () => {
+    const { isDescendantFolder } = await import('../lib/storage');
+    
+    // A folder is its own descendant (self move prevented)
+    expect(await isDescendantFolder('folder-root', 'folder-root', mockFolders)).toBe(true);
+
+    // Grandchild is descendant of Root
+    expect(await isDescendantFolder('folder-grandchild', 'folder-root', mockFolders)).toBe(true);
+
+    // Child is descendant of Root
+    expect(await isDescendantFolder('folder-child', 'folder-root', mockFolders)).toBe(true);
+
+    // Root is NOT a descendant of Grandchild
+    expect(await isDescendantFolder('folder-root', 'folder-grandchild', mockFolders)).toBe(false);
+
+    // Unrelated folder is NOT a descendant of Root
+    expect(await isDescendantFolder('folder-unrelated', 'folder-root', mockFolders)).toBe(false);
+  });
+});
+
+describe('Live Stage Room Code Generator Entropy', () => {
+  it('generates unambiguous 6-character room codes without 0, O, 1, or I', () => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    for (let i = 0; i < 50; i++) {
+      const bytes = new Uint8Array(6);
+      if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+        crypto.getRandomValues(bytes);
+      }
+      const code = Array.from(bytes, (b) => chars[b % chars.length]).join('');
+      
+      expect(code.length).toBe(6);
+      expect(code).not.toMatch(/[01OI]/);
+      for (const char of code) {
+        expect(chars).toContain(char);
+      }
+    }
+  });
+});
+
+

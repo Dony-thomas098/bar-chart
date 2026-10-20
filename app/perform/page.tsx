@@ -51,8 +51,14 @@ function persistSetlists(lists: SavedSetlist[]) {
   localStorage.setItem(SETLISTS_KEY, JSON.stringify(lists));
 }
 
-function generateCode() {
-  return Math.random().toString(36).substr(2, 6).toUpperCase();
+function generateCode(length = 6): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+    const bytes = new Uint8Array(length);
+    crypto.getRandomValues(bytes);
+    return Array.from(bytes, (b) => chars[b % chars.length]).join('');
+  }
+  return Array.from({ length }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
 }
 
 // ─── Sortable row ─────────────────────────────────────────────────────────────

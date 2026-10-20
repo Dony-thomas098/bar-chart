@@ -192,11 +192,23 @@ export default function ChartEditor() {
   const parseTextToLines = useCallback((text: string) => {
     const lines: Line[] = [];
     const textLines = text.split('\n');
+    let parsedHeader: { title?: string; time_sig?: string; tempo?: number } | null = null;
     
     for (const tLine of textLines) {
       if (!tLine.trim()) continue; 
       
       if (tLine.includes('t=') && !tLine.includes('|') && lines.length === 0) {
+        const tempoMatch = tLine.match(/t=(\d+)/);
+        const timeSigMatch = tLine.match(/\b(\d{1,2}\/\d{1,2})\b/);
+        const titlePart = tLine
+          .replace(/t=\d+/, '')
+          .replace(/\b\d{1,2}\/\d{1,2}\b/, '')
+          .trim();
+        parsedHeader = {
+          title: titlePart || undefined,
+          time_sig: timeSigMatch ? timeSigMatch[1] : undefined,
+          tempo: tempoMatch ? Math.min(300, Math.max(30, parseInt(tempoMatch[1], 10))) : undefined,
+        };
         continue;
       }
       
@@ -292,7 +304,7 @@ export default function ChartEditor() {
     if (lines.length === 0) {
       lines.push(createDefaultLine());
     }
-    return lines;
+    return { lines, header: parsedHeader };
   }, [normalizeChordText]);
 
   useEffect(() => {
@@ -813,7 +825,22 @@ export default function ChartEditor() {
                     <input 
                       type="number" 
                       value={chart.tempo || ''}
-                      onChange={e => updateTempo(parseInt(e.target.value) || 120)}
+                      onChange={e => {
+                        const val = e.target.value;
+                        if (val === '') {
+                          updateTempo(0);
+                        } else {
+                          const parsed = parseInt(val, 10);
+                          if (!isNaN(parsed)) {
+                            updateTempo(Math.min(300, Math.max(0, parsed)));
+                          }
+                        }
+                      }}
+                      onBlur={() => {
+                        if (!chart.tempo || chart.tempo < 30) {
+                          updateTempo(120);
+                        }
+                      }}
                       className="bg-transparent w-12 sm:w-16 focus:outline-none text-center font-mono font-bold"
                     />
                   </div>
@@ -823,7 +850,17 @@ export default function ChartEditor() {
                   <label className="block text-[10px] sm:text-xs font-bold tracking-wider text-text-secondary uppercase mb-1 sm:mb-2 text-center">Time</label>
                   <input 
                     value={chart.time_sig || ''}
-                    onChange={e => updateTimeSig(e.target.value)}
+                    onChange={e => {
+                      const val = e.target.value;
+                      if (/^[0-9/]*$/.test(val)) {
+                        updateTimeSig(val);
+                      }
+                    }}
+                    onBlur={() => {
+                      if (!/^\d{1,2}\/\d{1,2}$/.test(chart.time_sig || '')) {
+                        updateTimeSig('4/4');
+                      }
+                    }}
                     className="bg-white/70 dark:bg-white/[0.06] border border-glass shadow-inner-glass rounded-2xl px-3 sm:px-4 py-2 sm:py-2.5 text-sm sm:text-lg font-mono font-bold text-text-primary focus:outline-none focus:ring-2 focus:ring-orange-500/30 w-full sm:w-24 text-center transition-all"
                     placeholder="4/4"
                   />
@@ -1216,8 +1253,14 @@ export default function ChartEditor() {
                 const newText = e.target.value;
                 setCustomText(newText);
                 try {
-                  const newLines = parseTextToLines(newText);
-                  updateChart({ lines: newLines, custom_text: null });
+                  const { lines: newLines, header } = parseTextToLines(newText);
+                  updateChart({
+                    lines: newLines,
+                    custom_text: null,
+                    ...(header?.title ? { title: header.title } : {}),
+                    ...(header?.time_sig ? { time_sig: header.time_sig } : {}),
+                    ...(header?.tempo ? { tempo: header.tempo } : {}),
+                  });
                 } catch (err) {}
               }}
               spellCheck={false}
