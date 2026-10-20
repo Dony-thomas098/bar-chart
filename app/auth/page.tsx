@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/AuthProvider';
 import { 
   User, 
+  Mail,
   Lock, 
   Eye, 
   EyeOff, 
@@ -24,7 +25,9 @@ export default function AuthPage() {
   const [modalView, setModalView] = useState<ModalView>('none');
   
   // Form fields
-  const [identifier, setIdentifier] = useState(''); // Username or email
+  const [identifier, setIdentifier] = useState(''); // Username or email (Sign in)
+  const [signupUsername, setSignupUsername] = useState(''); // Username (Create Account)
+  const [signupEmail, setSignupEmail] = useState(''); // Email (Create Account)
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [forgotEmail, setForgotEmail] = useState('');
@@ -32,6 +35,8 @@ export default function AuthPage() {
 
   // Field validation and blur states
   const [identifierTouched, setIdentifierTouched] = useState(false);
+  const [signupUsernameTouched, setSignupUsernameTouched] = useState(false);
+  const [signupEmailTouched, setSignupEmailTouched] = useState(false);
   const [passwordTouched, setPasswordTouched] = useState(false);
   const [forgotEmailTouched, setForgotEmailTouched] = useState(false);
 
@@ -43,6 +48,9 @@ export default function AuthPage() {
   // Rate limiting & lockout
   const [failedAttempts, setFailedAttempts] = useState(0);
   const [lockoutTimer, setLockoutTimer] = useState(0);
+
+  // Deep-link redirection to native app when authenticated in mobile browser
+  const [appRedirectUrl, setAppRedirectUrl] = useState<string | null>(null);
 
   // Platform detection
   const [isApplePlatform, setIsApplePlatform] = useState(false);
@@ -107,8 +115,38 @@ export default function AuthPage() {
             username: fallbackUsername,
             display_name: userMeta.full_name || userMeta.name || fallbackUsername,
           });
+          if (typeof window !== 'undefined' && fallbackUsername) {
+            if (session.user.email) {
+              localStorage.setItem(`cc_user_${fallbackUsername.toLowerCase()}`, session.user.email.toLowerCase());
+            }
+            localStorage.setItem('chord-grid-username', fallbackUsername);
+            localStorage.setItem(`${session.user.id}_username`, fallbackUsername);
+          }
         } catch {}
-        router.replace('/');
+
+        // Check if user is in an external mobile browser (e.g. Chrome/Safari) and needs redirect back to native app
+        const isMobileBrowser = typeof window !== 'undefined' && /android|iphone|ipad|ipod/i.test(navigator.userAgent);
+        let isNative = false;
+        try {
+          const { Capacitor } = await import('@capacitor/core');
+          isNative = Capacitor.isNativePlatform();
+        } catch {}
+
+        if (isMobileBrowser && !isNative) {
+          const tokens = session ? `#access_token=${session.access_token}&refresh_token=${session.refresh_token}` : '';
+          const deepLink = `com.chordly.app://auth${tokens}`;
+          const isAndroid = /android/i.test(navigator.userAgent);
+          const targetUrl = isAndroid
+            ? `intent://auth${tokens}#Intent;scheme=com.chordly.app;package=com.chordly.app;end;`
+            : deepLink;
+
+          setAppRedirectUrl(targetUrl);
+          try {
+            window.location.href = targetUrl;
+          } catch {}
+        } else {
+          router.replace('/');
+        }
       }
     });
 
@@ -137,13 +175,34 @@ export default function AuthPage() {
       const code = searchParams.get('code');
       if (code) {
         setIsSubmitting(true);
-        supabase.auth.exchangeCodeForSession(code).then(({ data, error }) => {
+        supabase.auth.exchangeCodeForSession(code).then(async ({ data, error }) => {
           setIsSubmitting(false);
           if (error) {
             console.error('[Auth] OAuth exchange error:', error);
             setGeneralError(error.message || 'Failed to complete sign-in from redirect.');
           } else if (data?.session) {
-            router.replace('/');
+            const isMobileBrowser = typeof window !== 'undefined' && /android|iphone|ipad|ipod/i.test(navigator.userAgent);
+            let isNative = false;
+            try {
+              const { Capacitor } = await import('@capacitor/core');
+              isNative = Capacitor.isNativePlatform();
+            } catch {}
+
+            if (isMobileBrowser && !isNative) {
+              const tokens = `#access_token=${data.session.access_token}&refresh_token=${data.session.refresh_token}`;
+              const isAndroid = /android/i.test(navigator.userAgent);
+              const deepLink = `com.chordly.app://auth${tokens}`;
+              const targetUrl = isAndroid
+                ? `intent://auth${tokens}#Intent;scheme=com.chordly.app;package=com.chordly.app;end;`
+                : deepLink;
+
+              setAppRedirectUrl(targetUrl);
+              try {
+                window.location.href = targetUrl;
+              } catch {}
+            } else {
+              router.replace('/');
+            }
           }
         }).catch((err) => {
           setIsSubmitting(false);
@@ -173,11 +232,28 @@ export default function AuthPage() {
     if (!identifierTouched) return null;
     const val = identifier.trim();
     if (!val) return 'Please enter your username or email address.';
-    if (tabMode === 'signup' && !val.includes('@') && val.length < 3) {
-      return 'Username must be at least 3 characters.';
+    return null;
+  }, [identifier, identifierTouched]);
+
+  const getSignupUsernameError = useCallback(() => {
+    if (!signupUsernameTouched) return null;
+    const val = signupUsername.trim();
+    if (!val) return 'Please enter a username.';
+    if (val.length < 3) return 'Username must be at least 3 characters.';
+    if (val.includes('@')) return 'Username should not contain @. Enter your email below.';
+    if (!/^[a-zA-Z0-9_.-]+$/.test(val)) return 'Username can only contain letters, numbers, underscores, hyphens, and dots.';
+    return null;
+  }, [signupUsername, signupUsernameTouched]);
+
+  const getSignupEmailError = useCallback(() => {
+    if (!signupEmailTouched) return null;
+    const val = signupEmail.trim();
+    if (!val) return 'Please enter your email address.';
+    if (!val.includes('@') || !val.includes('.')) {
+      return 'Please enter a valid email format (e.g. name@domain.com).';
     }
     return null;
-  }, [identifier, identifierTouched, tabMode]);
+  }, [signupEmail, signupEmailTouched]);
 
   const getPasswordError = useCallback(() => {
     if (!passwordTouched) return null;
@@ -229,7 +305,15 @@ export default function AuthPage() {
       if (error) throw error;
 
       if (isNative && data?.url) {
-        window.open(data.url, '_system');
+        try {
+          const { Browser } = await import('@capacitor/browser');
+          await Browser.open({
+            url: data.url,
+            windowName: '_self',
+          });
+        } catch {
+          window.open(data.url, '_system');
+        }
       }
     } catch (err: any) {
       setGeneralError(err.message || 'Google sign-in failed. Please try again.');
@@ -264,7 +348,15 @@ export default function AuthPage() {
       if (error) throw error;
 
       if (isNative && data?.url) {
-        window.open(data.url, '_system');
+        try {
+          const { Browser } = await import('@capacitor/browser');
+          await Browser.open({
+            url: data.url,
+            windowName: '_self',
+          });
+        } catch {
+          window.open(data.url, '_system');
+        }
       }
     } catch (err: any) {
       setGeneralError(err.message || 'Apple sign-in failed. Please try again.');
@@ -277,27 +369,28 @@ export default function AuthPage() {
     e.preventDefault();
     if (lockoutTimer > 0) return;
 
-    setIdentifierTouched(true);
-    setPasswordTouched(true);
     setGeneralError(null);
     setSuccessMessage(null);
 
-    const cleanIdentifier = identifier.trim();
-    if (!cleanIdentifier || !password || password.length < 6) {
-      return;
-    }
+    if (tabMode === 'signin') {
+      // --- SIGN IN FLOW ---
+      setIdentifierTouched(true);
+      setPasswordTouched(true);
 
-    setIsSubmitting(true);
+      const cleanIdentifier = identifier.trim();
+      if (!cleanIdentifier || !password || password.length < 6) {
+        return;
+      }
 
-    try {
-      if (tabMode === 'signin') {
-        // --- SIGN IN FLOW ---
+      setIsSubmitting(true);
+
+      try {
         let targetEmail = cleanIdentifier.toLowerCase();
 
         // Resolve username to email if no '@' present
         if (!cleanIdentifier.includes('@')) {
           // 1. Try local cached mapping first
-          const cachedEmail = typeof window !== 'undefined' ? localStorage.getItem(`cc_user_${targetEmail}`) : null;
+          const cachedEmail = typeof window !== 'undefined' ? localStorage.getItem(`cc_user_${cleanIdentifier.toLowerCase()}`) : null;
           if (cachedEmail) {
             targetEmail = cachedEmail;
           } else {
@@ -356,7 +449,7 @@ export default function AuthPage() {
           }
         }
 
-        const { error } = await supabase.auth.signInWithPassword({
+        const { data, error } = await supabase.auth.signInWithPassword({
           email: targetEmail,
           password,
         });
@@ -380,26 +473,63 @@ export default function AuthPage() {
             const prefix = targetEmail.split('@')[0].toLowerCase();
             localStorage.setItem(`cc_user_${prefix}`, targetEmail);
           }
+          const effectiveUsername = !cleanIdentifier.includes('@') 
+            ? cleanIdentifier 
+            : (data?.user?.user_metadata?.username || cleanIdentifier.split('@')[0]);
+          localStorage.setItem('chord-grid-username', effectiveUsername);
+          if (data?.user?.id) {
+            localStorage.setItem(`${data.user.id}_username`, effectiveUsername);
+          }
         }
 
         // Reset failed attempts on success
         setFailedAttempts(0);
         router.push('/');
-      } else {
-        // --- CREATE ACCOUNT FLOW ---
-        const isEmailInput = cleanIdentifier.includes('@');
-        const cleanEmail = isEmailInput 
-          ? cleanIdentifier.toLowerCase() 
-          : `${cleanIdentifier.toLowerCase()}@chordcraft.app`;
-        const cleanUsername = isEmailInput 
-          ? cleanIdentifier.split('@')[0].toLowerCase() 
-          : cleanIdentifier.toLowerCase();
+      } catch (err: any) {
+        setGeneralError(err.message || 'Authentication failed. Please try again.');
+      } finally {
+        setIsSubmitting(false);
+      }
+    } else {
+      // --- CREATE ACCOUNT FLOW ---
+      setSignupUsernameTouched(true);
+      setSignupEmailTouched(true);
+      setPasswordTouched(true);
 
-        if (typeof window !== 'undefined') {
-          localStorage.setItem(`cc_user_${cleanUsername}`, cleanEmail);
-          localStorage.setItem(`cc_user_${cleanEmail}`, cleanEmail);
+      const cleanUsername = signupUsername.trim().toLowerCase();
+      const cleanEmail = signupEmail.trim().toLowerCase();
+
+      if (!cleanUsername || cleanUsername.length < 3 || cleanUsername.includes('@') || !/^[a-zA-Z0-9_.-]+$/.test(cleanUsername)) {
+        return;
+      }
+      if (!cleanEmail || !cleanEmail.includes('@') || !cleanEmail.includes('.')) {
+        return;
+      }
+      if (!password || password.length < 6) {
+        return;
+      }
+
+      setIsSubmitting(true);
+
+      try {
+        // Pre-check: Check if username is already taken in profiles
+        try {
+          const { data: existingUser } = await supabase
+            .from('profiles')
+            .select('id, username')
+            .ilike('username', cleanUsername)
+            .maybeSingle();
+
+          if (existingUser) {
+            setGeneralError(`Username "${cleanUsername}" is already taken. Please choose another username.`);
+            setIsSubmitting(false);
+            return;
+          }
+        } catch (checkErr) {
+          console.debug('[Auth] Pre-check username error:', checkErr);
         }
 
+        // Call Supabase signUp with email, password, and custom username metadata
         const { data, error } = await supabase.auth.signUp({
           email: cleanEmail,
           password,
@@ -411,7 +541,19 @@ export default function AuthPage() {
           },
         });
 
-        if (error) throw error;
+        if (error) {
+          if (error.message.toLowerCase().includes('already registered') || error.message.toLowerCase().includes('already in use')) {
+            throw new Error('This email address is already registered. Please sign in instead.');
+          }
+          throw error;
+        }
+
+        // Cache mapping locally so username login works immediately on this device
+        if (typeof window !== 'undefined') {
+          localStorage.setItem(`cc_user_${cleanUsername}`, cleanEmail);
+          localStorage.setItem(`cc_user_${cleanEmail}`, cleanEmail);
+          localStorage.setItem('chord-grid-username', cleanUsername);
+        }
 
         if (data?.user) {
           try {
@@ -422,6 +564,9 @@ export default function AuthPage() {
               display_name: cleanUsername,
               role: 'instrument',
             });
+            if (typeof window !== 'undefined') {
+              localStorage.setItem(`${data.user.id}_username`, cleanUsername);
+            }
           } catch (profileErr) {
             console.warn('[Auth] Note on profile upsert:', profileErr);
           }
@@ -430,18 +575,15 @@ export default function AuthPage() {
         if (data?.session) {
           router.push('/');
         } else {
-          setSuccessMessage(
-            isEmailInput
-              ? `Account created! If verification is required, please check ${cleanEmail}.`
-              : 'Account created! You can now sign in with your credentials.'
-          );
+          setSuccessMessage(`Account created for @${cleanUsername}! You can now sign in with your username or email.`);
+          setIdentifier(cleanUsername);
           setTabMode('signin');
         }
+      } catch (err: any) {
+        setGeneralError(err.message || 'Failed to create account. Please try again.');
+      } finally {
+        setIsSubmitting(false);
       }
-    } catch (err: any) {
-      setGeneralError(err.message || 'Authentication failed. Please try again.');
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -503,9 +645,11 @@ export default function AuthPage() {
     }
   };
 
-  if (loading || (user && modalView !== 'recovery')) return null;
+  if (loading || (user && modalView !== 'recovery' && !appRedirectUrl)) return null;
 
   const identifierError = getIdentifierError();
+  const signupUsernameError = getSignupUsernameError();
+  const signupEmailError = getSignupEmailError();
   const passwordError = getPasswordError();
   const forgotError = getForgotEmailError();
 
@@ -518,9 +662,36 @@ export default function AuthPage() {
     >
       {/* Centered Main Card */}
       <div className="w-full max-w-[440px] my-auto rounded-[32px] bg-[#17171C] border border-[#2C2C34] p-6 sm:p-8 shadow-[0_24px_64px_rgba(0,0,0,0.65),0_1px_0_rgba(255,255,255,0.05)_inset] select-auto transition-all">
-        
-        {/* 1. App Logo, Title, Subtitle */}
-        <div className="flex flex-col items-center text-center mb-6">
+        {appRedirectUrl ? (
+          <div className="flex flex-col items-center text-center py-6 space-y-4 animate-in fade-in zoom-in-95 duration-200">
+            <div className="w-16 h-16 rounded-2xl bg-orange-500/20 border border-orange-500/40 flex items-center justify-center text-orange-400 shadow-xl shadow-orange-500/10 mb-2">
+              <Zap className="w-8 h-8 animate-pulse text-[#FF5A00]" />
+            </div>
+            <h2 className="text-2xl font-extrabold text-white">Signed In Successfully!</h2>
+            <p className="text-sm text-[#8C8A93] max-w-xs">
+              Opening the Chordly app on your device...
+            </p>
+            <a
+              href={appRedirectUrl}
+              className="w-full h-12 mt-2 rounded-2xl bg-gradient-to-r from-[#FF5A00] to-[#FF5C7A] text-white font-bold text-base shadow-lg shadow-orange-500/25 flex items-center justify-center gap-2 active:scale-98 transition-transform cursor-pointer"
+            >
+              Open Chordly App
+            </a>
+            <button
+              type="button"
+              onClick={() => {
+                setAppRedirectUrl(null);
+                router.replace('/');
+              }}
+              className="text-xs text-[#8C8A93] hover:text-white underline pt-2 cursor-pointer"
+            >
+              Or continue in this browser
+            </button>
+          </div>
+        ) : (
+          <>
+            {/* 1. App Logo, Title, Subtitle */}
+            <div className="flex flex-col items-center text-center mb-6">
           <div className="w-14 h-14 rounded-2xl bg-[#231816] border border-[#3E2319] flex items-center justify-center shadow-lg shadow-[#FF5A00]/10 mb-4 transition-transform hover:scale-105">
             <img 
               src="/icon.png" 
@@ -552,6 +723,11 @@ export default function AuthPage() {
               setTabMode('signin');
               setGeneralError(null);
               setSuccessMessage(null);
+              if (!identifier && signupUsername) {
+                setIdentifier(signupUsername);
+              } else if (!identifier && signupEmail) {
+                setIdentifier(signupEmail);
+              }
             }}
             className={`flex-1 h-full rounded-full text-sm font-bold transition-all cursor-pointer flex items-center justify-center focus-visible:ring-2 focus-visible:ring-[#FF5A00] focus-visible:outline-none ${
               tabMode === 'signin'
@@ -606,46 +782,132 @@ export default function AuthPage() {
         {/* Auth Form */}
         <form ref={formRef} onSubmit={handleAuth} noValidate className="space-y-4">
           
-          {/* 3. Field: Username or email */}
-          <div>
-            <label 
-              htmlFor="auth-identifier" 
-              className="block text-[11px] font-bold tracking-wider text-[#8C8A93] uppercase mb-2"
-            >
-              Username or email
-            </label>
-            <div 
-              className={`relative flex items-center bg-[#121216] border rounded-2xl h-[52px] px-3.5 transition-all ${
-                identifierError 
-                  ? 'border-[#FF5C7A] ring-1 ring-[#FF5C7A]/30' 
-                  : 'border-[#33333C] focus-within:border-[#FF5A00] focus-within:ring-2 focus-within:ring-[#FF5A00]/25'
-              }`}
-            >
-              <User size={18} className="text-[#8C8A93] shrink-0" aria-hidden="true" />
-              <input
-                id="auth-identifier"
-                name="username"
-                type="text"
-                required
-                inputMode="email"
-                autoComplete="username"
-                autoCapitalize="none"
-                autoCorrect="off"
-                spellCheck={false}
-                placeholder="e.g. donythomas or email@gmail.com"
-                value={identifier}
-                onChange={(e) => setIdentifier(e.target.value)}
-                onBlur={() => setIdentifierTouched(true)}
-                className="w-full bg-transparent text-white placeholder-[#5E5C64] text-sm pl-2.5 pr-2 focus:outline-none"
-              />
+          {tabMode === 'signin' ? (
+            /* 3. Field: Username or email (Sign In) */
+            <div>
+              <label 
+                htmlFor="auth-identifier" 
+                className="block text-[11px] font-bold tracking-wider text-[#8C8A93] uppercase mb-2"
+              >
+                Username or email
+              </label>
+              <div 
+                className={`relative flex items-center bg-[#121216] border rounded-2xl h-[52px] px-3.5 transition-all ${
+                  identifierError 
+                    ? 'border-[#FF5C7A] ring-1 ring-[#FF5C7A]/30' 
+                    : 'border-[#33333C] focus-within:border-[#FF5A00] focus-within:ring-2 focus-within:ring-[#FF5A00]/25'
+                }`}
+              >
+                <User size={18} className="text-[#8C8A93] shrink-0" aria-hidden="true" />
+                <input
+                  id="auth-identifier"
+                  name="username"
+                  type="text"
+                  required
+                  inputMode="email"
+                  autoComplete="username"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  placeholder="e.g. donythomas or email@gmail.com"
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
+                  onBlur={() => setIdentifierTouched(true)}
+                  className="w-full bg-transparent text-white placeholder-[#5E5C64] text-sm pl-2.5 pr-2 focus:outline-none"
+                />
+              </div>
+              {identifierError && (
+                <p className="text-xs text-[#FF5C7A] mt-1.5 flex items-center gap-1.5" role="alert">
+                  <AlertCircle size={13} className="shrink-0" />
+                  <span>{identifierError}</span>
+                </p>
+              )}
             </div>
-            {identifierError && (
-              <p className="text-xs text-[#FF5C7A] mt-1.5 flex items-center gap-1.5" role="alert">
-                <AlertCircle size={13} className="shrink-0" />
-                <span>{identifierError}</span>
-              </p>
-            )}
-          </div>
+          ) : (
+            /* Fields for Create Account: Username + Email Address */
+            <>
+              {/* Field: Username */}
+              <div>
+                <label 
+                  htmlFor="signup-username" 
+                  className="block text-[11px] font-bold tracking-wider text-[#8C8A93] uppercase mb-2"
+                >
+                  Username
+                </label>
+                <div 
+                  className={`relative flex items-center bg-[#121216] border rounded-2xl h-[52px] px-3.5 transition-all ${
+                    signupUsernameError 
+                      ? 'border-[#FF5C7A] ring-1 ring-[#FF5C7A]/30' 
+                      : 'border-[#33333C] focus-within:border-[#FF5A00] focus-within:ring-2 focus-within:ring-[#FF5A00]/25'
+                  }`}
+                >
+                  <User size={18} className="text-[#8C8A93] shrink-0" aria-hidden="true" />
+                  <input
+                    id="signup-username"
+                    name="username"
+                    type="text"
+                    required
+                    autoComplete="username"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    placeholder="e.g. donythomas"
+                    value={signupUsername}
+                    onChange={(e) => setSignupUsername(e.target.value.toLowerCase().replace(/\s+/g, ''))}
+                    onBlur={() => setSignupUsernameTouched(true)}
+                    className="w-full bg-transparent text-white placeholder-[#5E5C64] text-sm pl-2.5 pr-2 focus:outline-none"
+                  />
+                </div>
+                {signupUsernameError && (
+                  <p className="text-xs text-[#FF5C7A] mt-1.5 flex items-center gap-1.5" role="alert">
+                    <AlertCircle size={13} className="shrink-0" />
+                    <span>{signupUsernameError}</span>
+                  </p>
+                )}
+              </div>
+
+              {/* Field: Email address */}
+              <div>
+                <label 
+                  htmlFor="signup-email" 
+                  className="block text-[11px] font-bold tracking-wider text-[#8C8A93] uppercase mb-2"
+                >
+                  Email address
+                </label>
+                <div 
+                  className={`relative flex items-center bg-[#121216] border rounded-2xl h-[52px] px-3.5 transition-all ${
+                    signupEmailError 
+                      ? 'border-[#FF5C7A] ring-1 ring-[#FF5C7A]/30' 
+                      : 'border-[#33333C] focus-within:border-[#FF5A00] focus-within:ring-2 focus-within:ring-[#FF5A00]/25'
+                  }`}
+                >
+                  <Mail size={18} className="text-[#8C8A93] shrink-0" aria-hidden="true" />
+                  <input
+                    id="signup-email"
+                    name="email"
+                    type="email"
+                    required
+                    inputMode="email"
+                    autoComplete="email"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    placeholder="e.g. donythomas@gmail.com"
+                    value={signupEmail}
+                    onChange={(e) => setSignupEmail(e.target.value)}
+                    onBlur={() => setSignupEmailTouched(true)}
+                    className="w-full bg-transparent text-white placeholder-[#5E5C64] text-sm pl-2.5 pr-2 focus:outline-none"
+                  />
+                </div>
+                {signupEmailError && (
+                  <p className="text-xs text-[#FF5C7A] mt-1.5 flex items-center gap-1.5" role="alert">
+                    <AlertCircle size={13} className="shrink-0" />
+                    <span>{signupEmailError}</span>
+                  </p>
+                )}
+              </div>
+            </>
+          )}
 
           {/* 4. Field: Password with show/hide eye icon */}
           <div>
@@ -796,6 +1058,8 @@ export default function AuthPage() {
             Charts stay on this device. Sign in anytime to sync.
           </span>
         </button>
+          </>
+        )}
       </div>
 
       {/* 10. Footer: Terms & Privacy Policy */}

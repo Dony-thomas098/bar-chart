@@ -63,6 +63,12 @@ export function CapacitorInit() {
           const urlListener = await App.addListener('appUrlOpen', async ({ url }) => {
             if (url && (url.includes('com.chordly.app') || url.includes('auth'))) {
               try {
+                // Dismiss in-app browser overlay if open
+                try {
+                  const { Browser } = await import('@capacitor/browser');
+                  await Browser.close();
+                } catch {}
+
                 // PKCE code flow
                 if (url.includes('code=')) {
                   const urlObj = new URL(url);
