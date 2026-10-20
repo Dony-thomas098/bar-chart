@@ -315,10 +315,11 @@ describe('Multi-Device Band Synchronization & Profile Field Preservation', () =>
     const path = await import('path');
     const swContent = fs.readFileSync(path.resolve(__dirname, '../public/sw.js'), 'utf-8');
 
-    expect(swContent).toContain("'/chart'");
-    expect(swContent).toContain("'/folder'");
-    expect(swContent).toContain("'/lyrics'");
-    expect(swContent).toContain("'/manifest.json'");
+    expect(swContent).toContain('"/chart"');
+    expect(swContent).toContain('"/folder"');
+    expect(swContent).toContain('"/lyrics"');
+    expect(swContent).toContain('"/manifest.json"');
+    expect(swContent).toContain('/_next/static/chunks/');
     expect(swContent).toContain('ignoreSearch: true');
   });
 

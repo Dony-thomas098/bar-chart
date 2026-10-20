@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev --webpack",
-    "build": "next build --webpack",
-    "build:cap": "next build --webpack && cap sync",
+    "build": "next build --webpack && node scripts/generate-sw.js",
+    "build:cap": "next build --webpack && node scripts/generate-sw.js && cap sync",
     "cap:sync": "cap sync",
     "ota:pack": "node scripts/pack-ota.js",
     "ota:publish": "node scripts/publish-ota.js",
