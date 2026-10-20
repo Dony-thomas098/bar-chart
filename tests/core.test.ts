@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { transposeChordString, transposeSingleChord } from '../lib/transpose';
 import { canModifySection } from '../components/AuthProvider';
+import { getEmailBandCacheKey } from '../lib/band';
 
 describe('Transpose Logic', () => {
   it('correctly transposes simple major chords with sharps', () => {
@@ -79,3 +80,41 @@ describe('Trash Naming and Recovery Logic', () => {
     expect(originalName).toBe('Legacy Song');
   });
 });
+
+describe('Band Email Persistence & Re-login Restoration', () => {
+  const sampleBand = {
+    id: 'band-123',
+    name: 'Grace Choir',
+    code: '1234',
+    admin_id: 'user-abc',
+  };
+
+  it('generates consistent lowercase email cache keys', () => {
+    expect(getEmailBandCacheKey('Test@Example.com')).toBe('chord-grid-band-email-test@example.com');
+  });
+
+  it('saves and restores band scoped to email and does not leak after session clear', async () => {
+    const { saveBandLocally, getBandForEmail, restoreBandForEmail, clearActiveBandSession, hasJoinedBand } = await import('../lib/band');
+    
+    // Save band for user
+    saveBandLocally(sampleBand, 'worship@church.org');
+
+    // Email cache should immediately contain the band
+    const cached = getBandForEmail('worship@church.org');
+    expect(cached?.name).toBe('Grace Choir');
+    expect(cached?.code).toBe('1234');
+
+    // hasJoinedBand should return true for this user even if session was reset
+    clearActiveBandSession();
+    expect(hasJoinedBand({ email: 'worship@church.org' })).toBe(true);
+
+    // Another email that hasn't joined should return false
+    expect(hasJoinedBand({ email: 'newbie@church.org' })).toBe(false);
+
+    // Re-login with the same email restores active session keys
+    const restored = restoreBandForEmail('worship@church.org');
+    expect(restored?.id).toBe('band-123');
+    expect(hasJoinedBand()).toBe(true);
+  });
+});
+

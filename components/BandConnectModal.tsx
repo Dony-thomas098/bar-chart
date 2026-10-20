@@ -94,7 +94,7 @@ export function BandConnectModal({ isOpen, onClose, onSuccess }: Props) {
       setErrorMessage('Only admins can manage or disconnect the band workspace.');
       return;
     }
-    await leaveBand();
+    await leaveBand(user?.email);
     setCurrentBand({ id: null, name: null, code: null });
     setSuccessMessage('Disconnected from band.');
   };

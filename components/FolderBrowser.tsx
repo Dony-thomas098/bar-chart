@@ -12,7 +12,7 @@ import { createDefaultLine } from '@/lib/chart-types';
 import { seedSampleData } from '@/lib/sampleData';
 import { useAuth, canModifySection } from '@/components/AuthProvider';
 import { BandConnectModal } from './BandConnectModal';
-import { hasJoinedBand } from '@/lib/band';
+import { hasJoinedBand, syncBandForUser } from '@/lib/band';
 import {
   Folder as FolderIcon, FileText, MoreVertical, Search,
   Plus, CornerLeftUp, Trash2, Edit2, CornerRightDown, Download, X,
@@ -76,12 +76,29 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
   // Auto-prompt to join or create band when user is signed in with email but hasn't joined a band yet
   useEffect(() => {
     if (user && typeof window !== 'undefined' && localStorage.getItem('chord-grid-guest-mode') !== 'true') {
-      if (!hasJoinedBand()) {
-        const timer = setTimeout(() => {
-          setBandModalOpen(true);
-        }, 1200);
-        return () => clearTimeout(timer);
+      // 1. If user already joined a band (active session, email cache, or metadata), never show prompt
+      if (hasJoinedBand(user)) {
+        return;
       }
+
+      // 2. If not immediately detected, attempt background Supabase sync for this user's email
+      let isCancelled = false;
+      syncBandForUser(user).then((band) => {
+        if (isCancelled) return;
+        // Only prompt if user genuinely has no band associated with their account
+        if (!band && !hasJoinedBand(user)) {
+          const timer = setTimeout(() => {
+            if (!isCancelled && !hasJoinedBand(user)) {
+              setBandModalOpen(true);
+            }
+          }, 1500);
+          return () => clearTimeout(timer);
+        }
+      });
+
+      return () => {
+        isCancelled = true;
+      };
     }
   }, [user]);
 

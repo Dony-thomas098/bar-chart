@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { User } from '@supabase/supabase-js';
 import { useRouter, usePathname } from 'next/navigation';
 import { flushPendingSaves } from '@/lib/storage';
+import { getStoredBand, restoreBandForEmail, syncBandForUser, clearActiveBandSession } from '@/lib/band';
 
 export type UserProfession = 'singing' | 'instrument' | 'admin' | null;
 
@@ -12,6 +13,10 @@ export interface UserProfile {
   username?: string;
   profession?: UserProfession;
   instrument?: string | null;
+  band_id?: string | null;
+  band_name?: string | null;
+  band_code?: string | null;
+  email?: string | null;
 }
 
 export function canModifySection(
@@ -36,7 +41,7 @@ const AuthContext = createContext<AuthContextType>({
   user: null, 
   loading: true, 
   isGuest: false, 
-  profile: { profession: null, instrument: null, username: '' },
+  profile: { profession: null, instrument: null, username: '', band_id: null, band_name: null, band_code: null, email: null },
   enableGuestMode: () => {},
   updateProfile: async () => {},
   signOut: async () => {} 
@@ -47,6 +52,9 @@ const OFFLINE_USER_KEY = 'chord-grid-offline-user-id';
 const PROFESSION_KEY = 'chord-grid-profession';
 const INSTRUMENT_KEY = 'chord-grid-instrument';
 const USERNAME_KEY = 'chord-grid-username';
+
+export const getEmailProfileCacheKey = (email: string) =>
+  `chord-grid-profile-email-${email.trim().toLowerCase()}`;
 
 function getOrCreateOfflineUser(): User {
   let offlineId = typeof window !== 'undefined' ? localStorage.getItem(OFFLINE_USER_KEY) : null;
@@ -73,27 +81,125 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
 
-  const [profile, setProfile] = useState<UserProfile>({ profession: null, instrument: null, username: '' });
+  const [profile, setProfile] = useState<UserProfile>({ 
+    profession: null, 
+    instrument: null, 
+    username: '',
+    band_id: null,
+    band_name: null,
+    band_code: null,
+    email: null,
+  });
 
-  // Sync profile when user changes
+  // Sync profile when user changes: immediate local restore + background Supabase sync
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const meta = user?.user_metadata || {};
-    const userPrefix = user ? `${user.id}_` : '';
+
+    if (!user) {
+      setProfile({ profession: null, instrument: null, username: '', band_id: null, band_name: null, band_code: null, email: null });
+      return;
+    }
+
+    const email = user.email || '';
+    const userPrefix = `${user.id}_`;
+    let cachedEmailProfile: Partial<UserProfile> = {};
+
+    if (email) {
+      try {
+        const cachedRaw = localStorage.getItem(getEmailProfileCacheKey(email));
+        if (cachedRaw) {
+          cachedEmailProfile = JSON.parse(cachedRaw);
+        }
+      } catch (err) {
+        console.warn('[Auth] Error reading cached email profile:', err);
+      }
+      // Immediately restore band keys from email cache if available
+      restoreBandForEmail(email);
+    }
+
+    const storedBand = getStoredBand();
+    const meta = user.user_metadata || {};
 
     const storedProfession = localStorage.getItem(`${userPrefix}profession`) || localStorage.getItem(PROFESSION_KEY);
     const storedInstrument = localStorage.getItem(`${userPrefix}instrument`) || localStorage.getItem(INSTRUMENT_KEY);
     const storedUsername = localStorage.getItem(`${userPrefix}username`) || localStorage.getItem(USERNAME_KEY);
 
-    const profession = (meta.profession as UserProfession) || (storedProfession as UserProfession) || null;
-    const instrument = (meta.instrument as string) || storedInstrument || null;
-    const username = (meta.username as string) || (meta.name as string) || storedUsername || (user?.email ? user.email.split('@')[0] : '');
+    const initialProfession = (cachedEmailProfile.profession as UserProfession) || (meta.profession as UserProfession) || (storedProfession as UserProfession) || null;
+    const initialInstrument = cachedEmailProfile.instrument || (meta.instrument as string) || storedInstrument || null;
+    const initialUsername = cachedEmailProfile.username || (meta.username as string) || (meta.name as string) || storedUsername || (email ? email.split('@')[0] : '');
+    const initialBandId = cachedEmailProfile.band_id || storedBand.id || meta.band_id || null;
+    const initialBandName = cachedEmailProfile.band_name || storedBand.name || meta.band_name || null;
+    const initialBandCode = cachedEmailProfile.band_code || storedBand.code || meta.band_code || null;
 
-    setProfile({ profession, instrument, username });
+    setProfile({
+      profession: initialProfession,
+      instrument: initialInstrument,
+      username: initialUsername,
+      band_id: initialBandId,
+      band_name: initialBandName,
+      band_code: initialBandCode,
+      email: email || null,
+    });
+
+    // Background sync from Supabase according to user id / email
+    let isCancelled = false;
+    const syncRemoteProfile = async () => {
+      try {
+        // Sync band first
+        const syncedBand = await syncBandForUser(user);
+
+        // Fetch user profile from public.profiles table
+        const { data: remoteProfile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .maybeSingle();
+
+        if (isCancelled) return;
+
+        if (remoteProfile) {
+          const finalProfession = (remoteProfile.role as UserProfession) || initialProfession;
+          const finalInstrument = remoteProfile.instrument || initialInstrument;
+          const finalUsername = remoteProfile.username || remoteProfile.display_name || initialUsername;
+          const finalBandId = syncedBand?.id || remoteProfile.band_id || initialBandId;
+          const finalBandName = syncedBand?.name || remoteProfile.band_name || initialBandName;
+          const finalBandCode = syncedBand?.code || initialBandCode;
+
+          const updated: UserProfile = {
+            profession: finalProfession,
+            instrument: finalInstrument,
+            username: finalUsername,
+            band_id: finalBandId,
+            band_name: finalBandName,
+            band_code: finalBandCode,
+            email: email || null,
+          };
+
+          setProfile(updated);
+          if (email) {
+            localStorage.setItem(getEmailProfileCacheKey(email), JSON.stringify(updated));
+          }
+        } else if (syncedBand) {
+          setProfile(prev => ({
+            ...prev,
+            band_id: syncedBand.id,
+            band_name: syncedBand.name,
+            band_code: syncedBand.code,
+          }));
+        }
+      } catch (err) {
+        console.warn('[Auth] Background remote profile sync warning:', err);
+      }
+    };
+
+    syncRemoteProfile();
+    return () => {
+      isCancelled = true;
+    };
   }, [user]);
 
   const updateProfile = async (newProfile: Partial<UserProfile>) => {
-    const updated = { ...profile, ...newProfile };
+    const updated: UserProfile = { ...profile, ...newProfile };
     setProfile(updated);
 
     if (typeof window !== 'undefined') {
@@ -125,21 +231,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           localStorage.removeItem(USERNAME_KEY);
         }
       }
+      if (user?.email) {
+        localStorage.setItem(getEmailProfileCacheKey(user.email), JSON.stringify(updated));
+      }
       window.dispatchEvent(new CustomEvent('profile-updated', { detail: updated }));
     }
 
     if (user && !isGuest) {
       try {
-        const { data } = await supabase.auth.updateUser({
+        await supabase.auth.updateUser({
           data: {
             profession: updated.profession,
             instrument: updated.instrument,
             username: updated.username,
+            band_id: updated.band_id,
+            band_name: updated.band_name,
+            band_code: updated.band_code,
           }
         });
-        if (data?.user) {
-          setUser(data.user);
-        }
+
+        // Upsert to profiles table to keep email-associated info current
+        await supabase.from('profiles').upsert({
+          id: user.id,
+          email: user.email,
+          username: updated.username,
+          display_name: updated.username,
+          role: updated.profession || 'instrument',
+          instrument: updated.instrument,
+          band_id: updated.band_id,
+          band_name: updated.band_name,
+          updated_at: new Date().toISOString(),
+        });
       } catch (err) {
         console.warn('[Auth] Failed to sync profile with Supabase:', err);
       }
@@ -155,13 +277,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signOut = async () => {
+    // Clear active session keys so another user logging in on the device doesn't inherit prior state
     if (typeof window !== 'undefined') {
       localStorage.removeItem(GUEST_KEY);
       localStorage.removeItem(OFFLINE_USER_KEY);
+      localStorage.removeItem(PROFESSION_KEY);
+      localStorage.removeItem(INSTRUMENT_KEY);
+      localStorage.removeItem(USERNAME_KEY);
     }
+    clearActiveBandSession();
     setIsGuest(false);
     setUser(null);
-    setProfile({ profession: null, instrument: null, username: '' });
+    setProfile({ 
+      profession: null, 
+      instrument: null, 
+      username: '',
+      band_id: null,
+      band_name: null,
+      band_code: null,
+      email: null,
+    });
     try {
       await supabase.auth.signOut();
     } catch (err) {
@@ -246,4 +381,3 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 }
 
 export const useAuth = () => useContext(AuthContext);
-

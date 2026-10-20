@@ -1,9 +1,9 @@
 {
   "version": "0.1.0",
-  "bundleId": "bundle-v0.1.0-20261020124823",
+  "bundleId": "bundle-v0.1.0-20261020133413",
   "url": "https://github.com/Dony-thomas098/bar-chart/releases/latest/download/bundle.zip",
-  "checksum": "42d30a207f96f517a7cb12b33bd3fe8a8f384ba50ea2917b9b8b256cdb723cb0",
-  "fileSize": 5399541,
-  "releasedAt": "2026-10-20T12:48:23.674Z",
+  "checksum": "b96b574c238919f3a573b1e26fb2298cf496224d7ba92859ff2317ba1e22959f",
+  "fileSize": 5397551,
+  "releasedAt": "2026-10-20T13:34:46.675Z",
   "notes": "OTA update package for Chordly v0.1.0"
 }
