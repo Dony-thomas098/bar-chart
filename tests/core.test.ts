@@ -309,6 +309,18 @@ describe('Multi-Device Band Synchronization & Profile Field Preservation', () =>
       supabase.auth.updateUser = originalUpdateUser;
     }
   });
+
+  it('guarantees service worker includes key routes and ignoreSearch for offline PWA navigation', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+    const swContent = fs.readFileSync(path.resolve(__dirname, '../public/sw.js'), 'utf-8');
+
+    expect(swContent).toContain("'/chart'");
+    expect(swContent).toContain("'/folder'");
+    expect(swContent).toContain("'/lyrics'");
+    expect(swContent).toContain("'/manifest.json'");
+    expect(swContent).toContain('ignoreSearch: true');
+  });
 });
 
 
