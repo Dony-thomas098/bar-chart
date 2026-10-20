@@ -11,6 +11,7 @@ import { ThemeSync } from "@/components/ThemeSync";
 import { SplashScreen } from "@/components/SplashScreen";
 import { CapacitorInit } from "@/components/CapacitorInit";
 import { LiveUpdateNotification } from "@/components/LiveUpdateNotification";
+import { SWRegister } from "@/components/SWRegister";
 import Script from "next/script";
 
 const plusJakartaSans = Plus_Jakarta_Sans({
@@ -120,21 +121,27 @@ export default function RootLayout({
             <Navigation />
             <InstallPrompt />
             <OnboardingModal />
+            <SWRegister />
           </OfflineSyncProvider>
         </AuthProvider>
         <Script id="register-sw" strategy="afterInteractive">
           {`
             if ('serviceWorker' in navigator) {
-              window.addEventListener('load', function() {
+              function registerSW() {
                 navigator.serviceWorker.register('/sw.js').then(
                   function(registration) {
-                    console.log('Service Worker registration successful with scope: ', registration.scope);
+                    console.log('[SW] Registered successfully with scope: ', registration.scope);
                   },
                   function(err) {
-                    console.log('Service Worker registration failed: ', err);
+                    console.warn('[SW] Registration failed: ', err);
                   }
                 );
-              });
+              }
+              if (document.readyState === 'complete' || document.readyState === 'interactive') {
+                registerSW();
+              } else {
+                window.addEventListener('load', registerSW);
+              }
             }
           `}
         </Script>

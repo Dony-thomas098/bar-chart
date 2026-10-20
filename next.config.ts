@@ -8,28 +8,10 @@ const securityHeaders = [
   { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(), screen-wake-lock=(self)' },
 ];
 
-const isStaticExport =
-  process.env.CAPACITOR_BUILD === 'true' ||
-  process.env.NEXT_EXPORT === 'true' ||
-  process.env.npm_lifecycle_event === 'build:cap';
-
 const nextConfig: NextConfig = {
-  ...(isStaticExport
-    ? {
-        output: 'export',
-        images: { unoptimized: true },
-        trailingSlash: true,
-      }
-    : {
-        async headers() {
-          return [
-            {
-              source: '/(.*)',
-              headers: securityHeaders,
-            },
-          ];
-        },
-      }),
+  output: 'export',
+  images: { unoptimized: true },
+  trailingSlash: true,
 };
 
 export default nextConfig;
