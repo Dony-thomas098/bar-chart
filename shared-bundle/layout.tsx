@@ -94,6 +94,15 @@ export default function RootLayout({
                   window.location.reload();
                 }
               });
+              if ('serviceWorker' in navigator) {
+                try {
+                  navigator.serviceWorker.register('/sw.js').then(function(reg) {
+                    console.log('[SW] Registered successfully:', reg.scope);
+                  }).catch(function(err) {
+                    console.warn('[SW] Registration failed:', err);
+                  });
+                } catch (e) {}
+              }
             `,
           }}
         />
@@ -112,27 +121,6 @@ export default function RootLayout({
             <OnboardingModal />
           </OfflineSyncProvider>
         </AuthProvider>
-        <Script id="register-sw" strategy="afterInteractive">
-          {`
-            if ('serviceWorker' in navigator) {
-              function registerSW() {
-                navigator.serviceWorker.register('/sw.js').then(
-                  function(registration) {
-                    console.log('[SW] Registered successfully with scope: ', registration.scope);
-                  },
-                  function(err) {
-                    console.warn('[SW] Registration failed: ', err);
-                  }
-                );
-              }
-              if (document.readyState === 'complete' || document.readyState === 'interactive') {
-                registerSW();
-              } else {
-                window.addEventListener('load', registerSW);
-              }
-            }
-          `}
-        </Script>
       </body>
     </html>
   );
