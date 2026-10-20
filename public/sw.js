@@ -1,4 +1,4 @@
-const CACHE_NAME = 'chordly-v6';
+const CACHE_NAME = 'chordly-v7';
 
 const PRECACHE_ASSETS = [
   '/',
@@ -200,7 +200,7 @@ self.addEventListener('fetch', (event) => {
             const trimmedMatch = await caches.match(trimmedTxt, { ignoreSearch: true });
             if (trimmedMatch) return trimmedMatch;
           }
-          return null;
+          return new Response('', { status: 404, statusText: 'Offline Resource Not Found' });
         });
     })
   );

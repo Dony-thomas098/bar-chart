@@ -7,20 +7,7 @@ import { useLyricsSync } from '@/hooks/useLyricsSync';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { Lyric } from '@/lib/lyrics';
 
-const PiascoreLyricsReader = dynamic(
-  () => import('@/components/PiascoreLyricsReader').then((mod) => mod.PiascoreLyricsReader),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="flex h-screen items-center justify-center bg-[#121214] text-white">
-        <div className="flex items-center gap-3">
-          <div className="w-6 h-6 border-2 border-accent-start border-t-transparent rounded-full animate-spin" />
-          <span className="text-sm font-medium">Loading lyrics score...</span>
-        </div>
-      </div>
-    ),
-  }
-);
+import { PiascoreLyricsReader } from '@/components/PiascoreLyricsReader';
 
 function LyricsViewerContent() {
   const { user, loading: authLoading } = useAuth();

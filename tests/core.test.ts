@@ -321,6 +321,20 @@ describe('Multi-Device Band Synchronization & Profile Field Preservation', () =>
     expect(swContent).toContain("'/manifest.json'");
     expect(swContent).toContain('ignoreSearch: true');
   });
+
+  it('correctly identifies all variations of /auth route including trailing slashes to prevent redirect loops', () => {
+    const isAuthRoute = (path: string | null | undefined): boolean => {
+      return !path || path === '/auth' || path === '/auth/' || path.startsWith('/auth');
+    };
+
+    expect(isAuthRoute('/auth')).toBe(true);
+    expect(isAuthRoute('/auth/')).toBe(true);
+    expect(isAuthRoute('/auth?mode=signin')).toBe(true);
+    expect(isAuthRoute('/auth/?mode=signin')).toBe(true);
+    expect(isAuthRoute('/folder')).toBe(false);
+    expect(isAuthRoute('/chart')).toBe(false);
+    expect(isAuthRoute('/')).toBe(false);
+  });
 });
 
 

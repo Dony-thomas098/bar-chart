@@ -398,11 +398,59 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setIsGuest(false);
           // Initial sync is handled by OfflineSyncProvider (respects autoSync preference)
         } else {
-          setUser(null);
+          // If offline or session expired while offline, recover cached user from local storage
+          let cachedUser: User | null = null;
+          if (typeof window !== 'undefined') {
+            try {
+              for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && key.startsWith('sb-') && key.endsWith('-auth-token')) {
+                  const raw = localStorage.getItem(key);
+                  if (raw) {
+                    const parsed = JSON.parse(raw);
+                    if (parsed?.user) {
+                      cachedUser = parsed.user as User;
+                      break;
+                    }
+                  }
+                }
+              }
+            } catch (e) {}
+          }
+
+          if (cachedUser) {
+            setUser(cachedUser);
+            setIsGuest(false);
+          } else {
+            setUser(null);
+          }
         }
       } catch (err) {
         console.warn('[Auth] Error fetching session:', err);
-        setUser(null);
+        let cachedUser: User | null = null;
+        if (typeof window !== 'undefined') {
+          try {
+            for (let i = 0; i < localStorage.length; i++) {
+              const key = localStorage.key(i);
+              if (key && key.startsWith('sb-') && key.endsWith('-auth-token')) {
+                const raw = localStorage.getItem(key);
+                if (raw) {
+                  const parsed = JSON.parse(raw);
+                  if (parsed?.user) {
+                    cachedUser = parsed.user as User;
+                    break;
+                  }
+                }
+              }
+            }
+          } catch (e) {}
+        }
+        if (cachedUser) {
+          setUser(cachedUser);
+          setIsGuest(false);
+        } else {
+          setUser(null);
+        }
       } finally {
         setLoading(false);
       }
@@ -437,7 +485,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (!loading && !user && pathname !== '/auth') {
+    const isAuthPath = !pathname || pathname === '/auth' || pathname === '/auth/' || pathname.startsWith('/auth');
+    if (!loading && !user && !isAuthPath) {
       router.replace('/auth');
     }
   }, [user, loading, pathname, router]);

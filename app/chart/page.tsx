@@ -7,20 +7,7 @@ import { useChartSync } from '@/hooks/useChartSync';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { ChartData } from '@/lib/chart-types';
 
-const PiascoreReader = dynamic(
-  () => import('@/components/PiascoreReader').then((mod) => mod.PiascoreReader),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="flex h-screen items-center justify-center bg-[#121214] text-white">
-        <div className="flex items-center gap-3">
-          <div className="w-6 h-6 border-2 border-[#007aff] border-t-transparent rounded-full animate-spin" />
-          <span className="text-sm font-medium">Loading score...</span>
-        </div>
-      </div>
-    ),
-  }
-);
+import { PiascoreReader } from '@/components/PiascoreReader';
 
 function ChartViewerContent() {
   const { user, loading: authLoading } = useAuth();

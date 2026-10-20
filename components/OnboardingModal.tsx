@@ -26,7 +26,8 @@ export function OnboardingModal() {
   // Auto-open for users who haven't selected a profession yet
   useEffect(() => {
     if (loading || !user) return;
-    if (pathname === '/auth') return;
+    const isAuth = !pathname || pathname === '/auth' || pathname === '/auth/' || pathname.startsWith('/auth');
+    if (isAuth) return;
 
     // Check if onboarding completed or dismissed
     const userPrefix = user.id ? `${user.id}_` : '';
@@ -70,7 +71,8 @@ export function OnboardingModal() {
     return () => window.removeEventListener('open-profession-modal', handleOpen);
   }, [profile]);
 
-  if (!isOpen || !user || pathname === '/auth') return null;
+  const isAuth = !pathname || pathname === '/auth' || pathname === '/auth/' || pathname.startsWith('/auth');
+  if (!isOpen || !user || isAuth) return null;
 
   const handleSelectProfession = (prof: 'singing' | 'instrument') => {
     setSelectedProfession(prof);

@@ -84,16 +84,6 @@ export default function RootLayout({
                   }
                 } catch (e) {}
               })();
-              window.addEventListener('error', function(e) {
-                if (e && e.message && (e.message.indexOf('Loading chunk') !== -1 || e.message.indexOf('ChunkLoadError') !== -1)) {
-                  window.location.reload();
-                }
-              });
-              window.addEventListener('unhandledrejection', function(e) {
-                if (e && e.reason && (e.reason.name === 'ChunkLoadError' || (e.reason.message && e.reason.message.indexOf('Loading chunk') !== -1))) {
-                  window.location.reload();
-                }
-              });
               if ('serviceWorker' in navigator) {
                 try {
                   navigator.serviceWorker.register('/sw.js').then(function(reg) {
