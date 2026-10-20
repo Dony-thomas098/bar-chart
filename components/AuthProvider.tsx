@@ -184,9 +184,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return;
         }
 
-        // Race supabase session fetch against a 1.2s timeout so we don't hang when offline
+        const isOAuthRedirect = typeof window !== 'undefined' && (
+          window.location.search.includes('code=') || 
+          window.location.hash.includes('access_token=')
+        );
+
+        // Race supabase session fetch against timeout (extended to 6s during OAuth token exchange)
+        const timeoutDuration = isOAuthRedirect ? 6000 : 1500;
         const timeout = new Promise<{ data: { session: null } }>((resolve) =>
-          setTimeout(() => resolve({ data: { session: null } }), 1200)
+          setTimeout(() => resolve({ data: { session: null } }), timeoutDuration)
         );
         const { data: { session } } = await Promise.race([
           supabase.auth.getSession(),

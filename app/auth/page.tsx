@@ -89,19 +89,68 @@ export default function AuthPage() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [modalView]);
 
-  // Listen for Supabase password recovery link redirection
+  // Listen for Supabase auth state changes & handle OAuth redirects
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'PASSWORD_RECOVERY') {
         setModalView('recovery');
         setGeneralError(null);
         setSuccessMessage(null);
+      } else if (event === 'SIGNED_IN' && session?.user) {
+        // Sync user email & username to profiles on successful sign in
+        try {
+          const userMeta = session.user.user_metadata || {};
+          const fallbackUsername = userMeta.username || (session.user.email ? session.user.email.split('@')[0] : '');
+          await supabase.from('profiles').upsert({
+            id: session.user.id,
+            email: session.user.email,
+            username: fallbackUsername,
+            display_name: userMeta.full_name || userMeta.name || fallbackUsername,
+          });
+        } catch {}
+        router.replace('/');
       }
     });
 
     if (typeof window !== 'undefined') {
       const hash = window.location.hash;
       const search = window.location.search;
+      const searchParams = new URLSearchParams(search);
+      const hashParams = new URLSearchParams(hash.startsWith('#') ? hash.substring(1) : hash);
+
+      // Check if URL has OAuth error parameters
+      const errorMsg = searchParams.get('error_description') || 
+                       hashParams.get('error_description') || 
+                       searchParams.get('error') || 
+                       hashParams.get('error');
+
+      if (errorMsg) {
+        const readableError = decodeURIComponent(errorMsg.replace(/\+/g, ' '));
+        if (readableError.toLowerCase().includes('external provider') || readableError.toLowerCase().includes('not enabled')) {
+          setGeneralError('Google Sign-In is not enabled yet in your Supabase Dashboard. Please enable Google under Authentication -> Providers.');
+        } else {
+          setGeneralError(`Authentication error: ${readableError}`);
+        }
+      }
+
+      // Check for PKCE authorization code in URL search
+      const code = searchParams.get('code');
+      if (code) {
+        setIsSubmitting(true);
+        supabase.auth.exchangeCodeForSession(code).then(({ data, error }) => {
+          setIsSubmitting(false);
+          if (error) {
+            console.error('[Auth] OAuth exchange error:', error);
+            setGeneralError(error.message || 'Failed to complete sign-in from redirect.');
+          } else if (data?.session) {
+            router.replace('/');
+          }
+        }).catch((err) => {
+          setIsSubmitting(false);
+          setGeneralError(err.message || 'Failed to complete sign-in from redirect.');
+        });
+      }
+
       if (hash.includes('type=recovery') || search.includes('mode=update-password')) {
         setModalView('recovery');
       }
@@ -110,7 +159,7 @@ export default function AuthPage() {
     return () => {
       subscription.unsubscribe();
     };
-  }, []);
+  }, [router]);
 
   // If already authenticated and not in password recovery, redirect to home
   useEffect(() => {
@@ -167,7 +216,7 @@ export default function AuthPage() {
 
       const redirectUrl = isNative
         ? 'com.chordly.app://auth'
-        : (typeof window !== 'undefined' ? `${window.location.origin}/` : undefined);
+        : (typeof window !== 'undefined' ? `${window.location.origin}/auth` : undefined);
 
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
@@ -202,7 +251,7 @@ export default function AuthPage() {
 
       const redirectUrl = isNative
         ? 'com.chordly.app://auth'
-        : (typeof window !== 'undefined' ? `${window.location.origin}/` : undefined);
+        : (typeof window !== 'undefined' ? `${window.location.origin}/auth` : undefined);
 
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'apple',
@@ -247,20 +296,62 @@ export default function AuthPage() {
 
         // Resolve username to email if no '@' present
         if (!cleanIdentifier.includes('@')) {
+          // 1. Try local cached mapping first
           const cachedEmail = typeof window !== 'undefined' ? localStorage.getItem(`cc_user_${targetEmail}`) : null;
           if (cachedEmail) {
             targetEmail = cachedEmail;
           } else {
-            try {
-              const { data: profileData } = await supabase
-                .from('profiles')
-                .select('id')
-                .eq('username', targetEmail)
-                .maybeSingle();
+            let foundEmail: string | null = null;
 
-              targetEmail = `${targetEmail}@chordcraft.app`;
-            } catch {
-              targetEmail = `${targetEmail}@chordcraft.app`;
+            // 2. Try Supabase RPC resolve_login_email (high performance, secure, case-insensitive)
+            try {
+              const { data: rpcEmail, error: rpcErr } = await supabase.rpc('resolve_login_email', {
+                identifier: cleanIdentifier,
+              });
+              if (!rpcErr && rpcEmail && typeof rpcEmail === 'string' && rpcEmail.includes('@')) {
+                foundEmail = rpcEmail.trim().toLowerCase();
+              }
+            } catch (rpcEx) {
+              console.debug('[Auth] RPC lookup skipped:', rpcEx);
+            }
+
+            // 3. Fallback: Query public.profiles directly by username
+            if (!foundEmail) {
+              try {
+                const { data: profileData } = await supabase
+                  .from('profiles')
+                  .select('email')
+                  .ilike('username', cleanIdentifier)
+                  .maybeSingle();
+
+                if (profileData?.email && profileData.email.includes('@')) {
+                  foundEmail = profileData.email.trim().toLowerCase();
+                }
+              } catch (profileEx) {
+                console.debug('[Auth] Direct profile lookup skipped:', profileEx);
+              }
+            }
+
+            // 4. Fallback: Query public.profiles where email starts with username (e.g. dony -> dony@gmail.com)
+            if (!foundEmail) {
+              try {
+                const { data: profileByPrefix } = await supabase
+                  .from('profiles')
+                  .select('email')
+                  .ilike('email', `${cleanIdentifier}@%`)
+                  .maybeSingle();
+
+                if (profileByPrefix?.email && profileByPrefix.email.includes('@')) {
+                  foundEmail = profileByPrefix.email.trim().toLowerCase();
+                }
+              } catch {}
+            }
+
+            if (foundEmail) {
+              targetEmail = foundEmail;
+            } else {
+              // 5. Fallback for legacy username-only test accounts
+              targetEmail = `${cleanIdentifier.toLowerCase()}@chordcraft.app`;
             }
           }
         }
@@ -282,6 +373,15 @@ export default function AuthPage() {
           throw new Error('Incorrect username or password. Please try again.');
         }
 
+        // Cache resolution on success so subsequent logins on this device are instant
+        if (typeof window !== 'undefined') {
+          localStorage.setItem(`cc_user_${cleanIdentifier.toLowerCase()}`, targetEmail);
+          if (targetEmail.includes('@')) {
+            const prefix = targetEmail.split('@')[0].toLowerCase();
+            localStorage.setItem(`cc_user_${prefix}`, targetEmail);
+          }
+        }
+
         // Reset failed attempts on success
         setFailedAttempts(0);
         router.push('/');
@@ -297,6 +397,7 @@ export default function AuthPage() {
 
         if (typeof window !== 'undefined') {
           localStorage.setItem(`cc_user_${cleanUsername}`, cleanEmail);
+          localStorage.setItem(`cc_user_${cleanEmail}`, cleanEmail);
         }
 
         const { data, error } = await supabase.auth.signUp({
@@ -305,6 +406,7 @@ export default function AuthPage() {
           options: {
             data: {
               username: cleanUsername,
+              display_name: cleanUsername,
             },
           },
         });
@@ -315,6 +417,7 @@ export default function AuthPage() {
           try {
             await supabase.from('profiles').upsert({
               id: data.user.id,
+              email: cleanEmail,
               username: cleanUsername,
               display_name: cleanUsername,
               role: 'instrument',

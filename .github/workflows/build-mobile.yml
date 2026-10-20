@@ -45,6 +45,17 @@ jobs:
       - name: Build Android Debug APK
         run: cd android && ./gradlew assembleDebug
 
+      - name: Package OTA Live Update Bundle
+        run: npm run ota:pack
+
+      - name: Upload OTA Update Bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: Chordly-OTA-Update
+          path: |
+            dist-mobile/bundle.zip
+            dist-mobile/update.json
+
       - name: Upload Android APK
         uses: actions/upload-artifact@v4
         with:

@@ -17,6 +17,11 @@ const config: CapacitorConfig = {
     StatusBar: {
       style: 'DARK',
       backgroundColor: '#121214',
+    },
+    LiveUpdate: {
+      autoDeleteBundles: true,
+      readyTimeout: 10000,
+      autoBlockRolledBackBundles: true
     }
   }
 };
