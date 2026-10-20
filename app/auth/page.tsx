@@ -106,16 +106,41 @@ export default function AuthPage() {
         setGeneralError(null);
         setSuccessMessage(null);
       } else if (event === 'SIGNED_IN' && session?.user) {
-        // Sync user email & username to profiles on successful sign in
+        // Safely sync user email & username to profiles without wiping band_id, role, or instrument
         try {
           const userMeta = session.user.user_metadata || {};
           const fallbackUsername = userMeta.username || (session.user.email ? session.user.email.split('@')[0] : '');
-          await supabase.from('profiles').upsert({
-            id: session.user.id,
-            email: session.user.email,
-            username: fallbackUsername,
-            display_name: userMeta.full_name || userMeta.name || fallbackUsername,
-          });
+
+          const { data: existingProfile } = await supabase
+            .from('profiles')
+            .select('id, username, display_name, band_id, band_name, role, instrument')
+            .eq('id', session.user.id)
+            .maybeSingle();
+
+          if (!existingProfile) {
+            await supabase.from('profiles').insert({
+              id: session.user.id,
+              email: session.user.email,
+              username: fallbackUsername,
+              display_name: userMeta.full_name || userMeta.name || fallbackUsername,
+              role: (userMeta.profession as string) || 'instrument',
+              instrument: (userMeta.instrument as string) || null,
+              band_id: (userMeta.band_id as string) || null,
+              band_name: (userMeta.band_name as string) || null,
+            });
+          } else {
+            const profileUpdates: Record<string, string> = {};
+            if (!existingProfile.username && fallbackUsername) {
+              profileUpdates.username = fallbackUsername;
+            }
+            if (!existingProfile.display_name && (userMeta.full_name || userMeta.name || fallbackUsername)) {
+              profileUpdates.display_name = userMeta.full_name || userMeta.name || fallbackUsername;
+            }
+            if (Object.keys(profileUpdates).length > 0) {
+              await supabase.from('profiles').update(profileUpdates).eq('id', session.user.id);
+            }
+          }
+
           if (typeof window !== 'undefined' && fallbackUsername) {
             if (session.user.email) {
               localStorage.setItem(`cc_user_${fallbackUsername.toLowerCase()}`, session.user.email.toLowerCase());
@@ -123,7 +148,9 @@ export default function AuthPage() {
             localStorage.setItem('chord-grid-username', fallbackUsername);
             localStorage.setItem(`${session.user.id}_username`, fallbackUsername);
           }
-        } catch {}
+        } catch (e) {
+          console.warn('[Auth] Error safely syncing profile on sign in:', e);
+        }
 
         // Check if user is in an external mobile browser (e.g. Chrome/Safari) and needs redirect back to native app
         const isNative = isRunningNatively();

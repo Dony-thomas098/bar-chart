@@ -1,13 +1,23 @@
-const CACHE_NAME = 'chordly-v4';
+const CACHE_NAME = 'chordly-v5';
 const PRECACHE_ASSETS = [
   '/',
   '/manifest.json',
   '/icon-192x192.png',
   '/icon-512x512.png',
   '/bg.png',
+  '/folder',
+  '/folder/',
+  '/chords',
+  '/chords/',
+  '/chart',
+  '/chart/',
+  '/chart/edit',
   '/perform',
+  '/perform/',
   '/setlists',
+  '/setlists/',
   '/lyrics',
+  '/lyrics/',
   '/printer',
   '/profile',
   '/settings',
@@ -43,13 +53,9 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  const isLocalhost = url.hostname === 'localhost' || url.hostname === '127.0.0.1';
-  const allowLocalSw = url.searchParams.has('test_sw');
-
-  // Bypass dev mode unless test_sw flag is present, chrome extensions, and Supabase API calls
+  // Bypass dev mode HMR, chrome extensions, Supabase API calls, and OTA update manifest
   if (
     request.method !== 'GET' ||
-    (isLocalhost && !allowLocalSw) ||
     url.pathname.startsWith('/_next/webpack-hmr') ||
     url.hostname.includes('supabase.co') ||
     url.protocol.startsWith('chrome-extension') ||
@@ -59,7 +65,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Handle HTML page navigation
+  // Handle HTML page navigation with robust offline fallback
   if (request.mode === 'navigate') {
     event.respondWith(
       fetch(request)
@@ -73,6 +79,13 @@ self.addEventListener('fetch', (event) => {
         .catch(async () => {
           const cachedResponse = await caches.match(request);
           if (cachedResponse) return cachedResponse;
+          const pathOnly = await caches.match(url.pathname);
+          if (pathOnly) return pathOnly;
+          const trimmedPath = url.pathname.replace(/\/$/, '');
+          const withSlash = await caches.match(trimmedPath + '/');
+          if (withSlash) return withSlash;
+          const withoutSlash = await caches.match(trimmedPath);
+          if (withoutSlash) return withoutSlash;
           const rootCached = await caches.match('/');
           return rootCached || new Response('Offline - Chordly is ready when reconnected', {
             status: 503,

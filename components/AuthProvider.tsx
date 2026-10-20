@@ -176,8 +176,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           };
 
           setProfile(updated);
-          if (email) {
-            localStorage.setItem(getEmailProfileCacheKey(email), JSON.stringify(updated));
+
+          // Persist to local storage & mark onboarding as completed if profile is configured
+          if (typeof window !== 'undefined') {
+            if (email) {
+              localStorage.setItem(getEmailProfileCacheKey(email), JSON.stringify(updated));
+            }
+            if (finalProfession) {
+              localStorage.setItem(`${userPrefix}profession`, finalProfession);
+              localStorage.setItem(PROFESSION_KEY, finalProfession);
+              localStorage.setItem(`${userPrefix}onboarding_completed`, 'true');
+              localStorage.setItem('chord-grid-onboarding-completed', 'true');
+            }
+            if (finalInstrument) {
+              localStorage.setItem(`${userPrefix}instrument`, finalInstrument);
+              localStorage.setItem(INSTRUMENT_KEY, finalInstrument);
+            }
+          }
+
+          // Backfill Supabase profiles table if local or synced band was found but missing from DB
+          if (finalBandId && remoteProfile.band_id !== finalBandId) {
+            try {
+              await supabase.from('profiles').update({
+                band_id: finalBandId,
+                band_name: finalBandName,
+                updated_at: new Date().toISOString(),
+              }).eq('id', user.id);
+            } catch {}
           }
         } else if (syncedBand) {
           setProfile(prev => ({
@@ -199,7 +224,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [user]);
 
   const updateProfile = async (newProfile: Partial<UserProfile>) => {
-    const updated: UserProfile = { ...profile, ...newProfile };
+    const stored = getStoredBand();
+    const preservedBandId = newProfile.band_id !== undefined ? newProfile.band_id : (profile.band_id || stored.id);
+    const preservedBandName = newProfile.band_name !== undefined ? newProfile.band_name : (profile.band_name || stored.name);
+    const preservedBandCode = newProfile.band_code !== undefined ? newProfile.band_code : (profile.band_code || stored.code);
+
+    const updated: UserProfile = {
+      ...profile,
+      ...newProfile,
+      band_id: preservedBandId,
+      band_name: preservedBandName,
+      band_code: preservedBandCode,
+    };
     setProfile(updated);
 
     if (typeof window !== 'undefined') {
@@ -208,6 +244,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (updated.profession) {
           localStorage.setItem(`${userPrefix}profession`, updated.profession);
           localStorage.setItem(PROFESSION_KEY, updated.profession);
+          localStorage.setItem(`${userPrefix}onboarding_completed`, 'true');
+          localStorage.setItem('chord-grid-onboarding-completed', 'true');
         } else {
           localStorage.removeItem(`${userPrefix}profession`);
           localStorage.removeItem(PROFESSION_KEY);
@@ -250,18 +288,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         });
 
-        // Upsert to profiles table to keep email-associated info current
-        await supabase.from('profiles').upsert({
-          id: user.id,
-          email: user.email,
-          username: updated.username,
-          display_name: updated.username,
-          role: updated.profession || 'instrument',
-          instrument: updated.instrument,
-          band_id: updated.band_id,
-          band_name: updated.band_name,
+        // Non-destructive update to public.profiles table
+        const profileUpdates: Record<string, unknown> = {
           updated_at: new Date().toISOString(),
-        });
+        };
+        if (updated.username) {
+          profileUpdates.username = updated.username;
+          profileUpdates.display_name = updated.username;
+        }
+        if (updated.profession) {
+          profileUpdates.role = updated.profession;
+        }
+        if (updated.instrument) {
+          profileUpdates.instrument = updated.instrument;
+        }
+        if (updated.band_id) {
+          profileUpdates.band_id = updated.band_id;
+          profileUpdates.band_name = updated.band_name;
+        }
+
+        await supabase.from('profiles').update(profileUpdates).eq('id', user.id);
       } catch (err) {
         console.warn('[Auth] Failed to sync profile with Supabase:', err);
       }

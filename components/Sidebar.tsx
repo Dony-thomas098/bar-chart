@@ -31,6 +31,9 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
   const [bandInfo, setBandInfo] = useState(getStoredBand());
   const [joinCode, setJoinCode] = useState('');
 
+  const effectiveBandName = profile?.band_name || bandInfo.name;
+  const effectiveBandCode = profile?.band_code || bandInfo.code;
+
   useEffect(() => {
     const updateBand = () => setBandInfo(getStoredBand());
     updateBand();
@@ -40,7 +43,7 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
       window.removeEventListener('band-joined', updateBand);
       window.removeEventListener('band-left', updateBand);
     };
-  }, [isOpen]);
+  }, [isOpen, profile?.band_name, profile?.band_code]);
   const [isPending, startTransition] = useTransition();
   const [themeMode, setThemeMode] = useState<ThemeMode>('system');
   const [isDarkEffective, setIsDarkEffective] = useState(false);
@@ -206,7 +209,7 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
                     Band Workspace
                   </span>
                   <span className="text-xs font-bold text-text-primary truncate block">
-                    {bandInfo.name ? `${bandInfo.name} (${bandInfo.code})` : 'Join / Create Band'}
+                    {effectiveBandName ? `${effectiveBandName} (${effectiveBandCode || ''})` : 'Join / Create Band'}
                   </span>
                 </div>
               </div>

@@ -113,6 +113,8 @@ export default function ProfilePage() {
   // Band Workspace Modal state
   const [bandModalOpen, setBandModalOpen] = useState(false);
   const [bandInfo, setBandInfo] = useState(getStoredBand());
+  const effectiveBandName = profile?.band_name || bandInfo.name;
+  const effectiveBandCode = profile?.band_code || bandInfo.code;
 
   useEffect(() => {
     const updateBand = () => setBandInfo(getStoredBand());
@@ -123,7 +125,7 @@ export default function ProfilePage() {
       window.removeEventListener('band-joined', updateBand);
       window.removeEventListener('band-left', updateBand);
     };
-  }, []);
+  }, [profile?.band_name, profile?.band_code]);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -444,15 +446,15 @@ export default function ProfilePage() {
                   iconBgColor="bg-orange-500/10 dark:bg-orange-500/15"
                   iconColor="text-orange-600 dark:text-orange-400"
                   label="Choir / Band Workspace"
-                  value={bandInfo.name ? `${bandInfo.name} (${bandInfo.code})` : 'Not Connected'}
-                  hint={bandInfo.name ? 'All songs and folders are synced live with this band' : 'Connect with your choir PIN to sync songs'}
+                  value={effectiveBandName ? `${effectiveBandName} (${effectiveBandCode || ''})` : 'Not Connected'}
+                  hint={effectiveBandName ? 'All songs and folders are synced live with this band' : 'Connect with your choir PIN to sync songs'}
                   action={
                     <button
                       type="button"
                       onClick={() => setBandModalOpen(true)}
                       className="min-h-[44px] px-3.5 py-2 bg-white/70 dark:bg-zinc-800/70 border border-white/60 dark:border-white/10 hover:bg-orange-500/10 hover:border-orange-500/30 text-orange-600 dark:text-orange-400 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center shrink-0"
                     >
-                      {bandInfo.name ? 'Manage Band' : 'Join / Create'}
+                      {effectiveBandName ? 'Manage Band' : 'Join / Create'}
                     </button>
                   }
                 />

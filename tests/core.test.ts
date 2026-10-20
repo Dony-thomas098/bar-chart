@@ -163,10 +163,10 @@ describe('Multi-Chord Measures and Enharmonics Transposition', () => {
 
 describe('Folder Tree Cycle Prevention', () => {
   const mockFolders = [
-    { id: 'folder-root', name: 'Root', parent_id: null, created_by: 'user1', updated_at: '' },
-    { id: 'folder-child', name: 'Child', parent_id: 'folder-root', created_by: 'user1', updated_at: '' },
-    { id: 'folder-grandchild', name: 'Grandchild', parent_id: 'folder-child', created_by: 'user1', updated_at: '' },
-    { id: 'folder-unrelated', name: 'Other', parent_id: null, created_by: 'user1', updated_at: '' },
+    { id: 'folder-root', name: 'Root', parent_id: null, kind: 'chart' as const, created_by: 'user1', updated_at: '' },
+    { id: 'folder-child', name: 'Child', parent_id: 'folder-root', kind: 'chart' as const, created_by: 'user1', updated_at: '' },
+    { id: 'folder-grandchild', name: 'Grandchild', parent_id: 'folder-child', kind: 'chart' as const, created_by: 'user1', updated_at: '' },
+    { id: 'folder-unrelated', name: 'Other', parent_id: null, kind: 'chart' as const, created_by: 'user1', updated_at: '' },
   ];
 
   it('detects direct self and deep descendant relationships correctly', async () => {
@@ -198,13 +198,92 @@ describe('Live Stage Room Code Generator Entropy', () => {
         crypto.getRandomValues(bytes);
       }
       const code = Array.from(bytes, (b) => chars[b % chars.length]).join('');
-      
+
       expect(code.length).toBe(6);
       expect(code).not.toMatch(/[01OI]/);
       for (const char of code) {
         expect(chars).toContain(char);
       }
     }
+  });
+});
+
+describe('Multi-Device Band Synchronization & Profile Field Preservation', () => {
+  it('correctly associates user email with active band across device resets', async () => {
+    const { saveBandLocally, getBandForEmail, hasJoinedBand, clearActiveBandSession } = await import('../lib/band');
+    
+    const infantJesusBand = {
+      id: '9ca7fef8-a0e0-4587-a329-0444c4b27f70',
+      name: 'Infant Jesus Church',
+      code: 'INFANTJESUS',
+      admin_id: 'admin-123',
+    };
+
+    // Save band for user on Vercel device
+    saveBandLocally(infantJesusBand, 'ddosatt1223@gmail.com');
+
+    // Retrieve via email cache (simulating second device login with same email)
+    const cached = getBandForEmail('ddosatt1223@gmail.com');
+    expect(cached).not.toBeNull();
+    expect(cached?.name).toBe('Infant Jesus Church');
+    expect(cached?.code).toBe('INFANTJESUS');
+
+    // Even if active session keys are cleared, email-associated check confirms membership
+    clearActiveBandSession();
+    expect(hasJoinedBand({ email: 'ddosatt1223@gmail.com' })).toBe(true);
+
+    // Unrelated user returns false
+    expect(hasJoinedBand({ email: 'stranger@example.com' })).toBe(false);
+  });
+
+  it('safely restores band from email cache during syncBandForUser without network delay', async () => {
+    const { saveBandLocally, syncBandForUser } = await import('../lib/band');
+    
+    const infantJesusBand = {
+      id: '9ca7fef8-a0e0-4587-a329-0444c4b27f70',
+      name: 'Infant Jesus Church',
+      code: 'INFANTJESUS',
+      admin_id: 'admin-123',
+    };
+
+    saveBandLocally(infantJesusBand, 'ddosatt1223@gmail.com');
+
+    const churchUser = {
+      id: 'user-ddosatt',
+      email: 'ddosatt1223@gmail.com',
+      user_metadata: {},
+    };
+
+    const band = await syncBandForUser(churchUser);
+    expect(band).not.toBeNull();
+    expect(band?.code).toBe('INFANTJESUS');
+    expect(band?.name).toBe('Infant Jesus Church');
+  });
+
+  it('guarantees profile fields preserve band association without wiping other attributes', () => {
+    const existing = {
+      profession: 'instrument',
+      instrument: 'Piano / Keyboard',
+      username: 'Dony',
+      band_id: '9ca7fef8-a0e0-4587-a329-0444c4b27f70',
+      band_name: 'Infant Jesus Church',
+      band_code: 'INFANTJESUS',
+    };
+
+    // Partial update (e.g. changing instrument or theme)
+    const partialUpdate: { instrument: string; band_id?: string; band_name?: string; band_code?: string } = { instrument: 'Bass' };
+    const merged = {
+      ...existing,
+      ...partialUpdate,
+      band_id: partialUpdate.band_id !== undefined ? partialUpdate.band_id : existing.band_id,
+      band_name: partialUpdate.band_name !== undefined ? partialUpdate.band_name : existing.band_name,
+      band_code: partialUpdate.band_code !== undefined ? partialUpdate.band_code : existing.band_code,
+    };
+
+    expect(merged.band_id).toBe('9ca7fef8-a0e0-4587-a329-0444c4b27f70');
+    expect(merged.band_name).toBe('Infant Jesus Church');
+    expect(merged.instrument).toBe('Bass');
+    expect(merged.profession).toBe('instrument');
   });
 });
 

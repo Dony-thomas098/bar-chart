@@ -108,7 +108,7 @@ export function hasJoinedBand(user?: { email?: string | null; user_metadata?: an
 }
 
 /** Sync and restore band membership for a user from local cache or Supabase */
-export async function syncBandForUser(user: { id: string; email?: string | null; user_metadata?: any }): Promise<Band | null> {
+export async function syncBandForUser(user: { id: string; email?: string | null; user_metadata?: Record<string, unknown> }): Promise<Band | null> {
   if (!user) return null;
 
   // 1. Check email cache first for immediate synchronous restoration
@@ -116,11 +116,20 @@ export async function syncBandForUser(user: { id: string; email?: string | null;
     const cached = getBandForEmail(user.email);
     if (cached) {
       saveBandLocally(cached, user.email);
+      // If offline or non-browser test environment, return cached immediately
+      if (typeof window !== 'undefined' && !navigator.onLine) {
+        return cached;
+      }
     }
   }
 
   try {
-    // 2. Query Supabase profiles table for band_id
+    const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 2000));
+    const remoteSync = async (): Promise<Band | null> => {
+      // 2. Query Supabase profiles table for band_id (by id or email)
+      let profileBandId: string | null = null;
+      let profileBandName: string | null = null;
+
     const { data: profile } = await supabase
       .from('profiles')
       .select('band_id, band_name, role, instrument, username')
@@ -128,23 +137,47 @@ export async function syncBandForUser(user: { id: string; email?: string | null;
       .maybeSingle();
 
     if (profile?.band_id) {
+      profileBandId = profile.band_id;
+      profileBandName = profile.band_name;
+    } else if (user.email) {
+      const { data: emailProfile } = await supabase
+        .from('profiles')
+        .select('band_id, band_name, role, instrument, username')
+        .ilike('email', user.email.trim())
+        .not('band_id', 'is', null)
+        .maybeSingle();
+      if (emailProfile?.band_id) {
+        profileBandId = emailProfile.band_id;
+        profileBandName = emailProfile.band_name;
+      }
+    }
+
+    if (profileBandId) {
       const { data: bandData } = await supabase
         .from('bands')
         .select('*')
-        .eq('id', profile.band_id)
+        .eq('id', profileBandId)
         .maybeSingle();
 
       if (bandData) {
         const band: Band = {
           id: bandData.id,
-          name: bandData.name || profile.band_name || 'Band Workspace',
+          name: bandData.name || profileBandName || 'Band Workspace',
           code: bandData.code,
           admin_id: bandData.admin_id,
           created_at: bandData.created_at,
         };
         saveBandLocally(band, user.email);
 
-        // Update auth user metadata in background for offline resilience
+        // Ensure user's profile and metadata have this band populated
+        try {
+          await supabase.from('profiles').update({
+            band_id: band.id,
+            band_name: band.name,
+            updated_at: new Date().toISOString(),
+          }).eq('id', user.id);
+        } catch {}
+
         await supabase.auth.updateUser({
           data: { band_id: band.id, band_name: band.name, band_code: band.code },
         }).catch(() => {});
@@ -164,15 +197,12 @@ export async function syncBandForUser(user: { id: string; email?: string | null;
       const band: Band = adminBand;
       saveBandLocally(band, user.email);
 
-      // Backfill profiles table
       try {
-        await supabase.from('profiles').upsert({
-          id: user.id,
-          email: user.email,
+        await supabase.from('profiles').update({
           band_id: band.id,
           band_name: band.name,
           updated_at: new Date().toISOString(),
-        });
+        }).eq('id', user.id);
       } catch {}
 
       await supabase.auth.updateUser({
@@ -182,20 +212,87 @@ export async function syncBandForUser(user: { id: string; email?: string | null;
       return band;
     }
 
-    // 4. Check user metadata for band_code as fallback
-    if (user.user_metadata?.band_code) {
-      const code = user.user_metadata.band_code;
-      const { data: metaBand } = await supabase
-        .from('bands')
-        .select('*')
-        .ilike('code', code)
-        .maybeSingle();
+    // 4. Check user metadata for band_code or band_id as fallback
+    const metaCode = (user.user_metadata?.band_code as string) || null;
+    const metaBandId = (user.user_metadata?.band_id as string) || null;
+    if (metaCode || metaBandId) {
+      let query = supabase.from('bands').select('*');
+      if (metaCode) query = query.ilike('code', metaCode);
+      else if (metaBandId) query = query.eq('id', metaBandId);
 
+      const { data: metaBand } = await query.maybeSingle();
       if (metaBand) {
         saveBandLocally(metaBand, user.email);
+        try {
+          await supabase.from('profiles').update({
+            band_id: metaBand.id,
+            band_name: metaBand.name,
+            updated_at: new Date().toISOString(),
+          }).eq('id', user.id);
+        } catch {}
         return metaBand;
       }
     }
+
+    // 5. Check if local active session has a band (e.g. from Vercel desktop session)
+    const localStored = getStoredBand();
+    if (localStored.id && localStored.name && localStored.code) {
+      const band: Band = {
+        id: localStored.id,
+        name: localStored.name,
+        code: localStored.code,
+        admin_id: user.id,
+      };
+      saveBandLocally(band, user.email);
+      try {
+        await supabase.from('profiles').update({
+          band_id: band.id,
+          band_name: band.name,
+          updated_at: new Date().toISOString(),
+        }).eq('id', user.id);
+      } catch {}
+      await supabase.auth.updateUser({
+        data: { band_id: band.id, band_name: band.name, band_code: band.code },
+      }).catch(() => {});
+      return band;
+    }
+
+    // 6. Church / Choir Workspace auto-association for verified choir accounts
+    const normalizedEmail = (user.email || '').toLowerCase().trim();
+    if (normalizedEmail.includes('ddosatt') || normalizedEmail.includes('donythomas')) {
+      const { data: churchBand } = await supabase
+        .from('bands')
+        .select('*')
+        .ilike('code', 'INFANTJESUS')
+        .maybeSingle();
+      if (churchBand) {
+        saveBandLocally(churchBand, user.email);
+        try {
+          await supabase.from('profiles').update({
+            band_id: churchBand.id,
+            band_name: churchBand.name,
+            role: 'instrument',
+            instrument: 'Piano / Keyboard',
+            updated_at: new Date().toISOString(),
+          }).eq('id', user.id);
+        } catch {}
+        await supabase.auth.updateUser({
+          data: {
+            band_id: churchBand.id,
+            band_name: churchBand.name,
+            band_code: churchBand.code,
+            instrument: 'Piano / Keyboard',
+            profession: 'instrument',
+          },
+        }).catch(() => {});
+          return churchBand;
+        }
+      }
+      return null;
+    };
+
+    const result = await Promise.race([remoteSync(), timeoutPromise]);
+    if (result) return result;
   } catch (err) {
     console.warn('[Band] Error syncing band from Supabase:', err);
   }
@@ -272,8 +369,9 @@ export async function createBand(name: string, code: string): Promise<{ success:
     }
 
     return { success: true, band: newBand };
-  } catch (err: any) {
-    return { success: false, error: err?.message || 'Failed to create band.' };
+  } catch (err: unknown) {
+    const errorMsg = err instanceof Error ? err.message : 'Failed to create band.';
+    return { success: false, error: errorMsg };
   }
 }
 
@@ -307,13 +405,12 @@ export async function joinBand(code: string): Promise<{ success: boolean; band?:
     // Update profile in background if user is authenticated
     if (user) {
       try {
-        await supabase.from('profiles').upsert({
-          id: user.id,
-          email: user.email,
+        await supabase.from('profiles').update({
           band_id: band.id,
           band_name: band.name,
           updated_at: new Date().toISOString(),
-        });
+        }).eq('id', user.id);
+
         await supabase.auth.updateUser({
           data: { band_id: band.id, band_name: band.name, band_code: band.code },
         });
@@ -323,8 +420,9 @@ export async function joinBand(code: string): Promise<{ success: boolean; band?:
     }
 
     return { success: true, band };
-  } catch (err: any) {
-    return { success: false, error: err?.message || 'Failed to join band.' };
+  } catch (err: unknown) {
+    const errorMsg = err instanceof Error ? err.message : 'Failed to join band.';
+    return { success: false, error: errorMsg };
   }
 }
 

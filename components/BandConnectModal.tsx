@@ -52,6 +52,11 @@ export function BandConnectModal({ isOpen, onClose, onSuccess }: Props) {
 
     if (res.success && res.band) {
       setCurrentBand({ id: res.band.id, name: res.band.name, code: res.band.code });
+      await updateProfile({
+        band_id: res.band.id,
+        band_name: res.band.name,
+        band_code: res.band.code,
+      });
       setSuccessMessage(`Joined "${res.band.name}" successfully!`);
       if (onSuccess) onSuccess(res.band);
       setTimeout(() => {
@@ -78,7 +83,12 @@ export function BandConnectModal({ isOpen, onClose, onSuccess }: Props) {
 
     if (res.success && res.band) {
       setCurrentBand({ id: res.band.id, name: res.band.name, code: res.band.code });
-      await updateProfile({ profession: 'admin' });
+      await updateProfile({
+        profession: 'admin',
+        band_id: res.band.id,
+        band_name: res.band.name,
+        band_code: res.band.code,
+      });
       setSuccessMessage(`Created band "${res.band.name}"! You are the Admin.`);
       if (onSuccess) onSuccess(res.band);
       setTimeout(() => {
@@ -96,6 +106,11 @@ export function BandConnectModal({ isOpen, onClose, onSuccess }: Props) {
     }
     await leaveBand(user?.email);
     setCurrentBand({ id: null, name: null, code: null });
+    await updateProfile({
+      band_id: null,
+      band_name: null,
+      band_code: null,
+    });
     setSuccessMessage('Disconnected from band.');
   };
 
