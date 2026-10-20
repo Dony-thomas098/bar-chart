@@ -8,6 +8,7 @@
     "build:cap": "next build --webpack && cap sync",
     "cap:sync": "cap sync",
     "ota:pack": "node scripts/pack-ota.js",
+    "ota:publish": "node scripts/publish-ota.js",
     "android:open": "cap open android",
     "ios:open": "cap open ios",
     "start": "next start",

@@ -103,7 +103,7 @@ export async function checkForLiveUpdate(customUrl?: string): Promise<boolean> {
   const updateUrl =
     customUrl ||
     process.env.NEXT_PUBLIC_LIVE_UPDATE_URL ||
-    'https://chordly.vercel.app/update.json';
+    'https://github.com/Dony-thomas098/bar-chart/releases/latest/download/update.json';
 
   updateState.isChecking = true;
   updateState.error = null;

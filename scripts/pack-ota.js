@@ -42,10 +42,11 @@ async function packOta() {
   hashSum.update(fileBuffer);
   const checksum = hashSum.digest('hex');
 
+  const defaultBundleUrl = 'https://github.com/Dony-thomas098/bar-chart/releases/latest/download/bundle.zip';
   const manifest = {
     version: version,
     bundleId: bundleId,
-    url: 'https://chordly.vercel.app/bundle.zip', // Replace or override with actual hosting URL / release URL
+    url: process.env.OTA_BUNDLE_URL || defaultBundleUrl,
     checksum: checksum,
     fileSize: fileBuffer.length,
     releasedAt: new Date().toISOString(),

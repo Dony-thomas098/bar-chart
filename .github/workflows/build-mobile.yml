@@ -13,6 +13,9 @@ env:
   NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'sb_publishable_GxnEWSL_npNPsO0DmCHkVg_IhVF1g3l' }}
   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_GxnEWSL_npNPsO0DmCHkVg_IhVF1g3l' }}
 
+permissions:
+  contents: write
+
 jobs:
   build-android:
     name: Build Android APK
@@ -61,6 +64,19 @@ jobs:
         with:
           name: Chordly-Android-APK
           path: android/app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Publish GitHub Release (OTA Update & APK)
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create ota-latest \
+            dist-mobile/bundle.zip \
+            dist-mobile/update.json \
+            android/app/build/outputs/apk/debug/app-debug.apk \
+            --clobber \
+            --title "Chordly Live Update" \
+            --notes "Automated OTA bundle and Android APK release"
 
   build-ios:
     name: Build iOS App

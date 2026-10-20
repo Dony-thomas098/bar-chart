@@ -10,6 +10,7 @@ import { BackgroundBlobs } from "@/components/ui/primitives";
 import { ThemeSync } from "@/components/ThemeSync";
 import { SplashScreen } from "@/components/SplashScreen";
 import { CapacitorInit } from "@/components/CapacitorInit";
+import { LiveUpdateNotification } from "@/components/LiveUpdateNotification";
 import Script from "next/script";
 
 const plusJakartaSans = Plus_Jakarta_Sans({
@@ -116,6 +117,7 @@ export default function RootLayout({
       <body className="min-h-[100dvh] flex flex-col font-sans bg-[var(--bg-canvas)] text-text-primary selection:bg-orange-500/20" suppressHydrationWarning>
         <SplashScreen />
         <CapacitorInit />
+        <LiveUpdateNotification />
         <AuthProvider>
           <OfflineSyncProvider>
             <ThemeSync />
