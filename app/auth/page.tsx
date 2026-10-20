@@ -1,32 +1,100 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/AuthProvider';
-import { Eye, EyeOff, User, Mail, Lock, CheckCircle2, ArrowLeft } from 'lucide-react';
+import { 
+  User, 
+  Lock, 
+  Eye, 
+  EyeOff, 
+  Zap, 
+  X, 
+  CheckCircle2, 
+  AlertCircle, 
+  ArrowLeft 
+} from 'lucide-react';
 
-type AuthMode = 'signin' | 'signup' | 'forgot' | 'recovery';
+type TabMode = 'signin' | 'signup';
+type ModalView = 'none' | 'forgot' | 'recovery' | 'terms' | 'privacy';
 
 export default function AuthPage() {
-  const [authMode, setAuthMode] = useState<AuthMode>('signin');
-  const [username, setUsername] = useState('');
-  const [email, setEmail] = useState('');
-  const [identifier, setIdentifier] = useState(''); // for Sign In (username or email)
+  const [tabMode, setTabMode] = useState<TabMode>('signin');
+  const [modalView, setModalView] = useState<ModalView>('none');
+  
+  // Form fields
+  const [identifier, setIdentifier] = useState(''); // Username or email
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+
+  // Field validation and blur states
+  const [identifierTouched, setIdentifierTouched] = useState(false);
+  const [passwordTouched, setPasswordTouched] = useState(false);
+  const [forgotEmailTouched, setForgotEmailTouched] = useState(false);
+
+  // Status and error handling
+  const [generalError, setGeneralError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Rate limiting & lockout
+  const [failedAttempts, setFailedAttempts] = useState(0);
+  const [lockoutTimer, setLockoutTimer] = useState(0);
+
+  // Platform detection
+  const [isApplePlatform, setIsApplePlatform] = useState(false);
+
   const router = useRouter();
   const { user, loading, enableGuestMode } = useAuth();
+  const formRef = useRef<HTMLFormElement>(null);
+
+  // Detect iOS / macOS platform for Apple Sign In display
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const ua = window.navigator.userAgent.toLowerCase();
+      const isIOS = /iphone|ipad|ipod/.test(ua);
+      const isMac = /macintosh|mac os x/.test(ua);
+      setIsApplePlatform(isIOS || isMac);
+    }
+  }, []);
+
+  // Lockout countdown timer
+  useEffect(() => {
+    if (lockoutTimer <= 0) return;
+    const interval = setInterval(() => {
+      setLockoutTimer((prev) => {
+        if (prev <= 1) {
+          setGeneralError(null);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [lockoutTimer]);
+
+  // Esc key listener to close modals
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && modalView !== 'none') {
+        setModalView('none');
+        setGeneralError(null);
+        setSuccessMessage(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [modalView]);
 
   // Listen for Supabase password recovery link redirection
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event) => {
       if (event === 'PASSWORD_RECOVERY') {
-        setAuthMode('recovery');
-        setError(null);
+        setModalView('recovery');
+        setGeneralError(null);
         setSuccessMessage(null);
       }
     });
@@ -35,7 +103,7 @@ export default function AuthPage() {
       const hash = window.location.hash;
       const search = window.location.search;
       if (hash.includes('type=recovery') || search.includes('mode=update-password')) {
-        setAuthMode('recovery');
+        setModalView('recovery');
       }
     }
 
@@ -44,91 +112,189 @@ export default function AuthPage() {
     };
   }, []);
 
+  // If already authenticated and not in password recovery, redirect to home
   useEffect(() => {
-    if (!loading && user && authMode !== 'recovery') {
+    if (!loading && user && modalView !== 'recovery') {
       router.replace('/');
     }
-  }, [user, loading, authMode, router]);
+  }, [user, loading, modalView, router]);
 
-  // Permanently lock document and body scrolling while on the Auth screen
-  useEffect(() => {
-    const origHtmlOverflow = document.documentElement.style.overflow;
-    const origHtmlOverscroll = document.documentElement.style.overscrollBehavior;
-    const origBodyOverflow = document.body.style.overflow;
-    const origBodyOverscroll = document.body.style.overscrollBehavior;
-    const origBodyTouchAction = document.body.style.touchAction;
+  // Inline validation helpers
+  const getIdentifierError = useCallback(() => {
+    if (!identifierTouched) return null;
+    const val = identifier.trim();
+    if (!val) return 'Please enter your username or email address.';
+    if (tabMode === 'signup' && !val.includes('@') && val.length < 3) {
+      return 'Username must be at least 3 characters.';
+    }
+    return null;
+  }, [identifier, identifierTouched, tabMode]);
 
-    document.documentElement.style.overflow = 'hidden';
-    document.documentElement.style.overscrollBehavior = 'none';
-    document.documentElement.style.height = '100dvh';
+  const getPasswordError = useCallback(() => {
+    if (!passwordTouched) return null;
+    if (!password) return 'Please enter your password.';
+    if (password.length < 6) return 'Password must be at least 6 characters.';
+    return null;
+  }, [password, passwordTouched]);
 
-    document.body.style.overflow = 'hidden';
-    document.body.style.overscrollBehavior = 'none';
-    document.body.style.height = '100dvh';
-    document.body.style.touchAction = 'none';
+  const getForgotEmailError = useCallback(() => {
+    if (!forgotEmailTouched) return null;
+    const val = forgotEmail.trim();
+    if (!val) return 'Please enter your registered email address.';
+    if (!val.includes('@') || !val.includes('.')) {
+      return 'Please enter a valid email format (e.g. name@domain.com).';
+    }
+    return null;
+  }, [forgotEmail, forgotEmailTouched]);
 
-    return () => {
-      document.documentElement.style.overflow = origHtmlOverflow;
-      document.documentElement.style.overscrollBehavior = origHtmlOverscroll;
-      document.documentElement.style.height = '';
-
-      document.body.style.overflow = origBodyOverflow;
-      document.body.style.overscrollBehavior = origBodyOverscroll;
-      document.body.style.height = '';
-      document.body.style.touchAction = origBodyTouchAction;
-    };
-  }, []);
-
-  if (loading || (user && authMode !== 'recovery')) return null;
-
+  // Guest Mode handler
   const handleGuestClick = () => {
     enableGuestMode();
     router.push('/');
   };
 
+  // Google OAuth login
   const handleGoogleLogin = async () => {
-    setError(null);
+    setGeneralError(null);
     setSuccessMessage(null);
     setIsSubmitting(true);
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
+      let isNative = false;
+      try {
+        const { Capacitor } = await import('@capacitor/core');
+        isNative = Capacitor.isNativePlatform();
+      } catch {}
+
+      const redirectUrl = isNative
+        ? 'com.chordly.app://auth'
+        : (typeof window !== 'undefined' ? `${window.location.origin}/` : undefined);
+
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: typeof window !== 'undefined' ? `${window.location.origin}/` : undefined,
+          redirectTo: redirectUrl,
+          skipBrowserRedirect: isNative,
         },
       });
+
       if (error) throw error;
+
+      if (isNative && data?.url) {
+        window.open(data.url, '_system');
+      }
     } catch (err: any) {
-      setError(err.message || 'Google sign-in failed');
+      setGeneralError(err.message || 'Google sign-in failed. Please try again.');
       setIsSubmitting(false);
     }
   };
 
+  // Apple OAuth login (iOS / macOS App Store compliance)
+  const handleAppleLogin = async () => {
+    setGeneralError(null);
+    setSuccessMessage(null);
+    setIsSubmitting(true);
+    try {
+      let isNative = false;
+      try {
+        const { Capacitor } = await import('@capacitor/core');
+        isNative = Capacitor.isNativePlatform();
+      } catch {}
+
+      const redirectUrl = isNative
+        ? 'com.chordly.app://auth'
+        : (typeof window !== 'undefined' ? `${window.location.origin}/` : undefined);
+
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'apple',
+        options: {
+          redirectTo: redirectUrl,
+          skipBrowserRedirect: isNative,
+        },
+      });
+
+      if (error) throw error;
+
+      if (isNative && data?.url) {
+        window.open(data.url, '_system');
+      }
+    } catch (err: any) {
+      setGeneralError(err.message || 'Apple sign-in failed. Please try again.');
+      setIsSubmitting(false);
+    }
+  };
+
+  // Main Form Submit (Sign In or Create Account)
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
+    if (lockoutTimer > 0) return;
+
+    setIdentifierTouched(true);
+    setPasswordTouched(true);
+    setGeneralError(null);
     setSuccessMessage(null);
+
+    const cleanIdentifier = identifier.trim();
+    if (!cleanIdentifier || !password || password.length < 6) {
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
-      if (authMode === 'signup') {
-        // --- SIGN UP FLOW ---
-        const cleanUsername = username.trim().toLowerCase();
-        const cleanEmail = email.trim().toLowerCase();
+      if (tabMode === 'signin') {
+        // --- SIGN IN FLOW ---
+        let targetEmail = cleanIdentifier.toLowerCase();
 
-        if (!cleanUsername) {
-          setError('Please choose a username.');
-          setIsSubmitting(false);
-          return;
+        // Resolve username to email if no '@' present
+        if (!cleanIdentifier.includes('@')) {
+          const cachedEmail = typeof window !== 'undefined' ? localStorage.getItem(`cc_user_${targetEmail}`) : null;
+          if (cachedEmail) {
+            targetEmail = cachedEmail;
+          } else {
+            try {
+              const { data: profileData } = await supabase
+                .from('profiles')
+                .select('id')
+                .eq('username', targetEmail)
+                .maybeSingle();
+
+              targetEmail = `${targetEmail}@chordcraft.app`;
+            } catch {
+              targetEmail = `${targetEmail}@chordcraft.app`;
+            }
+          }
         }
 
-        if (!cleanEmail || !cleanEmail.includes('@')) {
-          setError('Please enter a valid email address for verification.');
-          setIsSubmitting(false);
-          return;
+        const { error } = await supabase.auth.signInWithPassword({
+          email: targetEmail,
+          password,
+        });
+
+        if (error) {
+          // Increment failed attempts
+          const nextFailed = failedAttempts + 1;
+          setFailedAttempts(nextFailed);
+          if (nextFailed >= 5) {
+            setLockoutTimer(60);
+            throw new Error('Too many failed attempts. For security, please wait 60 seconds.');
+          }
+          // Generic security error so accounts cannot be probed
+          throw new Error('Incorrect username or password. Please try again.');
         }
 
-        // Store local username to email mapping for fast username login
+        // Reset failed attempts on success
+        setFailedAttempts(0);
+        router.push('/');
+      } else {
+        // --- CREATE ACCOUNT FLOW ---
+        const isEmailInput = cleanIdentifier.includes('@');
+        const cleanEmail = isEmailInput 
+          ? cleanIdentifier.toLowerCase() 
+          : `${cleanIdentifier.toLowerCase()}@chordcraft.app`;
+        const cleanUsername = isEmailInput 
+          ? cleanIdentifier.split('@')[0].toLowerCase() 
+          : cleanIdentifier.toLowerCase();
+
         if (typeof window !== 'undefined') {
           localStorage.setItem(`cc_user_${cleanUsername}`, cleanEmail);
         }
@@ -139,13 +305,12 @@ export default function AuthPage() {
           options: {
             data: {
               username: cleanUsername,
-            }
-          }
+            },
+          },
         });
 
         if (error) throw error;
 
-        // Ensure a profile record exists for username lookup
         if (data?.user) {
           try {
             await supabase.from('profiles').upsert({
@@ -159,385 +324,636 @@ export default function AuthPage() {
           }
         }
 
-        setSuccessMessage(`Account created! A verification link has been sent to ${cleanEmail}. Please check your email to verify.`);
-      } else if (authMode === 'signin') {
-        // --- SIGN IN FLOW ---
-        const cleanIdentifier = identifier.trim().toLowerCase();
-        if (!cleanIdentifier) {
-          setError('Please enter your username or email address.');
-          setIsSubmitting(false);
-          return;
-        }
-
-        let targetEmail = cleanIdentifier;
-
-        // If the user typed a username (no @ symbol)
-        if (!cleanIdentifier.includes('@')) {
-          const cachedEmail = typeof window !== 'undefined' ? localStorage.getItem(`cc_user_${cleanIdentifier}`) : null;
-          if (cachedEmail) {
-            targetEmail = cachedEmail;
-          } else {
-            // Check public.profiles in Supabase to resolve across devices
-            try {
-              const { data: profileData } = await supabase
-                .from('profiles')
-                .select('id')
-                .eq('username', cleanIdentifier)
-                .maybeSingle();
-
-              // Fallback to chordcraft standard synthetic address if not direct email
-              targetEmail = `${cleanIdentifier}@chordcraft.app`;
-            } catch {
-              targetEmail = `${cleanIdentifier}@chordcraft.app`;
-            }
-          }
-        }
-
-        const { error } = await supabase.auth.signInWithPassword({
-          email: targetEmail,
-          password
-        });
-
-        if (error) throw error;
-        router.push('/');
-      } else if (authMode === 'forgot') {
-        // --- FORGOT PASSWORD FLOW ---
-        const cleanEmail = email.trim().toLowerCase();
-        if (!cleanEmail || !cleanEmail.includes('@')) {
-          setError('Please enter your valid registered email address.');
-          setIsSubmitting(false);
-          return;
-        }
-
-        const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
-          redirectTo: typeof window !== 'undefined' ? `${window.location.origin}/auth?mode=update-password` : undefined,
-        });
-
-        if (error) throw error;
-        setSuccessMessage(`Password recovery link sent to ${cleanEmail}. Please check your email inbox!`);
-      } else if (authMode === 'recovery') {
-        // --- UPDATE PASSWORD FLOW ---
-        if (!password || password.length < 6) {
-          setError('New password must be at least 6 characters.');
-          setIsSubmitting(false);
-          return;
-        }
-
-        const { error } = await supabase.auth.updateUser({
-          password,
-        });
-
-        if (error) throw error;
-        setSuccessMessage('Password successfully updated! Redirecting to home...');
-        setTimeout(() => {
+        if (data?.session) {
           router.push('/');
-        }, 1200);
+        } else {
+          setSuccessMessage(
+            isEmailInput
+              ? `Account created! If verification is required, please check ${cleanEmail}.`
+              : 'Account created! You can now sign in with your credentials.'
+          );
+          setTabMode('signin');
+        }
       }
     } catch (err: any) {
-      setError(err.message || 'An error occurred during authentication.');
+      setGeneralError(err.message || 'Authentication failed. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  // Forgot Password Submit
+  const handleForgotSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setForgotEmailTouched(true);
+    setGeneralError(null);
+    setSuccessMessage(null);
+
+    const cleanEmail = forgotEmail.trim().toLowerCase();
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
+        redirectTo: typeof window !== 'undefined' ? `${window.location.origin}/auth?mode=update-password` : undefined,
+      });
+
+      if (error) throw error;
+      setSuccessMessage(`Password recovery link sent to ${cleanEmail}. Please check your inbox.`);
+      setForgotEmail('');
+      setForgotEmailTouched(false);
+    } catch (err: any) {
+      setGeneralError(err.message || 'Unable to send recovery email. Please check the address.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Password Recovery Submit
+  const handleRecoverySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setGeneralError(null);
+    setSuccessMessage(null);
+
+    if (!newPassword || newPassword.length < 6) {
+      setGeneralError('New password must be at least 6 characters.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+
+      if (error) throw error;
+      setSuccessMessage('Password successfully updated! Redirecting to your library...');
+      setTimeout(() => {
+        router.push('/');
+      }, 1200);
+    } catch (err: any) {
+      setGeneralError(err.message || 'Failed to update password. Please request a new recovery link.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (loading || (user && modalView !== 'recovery')) return null;
+
+  const identifierError = getIdentifierError();
+  const passwordError = getPasswordError();
+  const forgotError = getForgotEmailError();
 
   return (
-    <div 
-      className="fixed inset-0 h-[100dvh] max-h-[100dvh] w-full overflow-hidden flex flex-col items-center justify-center px-4 pt-[max(env(safe-area-inset-top),8px)] pb-[calc(5rem+env(safe-area-inset-bottom,0px))] overscroll-none select-none z-30"
-      style={{ touchAction: 'none' }}
+    <main 
+      className="relative min-h-[100dvh] w-full flex flex-col items-center justify-center bg-[#0F1015] text-[#FFFFFF] px-4 sm:px-6 pt-[max(env(safe-area-inset-top),20px)] pb-[max(env(safe-area-inset-bottom),28px)] font-sans select-none overflow-y-auto"
+      style={{
+        backgroundImage: 'radial-gradient(circle at 12% 8%, rgba(255, 90, 0, 0.22) 0%, rgba(43, 23, 16, 0.48) 32%, transparent 65%)'
+      }}
     >
-      <div 
-        className="w-full max-w-sm rounded-3xl bg-white/75 dark:bg-[#18181d]/80 backdrop-blur-2xl saturate-[180%] p-5 sm:p-7 shadow-[0_8px_32px_rgba(31,38,135,0.12),inset_0_1px_0_rgba(255,255,255,0.8)] border border-white/60 dark:border-white/15 text-text-primary dark:text-white max-h-[calc(100dvh-5.5rem)] overflow-y-auto overscroll-contain select-auto"
-        style={{ touchAction: 'pan-y' }}
-      >
-        <div className="flex justify-center mb-2.5 sm:mb-3">
-          <div className="p-0.5 rounded-2xl shadow-popover overflow-hidden flex items-center justify-center">
-            <img src="/icon.png" alt="Chordly Logo" className="w-12 h-12 sm:w-14 sm:h-14 object-cover rounded-xl shadow-md" />
-          </div>
-        </div>
+      {/* Centered Main Card */}
+      <div className="w-full max-w-[440px] my-auto rounded-[32px] bg-[#17171C] border border-[#2C2C34] p-6 sm:p-8 shadow-[0_24px_64px_rgba(0,0,0,0.65),0_1px_0_rgba(255,255,255,0.05)_inset] select-auto transition-all">
         
-        <h2 className="mb-0.5 text-center text-xl sm:text-2xl font-bold text-text-primary dark:text-white tracking-tight">
-          {authMode === 'signup'
-            ? 'Create an Account'
-            : authMode === 'forgot'
-            ? 'Reset Password'
-            : authMode === 'recovery'
-            ? 'Set New Password'
-            : (
-              <span>
-                Welcome to chord<span className="text-chordly-orange font-black">ly</span>
-              </span>
-            )}
-        </h2>
-        <p className="mb-2.5 sm:mb-3 text-center text-[11px] sm:text-xs text-text-secondary dark:text-gray-400">
-          {authMode === 'signup'
-            ? 'Choose your username, email, and password to get started'
-            : authMode === 'forgot'
-            ? 'Enter your email and we will send a password recovery link'
-            : authMode === 'recovery'
-            ? 'Enter your new password below'
-            : 'Sign in using your username or email'}
-        </p>
+        {/* 1. App Logo, Title, Subtitle */}
+        <div className="flex flex-col items-center text-center mb-6">
+          <div className="w-14 h-14 rounded-2xl bg-[#231816] border border-[#3E2319] flex items-center justify-center shadow-lg shadow-[#FF5A00]/10 mb-4 transition-transform hover:scale-105">
+            <img 
+              src="/icon.png" 
+              alt="Chordly Logo" 
+              className="w-9 h-9 object-contain"
+            />
+          </div>
+          <h1 className="text-2xl sm:text-[28px] font-extrabold text-white tracking-tight mb-1">
+            {tabMode === 'signin' ? 'Welcome back' : 'Create Account'}
+          </h1>
+          <p className="text-sm text-[#8C8A93]">
+            {tabMode === 'signin' 
+              ? 'Sign in to continue to your charts' 
+              : 'Create an account to sync your charts across devices'}
+          </p>
+        </div>
 
-        {/* Auth Mode Tabs (only shown for signin/signup) */}
-        {(authMode === 'signin' || authMode === 'signup') && (
-          <>
-            {/* Google One-Click Login */}
-            <div className="mb-2 sm:mb-2.5">
-              <button
-                type="button"
-                onClick={handleGoogleLogin}
-                disabled={isSubmitting}
-                className="w-full py-2 sm:py-2.5 px-4 bg-white dark:bg-white/10 hover:bg-gray-50 dark:hover:bg-white/15 text-slate-800 dark:text-white rounded-xl text-xs font-bold shadow-sm border border-black/10 dark:border-white/15 transition-all flex items-center justify-center gap-2.5 cursor-pointer active:scale-95 disabled:opacity-50"
-              >
-                <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
-                  <path
-                    fill="#4285F4"
-                    d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17Z"
-                  />
-                  <path
-                    fill="#34A853"
-                    d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24Z"
-                  />
-                  <path
-                    fill="#FBBC05"
-                    d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.14-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.99 0 12s.45 3.82 1.25 5.42l4.03-3.15Z"
-                  />
-                  <path
-                    fill="#EA4335"
-                    d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98Z"
-                  />
-                </svg>
-                <span>Continue with Google</span>
-              </button>
+        {/* 2. Segmented Toggle: Sign In | Create Account */}
+        <div 
+          role="tablist" 
+          aria-label="Account sign in or creation"
+          className="w-full h-[50px] bg-[#121216] border border-[#2C2C34] rounded-full p-1 flex items-center mb-6 relative"
+        >
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tabMode === 'signin'}
+            onClick={() => {
+              setTabMode('signin');
+              setGeneralError(null);
+              setSuccessMessage(null);
+            }}
+            className={`flex-1 h-full rounded-full text-sm font-bold transition-all cursor-pointer flex items-center justify-center focus-visible:ring-2 focus-visible:ring-[#FF5A00] focus-visible:outline-none ${
+              tabMode === 'signin'
+                ? 'bg-gradient-to-r from-[#FF5A00] to-[#FF5C7A] text-white shadow-[0_2px_10px_rgba(255,90,0,0.35)]'
+                : 'text-[#8C8A93] hover:text-white'
+            }`}
+          >
+            Sign In
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tabMode === 'signup'}
+            onClick={() => {
+              setTabMode('signup');
+              setGeneralError(null);
+              setSuccessMessage(null);
+            }}
+            className={`flex-1 h-full rounded-full text-sm font-bold transition-all cursor-pointer flex items-center justify-center focus-visible:ring-2 focus-visible:ring-[#FF5A00] focus-visible:outline-none ${
+              tabMode === 'signup'
+                ? 'bg-gradient-to-r from-[#FF5A00] to-[#FF5C7A] text-white shadow-[0_2px_10px_rgba(255,90,0,0.35)]'
+                : 'text-[#8C8A93] hover:text-white'
+            }`}
+          >
+            Create Account
+          </button>
+        </div>
 
-              <div className="w-full flex items-center my-2 sm:my-2.5">
-                <div className="flex-1 border-t border-black/10 dark:border-white/10" />
-                <span className="px-2 text-[9px] sm:text-[10px] text-text-secondary dark:text-gray-400 uppercase tracking-widest font-semibold">Or with password</span>
-                <div className="flex-1 border-t border-black/10 dark:border-white/10" />
-              </div>
-            </div>
-
-            <div className="flex bg-black/5 dark:bg-white/10 p-0.5 sm:p-1 rounded-xl mb-2.5 sm:mb-3 border border-white/60 dark:border-white/10">
-              <button
-                type="button"
-                onClick={() => { setAuthMode('signin'); setError(null); setSuccessMessage(null); }}
-                className={`flex-1 py-1.5 sm:py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                  authMode === 'signin' ? 'bg-orange-500 text-white shadow-sm' : 'text-text-secondary dark:text-gray-400 hover:text-text-primary dark:hover:text-white'
-                }`}
-              >
-                Sign In
-              </button>
-              <button
-                type="button"
-                onClick={() => { setAuthMode('signup'); setError(null); setSuccessMessage(null); }}
-                className={`flex-1 py-1.5 sm:py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                  authMode === 'signup' ? 'bg-orange-500 text-white shadow-sm' : 'text-text-secondary dark:text-gray-400 hover:text-text-primary dark:hover:text-white'
-                }`}
-              >
-                Create Account
-              </button>
-            </div>
-          </>
+        {/* Global Notifications */}
+        {generalError && (
+          <div 
+            role="alert" 
+            aria-live="polite"
+            className="mb-5 p-3 rounded-2xl bg-[#FF5C7A]/10 border border-[#FF5C7A]/25 text-[#FF5C7A] text-xs font-medium flex items-start gap-2.5"
+          >
+            <AlertCircle size={16} className="mt-0.5 shrink-0" />
+            <span>{generalError}</span>
+          </div>
         )}
 
-        <form onSubmit={handleAuth} className="space-y-2 sm:space-y-2.5">
-          {authMode === 'signup' && (
-            <>
-              {/* Username Input for Signup */}
-              <div>
-                <label className="block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-gray-300 mb-0.5">
-                  Username
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-gray-500">
-                    <User size={15} />
-                  </div>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. donythomas"
-                    className="block w-full pl-8 pr-3 py-2 sm:py-2.5 rounded-xl border border-gray-700 bg-gray-800 text-white placeholder-gray-500 shadow-sm focus:border-accent-solid focus:outline-none text-xs sm:text-sm transition-all"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                  />
-                </div>
-              </div>
+        {successMessage && (
+          <div 
+            role="status" 
+            aria-live="polite"
+            className="mb-5 p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 text-xs font-medium flex items-start gap-2.5"
+          >
+            <CheckCircle2 size={16} className="mt-0.5 shrink-0" />
+            <span>{successMessage}</span>
+          </div>
+        )}
 
-              {/* Real Email Input for Signup */}
-              <div>
-                <label className="block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-gray-300 mb-0.5">
-                  Email Address (For Verification)
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-gray-500">
-                    <Mail size={15} />
-                  </div>
-                  <input
-                    type="email"
-                    required
-                    placeholder="e.g. name@example.com"
-                    className="block w-full pl-8 pr-3 py-2 sm:py-2.5 rounded-xl border border-gray-700 bg-gray-800 text-white placeholder-gray-500 shadow-sm focus:border-accent-solid focus:outline-none text-xs sm:text-sm transition-all"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                  />
-                </div>
-              </div>
-            </>
-          )}
-
-          {authMode === 'signin' && (
-            <div>
-              <label className="block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-gray-300 mb-0.5">
-                Username or Email
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-gray-500">
-                  <User size={15} />
-                </div>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. donythomas or email@gmail.com"
-                  className="block w-full pl-8 pr-3 py-2 sm:py-2.5 rounded-xl border border-gray-700 bg-gray-800 text-white placeholder-gray-500 shadow-sm focus:border-accent-solid focus:outline-none text-xs sm:text-sm transition-all"
-                  value={identifier}
-                  onChange={(e) => setIdentifier(e.target.value)}
-                />
-              </div>
+        {/* Auth Form */}
+        <form ref={formRef} onSubmit={handleAuth} noValidate className="space-y-4">
+          
+          {/* 3. Field: Username or email */}
+          <div>
+            <label 
+              htmlFor="auth-identifier" 
+              className="block text-[11px] font-bold tracking-wider text-[#8C8A93] uppercase mb-2"
+            >
+              Username or email
+            </label>
+            <div 
+              className={`relative flex items-center bg-[#121216] border rounded-2xl h-[52px] px-3.5 transition-all ${
+                identifierError 
+                  ? 'border-[#FF5C7A] ring-1 ring-[#FF5C7A]/30' 
+                  : 'border-[#33333C] focus-within:border-[#FF5A00] focus-within:ring-2 focus-within:ring-[#FF5A00]/25'
+              }`}
+            >
+              <User size={18} className="text-[#8C8A93] shrink-0" aria-hidden="true" />
+              <input
+                id="auth-identifier"
+                name="username"
+                type="text"
+                required
+                inputMode="email"
+                autoComplete="username"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+                placeholder="e.g. donythomas or email@gmail.com"
+                value={identifier}
+                onChange={(e) => setIdentifier(e.target.value)}
+                onBlur={() => setIdentifierTouched(true)}
+                className="w-full bg-transparent text-white placeholder-[#5E5C64] text-sm pl-2.5 pr-2 focus:outline-none"
+              />
             </div>
-          )}
+            {identifierError && (
+              <p className="text-xs text-[#FF5C7A] mt-1.5 flex items-center gap-1.5" role="alert">
+                <AlertCircle size={13} className="shrink-0" />
+                <span>{identifierError}</span>
+              </p>
+            )}
+          </div>
 
-          {authMode === 'forgot' && (
-            <div>
-              <label className="block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-gray-300 mb-0.5">
-                Registered Email Address
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-gray-500">
-                  <Mail size={15} />
-                </div>
-                <input
-                  type="email"
-                  required
-                  placeholder="e.g. name@example.com"
-                  className="block w-full pl-8 pr-3 py-2 sm:py-2.5 rounded-xl border border-gray-700 bg-gray-800 text-white placeholder-gray-500 shadow-sm focus:border-accent-solid focus:outline-none text-xs sm:text-sm transition-all"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
-              </div>
+          {/* 4. Field: Password with show/hide eye icon */}
+          <div>
+            <label 
+              htmlFor="auth-password" 
+              className="block text-[11px] font-bold tracking-wider text-[#8C8A93] uppercase mb-2"
+            >
+              Password
+            </label>
+            <div 
+              className={`relative flex items-center bg-[#121216] border rounded-2xl h-[52px] px-3.5 transition-all ${
+                passwordError 
+                  ? 'border-[#FF5C7A] ring-1 ring-[#FF5C7A]/30' 
+                  : 'border-[#33333C] focus-within:border-[#FF5A00] focus-within:ring-2 focus-within:ring-[#FF5A00]/25'
+              }`}
+            >
+              <Lock size={18} className="text-[#8C8A93] shrink-0" aria-hidden="true" />
+              <input
+                id="auth-password"
+                name="password"
+                type={showPassword ? 'text' : 'password'}
+                required
+                autoComplete={tabMode === 'signup' ? 'new-password' : 'current-password'}
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                onBlur={() => setPasswordTouched(true)}
+                className="w-full bg-transparent text-white placeholder-[#5E5C64] text-sm pl-2.5 pr-10 focus:outline-none"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                aria-pressed={showPassword}
+                className="absolute right-2 p-2 text-[#8C8A93] hover:text-white transition-colors cursor-pointer rounded-lg min-w-[40px] min-h-[40px] flex items-center justify-center focus-visible:ring-2 focus-visible:ring-[#FF5A00] focus-visible:outline-none"
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
             </div>
-          )}
+            {passwordError && (
+              <p className="text-xs text-[#FF5C7A] mt-1.5 flex items-center gap-1.5" role="alert">
+                <AlertCircle size={13} className="shrink-0" />
+                <span>{passwordError}</span>
+              </p>
+            )}
 
-          {(authMode === 'signin' || authMode === 'signup' || authMode === 'recovery') && (
-            <div>
-              <div className="flex items-center justify-between mb-0.5">
-                <label className="block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-gray-300">
-                  {authMode === 'recovery' ? 'New Password' : 'Password'}
-                </label>
-                {authMode === 'signin' && (
-                  <button
-                    type="button"
-                    onClick={() => { setAuthMode('forgot'); setError(null); setSuccessMessage(null); }}
-                    className="text-[10px] sm:text-[11px] font-semibold text-orange-400 hover:text-orange-300 transition-colors cursor-pointer"
-                  >
-                    Forgot password?
-                  </button>
-                )}
-              </div>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-gray-500">
-                  <Lock size={15} />
-                </div>
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  required
-                  placeholder="••••••••"
-                  className="block w-full pl-8 pr-9 py-2 sm:py-2.5 rounded-xl border border-gray-700 bg-gray-800 text-white placeholder-gray-500 shadow-sm focus:border-accent-solid focus:outline-none text-xs sm:text-sm transition-all"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
+            {/* 5. "Forgot password?" right-aligned directly under password */}
+            {tabMode === 'signin' && (
+              <div className="flex justify-end mt-2">
                 <button
                   type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-gray-400 hover:text-white transition-colors"
-                  title={showPassword ? 'Hide password' : 'Show password'}
+                  onClick={() => {
+                    setModalView('forgot');
+                    setGeneralError(null);
+                    setSuccessMessage(null);
+                  }}
+                  className="text-xs sm:text-sm font-semibold text-[#FF6A1F] hover:text-[#ff7f3d] transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-[#FF5A00] focus-visible:outline-none rounded"
                 >
-                  {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                  Forgot password?
                 </button>
               </div>
-            </div>
-          )}
+            )}
+          </div>
 
-          {error && (
-            <div className="p-2 sm:p-2.5 bg-red-500/10 border border-red-500/20 rounded-xl text-xs text-red-400 font-medium">
-              {error}
-            </div>
-          )}
-
-          {successMessage && (
-            <div className="p-2 sm:p-2.5 bg-green-500/10 border border-green-500/20 rounded-xl text-xs text-green-400 font-medium flex items-start space-x-2">
-              <CheckCircle2 size={15} className="mt-0.5 shrink-0" />
-              <span>{successMessage}</span>
-            </div>
-          )}
-
+          {/* 6. Primary Button: Sign In / Create Account */}
           <button
             type="submit"
-            disabled={isSubmitting}
-            className="w-full py-2.5 px-4 rounded-xl bg-accent-gradient font-bold text-xs sm:text-sm text-white shadow-md hover:brightness-110 focus:outline-none transition-all disabled:opacity-50 cursor-pointer active:scale-95"
+            disabled={isSubmitting || lockoutTimer > 0}
+            className="w-full h-[52px] rounded-full bg-gradient-to-r from-[#FF5A00] to-[#FF5C7A] text-white font-bold text-base shadow-[0_8px_24px_rgba(255,90,0,0.35)] hover:shadow-[0_10px_28px_rgba(255,90,0,0.45)] hover:brightness-105 active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed disabled:active:scale-100 focus-visible:ring-2 focus-visible:ring-[#FF5A00] focus-visible:outline-none mt-2"
           >
-            {isSubmitting
-              ? 'Processing...'
-              : authMode === 'signup'
-              ? 'Sign Up'
-              : authMode === 'forgot'
-              ? 'Send Recovery Link'
-              : authMode === 'recovery'
-              ? 'Update Password & Sign In'
-              : 'Sign In'}
+            {isSubmitting ? (
+              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            ) : lockoutTimer > 0 ? (
+              `Locked (${lockoutTimer}s)`
+            ) : tabMode === 'signin' ? (
+              'Sign In'
+            ) : (
+              'Create Account'
+            )}
           </button>
-
-          {authMode === 'forgot' && (
-            <button
-              type="button"
-              onClick={() => { setAuthMode('signin'); setError(null); setSuccessMessage(null); }}
-              className="w-full py-1.5 text-xs font-semibold text-text-secondary dark:text-gray-400 hover:text-white transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
-            >
-              <ArrowLeft size={13} /> Back to Sign In
-            </button>
-          )}
         </form>
 
-        {(authMode === 'signin' || authMode === 'signup') && (
-          <div className="mt-2.5 sm:mt-3 flex flex-col items-center space-y-1.5 sm:space-y-2">
+        {/* 7. Divider: OR CONTINUE WITH */}
+        <div className="my-6 flex items-center gap-3">
+          <div className="flex-1 h-px bg-[#2C2C34]" />
+          <span className="text-[10px] font-bold tracking-widest text-[#8C8A93] uppercase whitespace-nowrap">
+            OR CONTINUE WITH
+          </span>
+          <div className="flex-1 h-px bg-[#2C2C34]" />
+        </div>
+
+        {/* 8. Continue with Google */}
+        <div className="space-y-2.5">
+          <button
+            type="button"
+            onClick={handleGoogleLogin}
+            disabled={isSubmitting}
+            className="w-full h-[52px] rounded-full bg-[#1C1C22] hover:bg-[#23232A] border border-[#33333C] hover:border-[#444450] text-white font-semibold text-sm transition-all cursor-pointer flex items-center justify-center gap-3 active:scale-[0.98] disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-[#FF5A00] focus-visible:outline-none"
+          >
+            <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                fill="#4285F4"
+                d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17Z"
+              />
+              <path
+                fill="#34A853"
+                d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24Z"
+              />
+              <path
+                fill="#FBBC05"
+                d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.14-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.99 0 12s.45 3.82 1.25 5.42l4.03-3.15Z"
+              />
+              <path
+                fill="#EA4335"
+                d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98Z"
+              />
+            </svg>
+            <span>Continue with Google</span>
+          </button>
+
+          {/* Continue with Apple (Included for iOS / Safari / App Store compliance) */}
+          {isApplePlatform && (
             <button
               type="button"
-              onClick={() => { 
-                setAuthMode(authMode === 'signup' ? 'signin' : 'signup'); 
-                setError(null); 
-                setSuccessMessage(null); 
-              }}
-              className="text-[11px] sm:text-xs font-bold text-accent-start hover:underline transition-all cursor-pointer"
+              onClick={handleAppleLogin}
+              disabled={isSubmitting}
+              className="w-full h-[52px] rounded-full bg-[#000000] hover:bg-[#111111] border border-[#33333C] hover:border-[#444450] text-white font-semibold text-sm transition-all cursor-pointer flex items-center justify-center gap-2.5 active:scale-[0.98] disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-[#FF5A00] focus-visible:outline-none"
             >
-              {authMode === 'signup' ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
+              <svg className="w-4 h-4 fill-current shrink-0" viewBox="0 0 170 170" aria-hidden="true">
+                <path d="M150.37 130.25c-2.45 5.66-5.35 10.87-8.71 15.66-4.58 6.53-8.33 11.05-11.22 13.56-4.48 4.12-9.28 6.23-14.42 6.35-3.69 0-8.14-1.05-13.32-3.18-5.19-2.12-9.97-3.17-14.34-3.17-4.58 0-9.49 1.05-14.75 3.17-5.26 2.13-9.5 3.24-12.74 3.35-4.35.13-9.16-1.9-14.42-6.08-3.7-3.04-7.58-7.7-11.64-13.98-5.74-8.8-10.36-18.73-13.88-29.77-3.52-11.04-5.28-21.73-5.28-32.06 0-14.34 3.75-26.39 11.24-36.16 7.49-9.77 17.07-14.75 28.74-14.95 4.36 0 9.27 1.13 14.75 3.39 5.48 2.26 9.17 3.45 11.07 3.59 2.24-.26 6.17-1.55 11.79-3.86 5.62-2.31 10.6-3.32 14.95-3.04 12.02.58 21.6 4.75 28.74 12.5-10.45 6.32-15.54 15.13-15.27 26.43.27 8.92 3.65 16.38 10.15 22.37 6.5 5.99 14.28 9.38 23.34 10.17-2.1 6.53-4.8 13.06-8.1 19.59zM119.22 31.84c0-7.39 2.68-14.22 8.04-20.48 5.36-6.26 11.96-10.27 19.8-12.04.53 1.05.8 2.18.8 3.39 0 7.39-2.73 14.27-8.19 20.64-5.46 6.37-12.23 10.32-20.31 11.85-.09-1.12-.14-2.24-.14-3.36z" />
+              </svg>
+              <span>Continue with Apple</span>
             </button>
+          )}
+        </div>
+
+        {/* 9. Continue offline (Guest mode) */}
+        <button
+          type="button"
+          onClick={handleGuestClick}
+          className="w-full mt-5 py-2 flex flex-col items-center justify-center text-center cursor-pointer group rounded-xl hover:bg-white/[0.03] transition-colors focus-visible:ring-2 focus-visible:ring-[#FF5A00] focus-visible:outline-none"
+        >
+          <div className="flex items-center justify-center gap-1.5 text-sm font-semibold text-white group-hover:text-[#FF6A1F] transition-colors">
+            <Zap size={16} className="text-[#FF6A1F] fill-[#FF6A1F]" />
+            <span>Continue offline (Guest mode)</span>
+          </div>
+          <span className="text-xs text-[#8C8A93] mt-1">
+            Charts stay on this device. Sign in anytime to sync.
+          </span>
+        </button>
+      </div>
+
+      {/* 10. Footer: Terms & Privacy Policy */}
+      <footer className="mt-6 text-center text-xs text-[#8C8A93] max-w-[440px] px-4">
+        <span>By continuing you agree to our </span>
+        <button
+          type="button"
+          onClick={() => setModalView('terms')}
+          className="text-[#8C8A93] hover:text-[#FF6A1F] underline underline-offset-2 transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-[#FF5A00] focus-visible:outline-none rounded"
+        >
+          Terms
+        </button>
+        <span> and </span>
+        <button
+          type="button"
+          onClick={() => setModalView('privacy')}
+          className="text-[#8C8A93] hover:text-[#FF6A1F] underline underline-offset-2 transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-[#FF5A00] focus-visible:outline-none rounded"
+        >
+          Privacy Policy
+        </button>
+      </footer>
+
+      {/* --- FORGOT PASSWORD MODAL --- */}
+      {modalView === 'forgot' && (
+        <div 
+          role="dialog" 
+          aria-modal="true" 
+          aria-labelledby="forgot-title"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-in fade-in duration-200"
+          onClick={() => setModalView('none')}
+        >
+          <div 
+            className="w-full max-w-sm rounded-[28px] bg-[#17171C] border border-[#2C2C34] p-6 sm:p-7 shadow-2xl relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setModalView('none')}
+              aria-label="Close dialog"
+              className="absolute top-4 right-4 p-2 text-[#8C8A93] hover:text-white rounded-full hover:bg-white/10 transition-colors"
+            >
+              <X size={18} />
+            </button>
+
+            <h2 id="forgot-title" className="text-xl font-bold text-white mb-1.5 tracking-tight">
+              Reset Password
+            </h2>
+            <p className="text-xs text-[#8C8A93] mb-5">
+              Enter your registered email address and we will send you a password recovery link.
+            </p>
+
+            <form onSubmit={handleForgotSubmit} className="space-y-4">
+              <div>
+                <label 
+                  htmlFor="forgot-email" 
+                  className="block text-[11px] font-bold tracking-wider text-[#8C8A93] uppercase mb-2"
+                >
+                  Email Address
+                </label>
+                <div 
+                  className={`relative flex items-center bg-[#121216] border rounded-2xl h-[52px] px-3.5 transition-all ${
+                    forgotError 
+                      ? 'border-[#FF5C7A]' 
+                      : 'border-[#33333C] focus-within:border-[#FF5A00]'
+                  }`}
+                >
+                  <input
+                    id="forgot-email"
+                    type="email"
+                    required
+                    placeholder="name@example.com"
+                    value={forgotEmail}
+                    onChange={(e) => setForgotEmail(e.target.value)}
+                    onBlur={() => setForgotEmailTouched(true)}
+                    className="w-full bg-transparent text-white placeholder-[#5E5C64] text-sm focus:outline-none"
+                  />
+                </div>
+                {forgotError && (
+                  <p className="text-xs text-[#FF5C7A] mt-1.5 flex items-center gap-1.5">
+                    <AlertCircle size={13} />
+                    <span>{forgotError}</span>
+                  </p>
+                )}
+              </div>
+
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full h-[50px] rounded-full bg-gradient-to-r from-[#FF5A00] to-[#FF5C7A] text-white font-bold text-sm shadow-[0_4px_16px_rgba(255,90,0,0.35)] hover:brightness-105 transition-all cursor-pointer flex items-center justify-center disabled:opacity-50"
+              >
+                {isSubmitting ? 'Sending Link...' : 'Send Recovery Link'}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setModalView('none')}
+                className="w-full py-2 text-xs font-semibold text-[#8C8A93] hover:text-white transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <ArrowLeft size={14} /> Back to Sign In
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* --- PASSWORD RECOVERY / SET NEW PASSWORD MODAL --- */}
+      {modalView === 'recovery' && (
+        <div 
+          role="dialog" 
+          aria-modal="true" 
+          aria-labelledby="recovery-title"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-in fade-in duration-200"
+        >
+          <div className="w-full max-w-sm rounded-[28px] bg-[#17171C] border border-[#2C2C34] p-6 sm:p-7 shadow-2xl relative">
+            <h2 id="recovery-title" className="text-xl font-bold text-white mb-1.5 tracking-tight">
+              Set New Password
+            </h2>
+            <p className="text-xs text-[#8C8A93] mb-5">
+              Please enter your new password to regain access to your charts.
+            </p>
+
+            <form onSubmit={handleRecoverySubmit} className="space-y-4">
+              <div>
+                <label 
+                  htmlFor="recovery-password" 
+                  className="block text-[11px] font-bold tracking-wider text-[#8C8A93] uppercase mb-2"
+                >
+                  New Password
+                </label>
+                <div className="relative flex items-center bg-[#121216] border border-[#33333C] focus-within:border-[#FF5A00] rounded-2xl h-[52px] px-3.5 transition-all">
+                  <input
+                    id="recovery-password"
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    placeholder="••••••••"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="w-full bg-transparent text-white placeholder-[#5E5C64] text-sm pr-10 focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    className="absolute right-2 p-2 text-[#8C8A93] hover:text-white cursor-pointer"
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full h-[50px] rounded-full bg-gradient-to-r from-[#FF5A00] to-[#FF5C7A] text-white font-bold text-sm shadow-[0_4px_16px_rgba(255,90,0,0.35)] hover:brightness-105 transition-all cursor-pointer flex items-center justify-center disabled:opacity-50"
+              >
+                {isSubmitting ? 'Updating...' : 'Update Password & Continue'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* --- TERMS OF SERVICE MODAL --- */}
+      {modalView === 'terms' && (
+        <div 
+          role="dialog" 
+          aria-modal="true" 
+          aria-labelledby="terms-title"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-in fade-in duration-200"
+          onClick={() => setModalView('none')}
+        >
+          <div 
+            className="w-full max-w-lg rounded-[28px] bg-[#17171C] border border-[#2C2C34] p-6 sm:p-7 shadow-2xl relative max-h-[80vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-[#2C2C34] mb-4">
+              <h2 id="terms-title" className="text-lg font-bold text-white tracking-tight">
+                Terms of Service
+              </h2>
+              <button
+                type="button"
+                onClick={() => setModalView('none')}
+                aria-label="Close dialog"
+                className="p-1.5 text-[#8C8A93] hover:text-white rounded-full hover:bg-white/10 transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
             
-            <div className="w-full flex items-center my-1">
-              <div className="flex-1 border-t border-gray-800" />
-              <span className="px-2 text-[9px] text-gray-500 uppercase tracking-widest">Or</span>
-              <div className="flex-1 border-t border-gray-800" />
+            <div className="overflow-y-auto text-xs text-[#8C8A93] space-y-3.5 pr-2 leading-relaxed">
+              <p>Welcome to <strong className="text-white">Chordly</strong>. By accessing or using our application, whether via web, mobile (APK/iOS), or desktop, you agree to comply with and be bound by these terms.</p>
+              <h3 className="text-sm font-semibold text-white pt-1">1. User Account & Offline Local Data</h3>
+              <p>You can use Chordly in offline Guest Mode without an account. All your musical charts and setlists are preserved locally on your device via IndexedDB. When signing in or syncing, your charts are protected by Supabase security policies.</p>
+              <h3 className="text-sm font-semibold text-white pt-1">2. Music Notation & Content Ownership</h3>
+              <p>You retain full ownership of any chord charts, song arrangements, lyrics, and rehearsal notes you create in Chordly. Chordly does not claim ownership of user-generated musical scores.</p>
+              <h3 className="text-sm font-semibold text-white pt-1">3. Privacy and Service Quality</h3>
+              <p>We do not sell your personal data. We strive to provide reliable offline-first editing and live stage synchronization tools for musicians and performers.</p>
             </div>
 
-            <button
-              type="button"
-              onClick={handleGuestClick}
-              className="w-full py-2 sm:py-2.5 px-4 bg-gray-800 border border-gray-700 rounded-xl text-xs font-bold text-gray-300 hover:text-white hover:bg-gray-700 transition-all flex items-center justify-center cursor-pointer active:scale-95"
-            >
-              ⚡ Continue Offline (Guest Mode)
-            </button>
+            <div className="pt-4 mt-4 border-t border-[#2C2C34] flex justify-end">
+              <button
+                type="button"
+                onClick={() => setModalView('none')}
+                className="px-5 py-2.5 rounded-full bg-white/10 hover:bg-white/15 text-white font-semibold text-xs transition-colors cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
           </div>
-        )}
-      </div>
-    </div>
+        </div>
+      )}
+
+      {/* --- PRIVACY POLICY MODAL --- */}
+      {modalView === 'privacy' && (
+        <div 
+          role="dialog" 
+          aria-modal="true" 
+          aria-labelledby="privacy-title"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-in fade-in duration-200"
+          onClick={() => setModalView('none')}
+        >
+          <div 
+            className="w-full max-w-lg rounded-[28px] bg-[#17171C] border border-[#2C2C34] p-6 sm:p-7 shadow-2xl relative max-h-[80vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-[#2C2C34] mb-4">
+              <h2 id="privacy-title" className="text-lg font-bold text-white tracking-tight">
+                Privacy Policy
+              </h2>
+              <button
+                type="button"
+                onClick={() => setModalView('none')}
+                aria-label="Close dialog"
+                className="p-1.5 text-[#8C8A93] hover:text-white rounded-full hover:bg-white/10 transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            
+            <div className="overflow-y-auto text-xs text-[#8C8A93] space-y-3.5 pr-2 leading-relaxed">
+              <p>At <strong className="text-white">Chordly</strong>, your privacy is our top priority. We believe musician tools should work reliably without intrusive tracking.</p>
+              <h3 className="text-sm font-semibold text-white pt-1">1. Local-First Storage</h3>
+              <p>In Guest Mode, your charts, songs, transpositions, and setlists never leave your device. All information is safely stored locally in your browser/device database.</p>
+              <h3 className="text-sm font-semibold text-white pt-1">2. Cloud Sync & Security</h3>
+              <p>When you create an account or sign in with Google/Apple, your data is synced using enterprise-grade encrypted connections. Row-level security guarantees only you have access to your personal repertoire.</p>
+              <h3 className="text-sm font-semibold text-white pt-1">3. Third-Party Integrations</h3>
+              <p>We only use trusted, privacy-respecting providers (Supabase Authentication and official OAuth SDKs) to manage sessions securely without storing passwords in plain text.</p>
+            </div>
+
+            <div className="pt-4 mt-4 border-t border-[#2C2C34] flex justify-end">
+              <button
+                type="button"
+                onClick={() => setModalView('none')}
+                className="px-5 py-2.5 rounded-full bg-white/10 hover:bg-white/15 text-white font-semibold text-xs transition-colors cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </main>
   );
 }

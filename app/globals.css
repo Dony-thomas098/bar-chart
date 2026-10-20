@@ -43,6 +43,20 @@
   --btn-dark-bg: linear-gradient(180deg, #4b4b50 0%, #1c1c1e 100%);
   --btn-dark-text: #ffffff;
   --btn-dark-border: rgba(255, 255, 255, 0.18);
+
+  /* Auth Screen Design Tokens */
+  --auth-bg: #0F1015;
+  --auth-glow: #2B1710;
+  --auth-card: #17171C;
+  --auth-card-border: #2C2C34;
+  --auth-input-bg: #121216;
+  --auth-input-border: #33333C;
+  --auth-input-focus: #FF5A00;
+  --auth-accent-start: #FF5A00;
+  --auth-accent-end: #FF5C7A;
+  --auth-text-primary: #FFFFFF;
+  --auth-text-muted: #8C8A93;
+  --auth-link-orange: #FF6A1F;
   --btn-dark-shadow: 0 8px 20px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.2);
 
   /* Shadows */
