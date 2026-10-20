@@ -20,9 +20,12 @@ import {
   Save,
   ShieldCheck,
   KeyRound,
-  Lock
+  Lock,
+  Users
 } from 'lucide-react';
 import { verifyAdminPasscode, setAdminPasscode } from '@/lib/adminAuth';
+import { BandConnectModal } from '@/components/BandConnectModal';
+import { getStoredBand } from '@/lib/band';
 
 const INSTRUMENT_OPTIONS = [
   { id: 'Guitar', label: 'Guitar', icon: '🎸' },
@@ -106,6 +109,21 @@ export default function ProfilePage() {
   const [newPinInput, setNewPinInput] = useState('');
   const [changePinError, setChangePinError] = useState<string | null>(null);
   const [changePinSuccess, setChangePinSuccess] = useState(false);
+
+  // Band Workspace Modal state
+  const [bandModalOpen, setBandModalOpen] = useState(false);
+  const [bandInfo, setBandInfo] = useState(getStoredBand());
+
+  useEffect(() => {
+    const updateBand = () => setBandInfo(getStoredBand());
+    updateBand();
+    window.addEventListener('band-joined', updateBand);
+    window.addEventListener('band-left', updateBand);
+    return () => {
+      window.removeEventListener('band-joined', updateBand);
+      window.removeEventListener('band-left', updateBand);
+    };
+  }, []);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -412,6 +430,32 @@ export default function ProfilePage() {
                     }
                   />
                 )}
+              </div>
+            </section>
+
+            {/* Band Workspace Section */}
+            <section className="space-y-2 min-w-0 w-full">
+              <h3 className="text-xs font-bold text-text-secondary dark:text-zinc-400 px-1">
+                Band Workspace
+              </h3>
+              <div className="space-y-2.5 min-w-0 w-full">
+                <SettingsRow
+                  icon={<Users size={18} />}
+                  iconBgColor="bg-orange-500/10 dark:bg-orange-500/15"
+                  iconColor="text-orange-600 dark:text-orange-400"
+                  label="Choir / Band Workspace"
+                  value={bandInfo.name ? `${bandInfo.name} (${bandInfo.code})` : 'Not Connected'}
+                  hint={bandInfo.name ? 'All songs and folders are synced live with this band' : 'Connect with your choir PIN to sync songs'}
+                  action={
+                    <button
+                      type="button"
+                      onClick={() => setBandModalOpen(true)}
+                      className="min-h-[44px] px-3.5 py-2 bg-white/70 dark:bg-zinc-800/70 border border-white/60 dark:border-white/10 hover:bg-orange-500/10 hover:border-orange-500/30 text-orange-600 dark:text-orange-400 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center shrink-0"
+                    >
+                      {bandInfo.name ? 'Manage Band' : 'Join / Create'}
+                    </button>
+                  }
+                />
               </div>
             </section>
 
@@ -813,6 +857,11 @@ export default function ProfilePage() {
           </div>
         </div>
       )}
+      {/* Band Workspace Modal */}
+      <BandConnectModal
+        isOpen={bandModalOpen}
+        onClose={() => setBandModalOpen(false)}
+      />
     </div>
   );
 }

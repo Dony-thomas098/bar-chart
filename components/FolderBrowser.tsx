@@ -10,6 +10,8 @@ import { FolderPickerModal } from './FolderPickerModal';
 import { LogoLoading } from './LogoLoading';
 import { seedSampleData } from '@/lib/sampleData';
 import { useAuth, canModifySection } from '@/components/AuthProvider';
+import { BandConnectModal } from './BandConnectModal';
+import { hasJoinedBand } from '@/lib/band';
 import {
   Folder as FolderIcon, FileText, MoreVertical, Search,
   Plus, CornerLeftUp, Trash2, Edit2, CornerRightDown, Download, X,
@@ -68,6 +70,26 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [bulkDeleteModal, setBulkDeleteModal] = useState(false);
   const [createFolderModal, setCreateFolderModal] = useState(false);
+  const [bandModalOpen, setBandModalOpen] = useState(false);
+
+  // Auto-prompt to join or create band when user is signed in with email but hasn't joined a band yet
+  useEffect(() => {
+    if (user && typeof window !== 'undefined' && localStorage.getItem('chord-grid-guest-mode') !== 'true') {
+      if (!hasJoinedBand()) {
+        const timer = setTimeout(() => {
+          setBandModalOpen(true);
+        }, 1200);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [user]);
+
+  // Allow triggering band modal from anywhere via custom event
+  useEffect(() => {
+    const handleOpen = () => setBandModalOpen(true);
+    window.addEventListener('open-band-modal', handleOpen);
+    return () => window.removeEventListener('open-band-modal', handleOpen);
+  }, []);
 
   // Selection state
   const [selectedItems, setSelectedItems] = useState<{ id: string, type: 'folder' | 'chart' | 'lyrics' }[]>([]);
@@ -83,7 +105,8 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
     deleteItem ||
     renameItem ||
     moveItem ||
-    isBulkMove
+    isBulkMove ||
+    bandModalOpen
   );
   const isModalActiveRef = useRef(isModalActive);
   useEffect(() => {
@@ -408,6 +431,23 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
 
   const handleBulkDelete = async (permanent: boolean = false) => {
     if (selectedItems.length === 0) return;
+
+    // Check permission: only Admin or Creator of each item can delete
+    const isAdmin = profile?.profession === 'admin';
+    const unauthorized = selectedItems.some(item => {
+      const target = item.type === 'folder'
+        ? folders.find(f => f.id === item.id)
+        : charts.find(c => c.id === item.id);
+      const isCreator = Boolean(user?.id && target?.created_by && user.id === target.created_by);
+      return !isAdmin && !isCreator;
+    });
+
+    if (unauthorized) {
+      alert("Permission denied: You can only delete items that you created. Admin permission is required to delete items created by others.");
+      setBulkDeleteModal(false);
+      return;
+    }
+
     const itemsToDelete = [...selectedItems];
     const itemIdsToDelete = new Set(itemsToDelete.map(i => i.id));
 
@@ -465,9 +505,13 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
     }
   };
 
-  const RowMenu = ({ id, type, name }: { id: string, type: 'folder' | 'chart' | 'lyrics', name: string }) => {
-    // Only admin users can view the 3-dots options menu for editing/renaming/deleting
-    if (profile?.profession !== 'admin') {
+  const RowMenu = ({ id, type, name, createdBy }: { id: string, type: 'folder' | 'chart' | 'lyrics', name: string, createdBy?: string }) => {
+    const isAdmin = profile?.profession === 'admin';
+    const isCreator = Boolean(user?.id && createdBy && user.id === createdBy);
+    const canDelete = isAdmin || isCreator;
+
+    // Both admin and members can view the 3-dots options menu for editing/renaming/moving
+    if (!canEdit && !isAdmin) {
       return null;
     }
 
@@ -542,12 +586,21 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
                 </button>
               )}
               <div className="h-px bg-black/[0.06] dark:bg-white/[0.08] my-1 mx-2" />
-              <button
-                onClick={(e) => { e.stopPropagation(); setActiveDropdown(null); setDeleteItem({ id, type, name }); setDeleteConfirmText(''); }}
-                className="flex items-center w-full px-4 py-2 text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer"
-              >
-                <Trash2 size={14} className="mr-2.5 text-rose-500" /> Delete
-              </button>
+              {canDelete ? (
+                <button
+                  onClick={(e) => { e.stopPropagation(); setActiveDropdown(null); setDeleteItem({ id, type, name }); setDeleteConfirmText(''); }}
+                  className="flex items-center w-full px-4 py-2 text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer"
+                >
+                  <Trash2 size={14} className="mr-2.5 text-rose-500" /> Delete
+                </button>
+              ) : (
+                <div
+                  title="Only Admin or Creator can delete this item"
+                  className="flex items-center w-full px-4 py-2 text-[11px] font-medium text-slate-400 dark:text-slate-500 cursor-not-allowed select-none opacity-60"
+                >
+                  <Trash2 size={13} className="mr-2.5 text-slate-400" /> Delete (Admin/Creator)
+                </div>
+              )}
             </div>
           </>
         )}
@@ -770,7 +823,7 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
                               </div>
                             </div>
                             <div onClick={e => e.stopPropagation()} className="shrink-0">
-                              <RowMenu id={folder.id} type="folder" name={folder.name} />
+                              <RowMenu id={folder.id} type="folder" name={folder.name} createdBy={folder.created_by} />
                             </div>
                           </div>
                         ) : (
@@ -798,7 +851,7 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
                               </div>
                             )}
                             <div className="absolute top-2.5 right-2.5 z-10" onClick={e => e.stopPropagation()}>
-                              <RowMenu id={folder.id} type="folder" name={folder.name} />
+                              <RowMenu id={folder.id} type="folder" name={folder.name} createdBy={folder.created_by} />
                             </div>
                             <div className="w-14 h-14 sm:w-16 sm:h-16 icon-well flex items-center justify-center mb-3 mt-3 transition-transform group-hover:scale-105">
                               <FolderIcon size={26} className="text-orange-500/80 stroke-[2.2]" fill="currentColor" fillOpacity={0.2} />
@@ -891,7 +944,7 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
                               >
                                 <Star size={16} className={chart.is_bookmarked ? "text-amber-500 fill-amber-500 drop-shadow-sm" : "text-text-muted hover:text-amber-500"} />
                               </button>
-                              <RowMenu id={chart.id} type={kind} name={chart.title} />
+                              <RowMenu id={chart.id} type={kind} name={chart.title} createdBy={chart.created_by} />
                             </div>
                           </div>
                         ) : (
@@ -920,7 +973,7 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
                             )}
 
                             <div className="absolute top-2.5 right-2.5 z-10" onClick={e => e.stopPropagation()}>
-                              <RowMenu id={chart.id} type={kind} name={chart.title} />
+                              <RowMenu id={chart.id} type={kind} name={chart.title} createdBy={chart.created_by} />
                             </div>
 
                             <div className="w-14 h-14 sm:w-16 sm:h-16 icon-well flex items-center justify-center mb-3 mt-3 transition-transform group-hover:scale-105">
@@ -1024,7 +1077,7 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
                         </div>
                       </div>
                       <div onClick={e => e.stopPropagation()} className="shrink-0">
-                        <RowMenu id={folder.id} type="folder" name={folder.name} />
+                        <RowMenu id={folder.id} type="folder" name={folder.name} createdBy={folder.created_by} />
                       </div>
                     </div>
                   ) : (
@@ -1055,7 +1108,7 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
 
                       {/* Top Right: Kebab Menu */}
                       <div className="absolute top-2.5 right-2.5 z-10" onClick={e => e.stopPropagation()}>
-                        <RowMenu id={folder.id} type="folder" name={folder.name} />
+                        <RowMenu id={folder.id} type="folder" name={folder.name} createdBy={folder.created_by} />
                       </div>
 
                       {/* Centered Circular Glass Icon Well */}
@@ -1117,7 +1170,7 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
                         >
                           <Star size={16} className={chart.is_bookmarked ? "text-amber-500 fill-amber-500 drop-shadow-sm" : "text-text-muted hover:text-amber-500"} />
                         </button>
-                        <RowMenu id={chart.id} type={kind} name={chart.title} />
+                        <RowMenu id={chart.id} type={kind} name={chart.title} createdBy={chart.created_by} />
                       </div>
                     </div>
                   ) : (
@@ -1148,7 +1201,7 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
 
                       {/* Top Right: Kebab Menu */}
                       <div className="absolute top-2.5 right-2.5 z-10" onClick={e => e.stopPropagation()}>
-                        <RowMenu id={chart.id} type={kind} name={chart.title} />
+                        <RowMenu id={chart.id} type={kind} name={chart.title} createdBy={chart.created_by} />
                       </div>
 
                       {/* Centered Circular Glass Icon Well */}
@@ -1351,6 +1404,13 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
           Press back again to exit
         </div>
       )}
+
+      {/* Band Connect & Create Workspace Modal */}
+      <BandConnectModal
+        isOpen={bandModalOpen}
+        onClose={() => setBandModalOpen(false)}
+        onSuccess={() => loadContents()}
+      />
 
     </div>
   );

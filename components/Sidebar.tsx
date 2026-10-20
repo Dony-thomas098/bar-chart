@@ -4,11 +4,12 @@ import React, { useState, useEffect, useTransition } from 'react';
 import { useAuth, canModifySection } from '@/components/AuthProvider';
 import { getRecentCharts, createFolder, saveChart } from '@/lib/storage';
 import { saveLyrics } from '@/lib/lyrics';
-import { X, User, LogOut, Settings, Folder as FolderIcon, FileText, Printer, Trash2, Music, Music2, ListMusic, Star, Download, ChevronRight, Plus, Sun, Moon, Sparkles } from 'lucide-react';
+import { X, User, LogOut, Settings, Folder as FolderIcon, FileText, Printer, Trash2, Music, Music2, ListMusic, Star, Download, ChevronRight, Plus, Sun, Moon, Sparkles, Users } from 'lucide-react';
 import { useRouter, usePathname } from 'next/navigation';
 import { getStoredTheme, setTheme, ThemeMode } from '@/lib/theme';
 import { ChordlyLogo } from './ChordlyLogo';
 import { useHardwareBackButton } from '@/hooks/useHardwareBackButton';
+import { getStoredBand } from '@/lib/band';
 import './sidebar-drawer.css';
 
 export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
@@ -26,7 +27,19 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
   const [selectedFont, setSelectedFont] = useState('system');
   const [createFolderModal, setCreateFolderModal] = useState(false);
   const [folderKind, setFolderKind] = useState<'chart' | 'lyrics'>('chart');
+  const [bandInfo, setBandInfo] = useState(getStoredBand());
   const [joinCode, setJoinCode] = useState('');
+
+  useEffect(() => {
+    const updateBand = () => setBandInfo(getStoredBand());
+    updateBand();
+    window.addEventListener('band-joined', updateBand);
+    window.addEventListener('band-left', updateBand);
+    return () => {
+      window.removeEventListener('band-joined', updateBand);
+      window.removeEventListener('band-left', updateBand);
+    };
+  }, [isOpen]);
   const [isPending, startTransition] = useTransition();
   const [themeMode, setThemeMode] = useState<ThemeMode>('system');
   const [isDarkEffective, setIsDarkEffective] = useState(false);
@@ -174,6 +187,32 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
 
         {/* Navigation Body */}
         <div className="app-drawer-scroll">
+          {/* BAND WORKSPACE STATUS */}
+          <div className="px-3.5 pt-3 pb-2">
+            <button
+              onClick={() => {
+                onClose();
+                window.dispatchEvent(new Event('open-band-modal'));
+              }}
+              className="w-full p-3 rounded-2xl bg-orange-500/10 hover:bg-orange-500/15 border border-orange-500/25 flex items-center justify-between text-left transition-all cursor-pointer group shadow-xs"
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-8 h-8 rounded-xl bg-orange-500/20 text-orange-600 dark:text-orange-400 flex items-center justify-center shrink-0">
+                  <Users size={16} />
+                </div>
+                <div className="min-w-0">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-orange-600 dark:text-orange-400 block">
+                    Band Workspace
+                  </span>
+                  <span className="text-xs font-bold text-text-primary truncate block">
+                    {bandInfo.name ? `${bandInfo.name} (${bandInfo.code})` : 'Join / Create Band'}
+                  </span>
+                </div>
+              </div>
+              <ChevronRight size={14} className="text-orange-500/70 group-hover:translate-x-0.5 transition-transform shrink-0" />
+            </button>
+          </div>
+
           {/* LIBRARY */}
           <div className="app-drawer-section">
             <h3 className="app-drawer-section-label">
