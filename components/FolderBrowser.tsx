@@ -73,16 +73,21 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
   const [createFolderModal, setCreateFolderModal] = useState(false);
   const [bandModalOpen, setBandModalOpen] = useState(false);
 
+  const bandPromptCheckedRef = useRef(false);
+
   // Auto-prompt to join or create band when user is signed in with email but hasn't joined a band yet
   useEffect(() => {
     if (user && typeof window !== 'undefined' && localStorage.getItem('chord-grid-guest-mode') !== 'true') {
+      if (bandPromptCheckedRef.current) return;
       // 1. If user already joined a band (active session, email cache, or metadata), never show prompt
       if (hasJoinedBand(user)) {
+        bandPromptCheckedRef.current = true;
         return;
       }
 
       // 2. If not immediately detected, attempt background Supabase sync for this user's email
       let isCancelled = false;
+      bandPromptCheckedRef.current = true;
       syncBandForUser(user).then((band) => {
         if (isCancelled) return;
         // Only prompt if user genuinely has no band associated with their account

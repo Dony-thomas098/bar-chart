@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { User } from '@supabase/supabase-js';
 import { useRouter, usePathname } from 'next/navigation';
@@ -91,11 +91,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     email: null,
   });
 
+  const lastSyncedUserIdRef = useRef<string | null>(null);
+
   // Sync profile when user changes: immediate local restore + background Supabase sync
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
     if (!user) {
+      lastSyncedUserIdRef.current = null;
       setProfile({ profession: null, instrument: null, username: '', band_id: null, band_name: null, band_code: null, email: null });
       return;
     }
@@ -140,6 +143,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       band_code: initialBandCode,
       email: email || null,
     });
+
+    // Guard: only execute background Supabase sync once per authenticated user ID session
+    if (lastSyncedUserIdRef.current === user.id) {
+      return;
+    }
+    lastSyncedUserIdRef.current = user.id;
 
     // Background sync from Supabase according to user id / email
     let isCancelled = false;
@@ -337,6 +346,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.removeItem(USERNAME_KEY);
     }
     clearActiveBandSession();
+    lastSyncedUserIdRef.current = null;
     setIsGuest(false);
     setUser(null);
     setProfile({ 
@@ -403,12 +413,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { data: authListener } = supabase.auth.onAuthStateChange(
       (event, session) => {
         if (session?.user) {
-          setUser(session.user);
+          setUser((prev) => {
+            if (prev && prev.id === session.user.id && prev.updated_at === session.user.updated_at) {
+              return prev;
+            }
+            return session.user;
+          });
           setIsGuest(false);
           if (typeof window !== 'undefined') {
             localStorage.removeItem(GUEST_KEY);
           }
           flushPendingSaves().catch(() => {});
+        } else if (event === 'SIGNED_OUT') {
+          lastSyncedUserIdRef.current = null;
+          setUser(null);
         }
       }
     );

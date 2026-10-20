@@ -285,6 +285,30 @@ describe('Multi-Device Band Synchronization & Profile Field Preservation', () =>
     expect(merged.instrument).toBe('Bass');
     expect(merged.profession).toBe('instrument');
   });
+
+  it('never invokes supabase.auth.updateUser during syncBandForUser background queries', async () => {
+    const { supabase } = await import('../lib/supabase');
+    const { syncBandForUser } = await import('../lib/band');
+
+    let updateUserCalled = false;
+    const originalUpdateUser = supabase.auth.updateUser;
+    supabase.auth.updateUser = (async () => {
+      updateUserCalled = true;
+      return { data: { user: null }, error: null };
+    }) as any;
+
+    try {
+      const user = {
+        id: 'test-user-sync-id',
+        email: 'test-sync@example.com',
+        user_metadata: {},
+      };
+      await syncBandForUser(user);
+      expect(updateUserCalled).toBe(false);
+    } finally {
+      supabase.auth.updateUser = originalUpdateUser;
+    }
+  });
 });
 
 

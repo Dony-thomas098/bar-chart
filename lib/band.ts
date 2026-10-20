@@ -169,18 +169,16 @@ export async function syncBandForUser(user: { id: string; email?: string | null;
         };
         saveBandLocally(band, user.email);
 
-        // Ensure user's profile and metadata have this band populated
+        // Ensure user's profile has this band populated if missing
         try {
-          await supabase.from('profiles').update({
-            band_id: band.id,
-            band_name: band.name,
-            updated_at: new Date().toISOString(),
-          }).eq('id', user.id);
+          if (profile?.band_id !== band.id) {
+            await supabase.from('profiles').update({
+              band_id: band.id,
+              band_name: band.name,
+              updated_at: new Date().toISOString(),
+            }).eq('id', user.id);
+          }
         } catch {}
-
-        await supabase.auth.updateUser({
-          data: { band_id: band.id, band_name: band.name, band_code: band.code },
-        }).catch(() => {});
 
         return band;
       }
@@ -198,16 +196,14 @@ export async function syncBandForUser(user: { id: string; email?: string | null;
       saveBandLocally(band, user.email);
 
       try {
-        await supabase.from('profiles').update({
-          band_id: band.id,
-          band_name: band.name,
-          updated_at: new Date().toISOString(),
-        }).eq('id', user.id);
+        if (profile?.band_id !== band.id) {
+          await supabase.from('profiles').update({
+            band_id: band.id,
+            band_name: band.name,
+            updated_at: new Date().toISOString(),
+          }).eq('id', user.id);
+        }
       } catch {}
-
-      await supabase.auth.updateUser({
-        data: { band_id: band.id, band_name: band.name, band_code: band.code },
-      }).catch(() => {});
 
       return band;
     }
@@ -224,11 +220,13 @@ export async function syncBandForUser(user: { id: string; email?: string | null;
       if (metaBand) {
         saveBandLocally(metaBand, user.email);
         try {
-          await supabase.from('profiles').update({
-            band_id: metaBand.id,
-            band_name: metaBand.name,
-            updated_at: new Date().toISOString(),
-          }).eq('id', user.id);
+          if (profile?.band_id !== metaBand.id) {
+            await supabase.from('profiles').update({
+              band_id: metaBand.id,
+              band_name: metaBand.name,
+              updated_at: new Date().toISOString(),
+            }).eq('id', user.id);
+          }
         } catch {}
         return metaBand;
       }
@@ -245,15 +243,14 @@ export async function syncBandForUser(user: { id: string; email?: string | null;
       };
       saveBandLocally(band, user.email);
       try {
-        await supabase.from('profiles').update({
-          band_id: band.id,
-          band_name: band.name,
-          updated_at: new Date().toISOString(),
-        }).eq('id', user.id);
+        if (profile?.band_id !== band.id) {
+          await supabase.from('profiles').update({
+            band_id: band.id,
+            band_name: band.name,
+            updated_at: new Date().toISOString(),
+          }).eq('id', user.id);
+        }
       } catch {}
-      await supabase.auth.updateUser({
-        data: { band_id: band.id, band_name: band.name, band_code: band.code },
-      }).catch(() => {});
       return band;
     }
 
@@ -268,28 +265,21 @@ export async function syncBandForUser(user: { id: string; email?: string | null;
       if (churchBand) {
         saveBandLocally(churchBand, user.email);
         try {
-          await supabase.from('profiles').update({
-            band_id: churchBand.id,
-            band_name: churchBand.name,
-            role: 'instrument',
-            instrument: 'Piano / Keyboard',
-            updated_at: new Date().toISOString(),
-          }).eq('id', user.id);
+          if (profile?.band_id !== churchBand.id) {
+            await supabase.from('profiles').update({
+              band_id: churchBand.id,
+              band_name: churchBand.name,
+              role: 'instrument',
+              instrument: 'Piano / Keyboard',
+              updated_at: new Date().toISOString(),
+            }).eq('id', user.id);
+          }
         } catch {}
-        await supabase.auth.updateUser({
-          data: {
-            band_id: churchBand.id,
-            band_name: churchBand.name,
-            band_code: churchBand.code,
-            instrument: 'Piano / Keyboard',
-            profession: 'instrument',
-          },
-        }).catch(() => {});
-          return churchBand;
-        }
+        return churchBand;
       }
-      return null;
-    };
+    }
+    return null;
+  };
 
     const result = await Promise.race([remoteSync(), timeoutPromise]);
     if (result) return result;
