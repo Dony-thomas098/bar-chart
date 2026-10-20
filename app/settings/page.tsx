@@ -1,13 +1,14 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { X, Type, Users, Info, Terminal, BookOpen, Droplet, CloudDownload, CheckCircle2, RefreshCw, WifiOff, Moon, Sun, Monitor } from 'lucide-react';
+import { X, Type, Users, Info, Terminal, BookOpen, Droplet, CloudDownload, CheckCircle2, RefreshCw, WifiOff, Moon, Sun, Monitor, Zap } from 'lucide-react';
 import { Header } from '@/components/Header';
 import { GlassCard, PillButton, IconButton } from '@/components/ui/primitives';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { useOfflineSync } from '@/components/OfflineSyncContext';
 import { getStoredTheme, setTheme, ThemeMode } from '@/lib/theme';
+import { subscribeLiveUpdate, checkForLiveUpdate, applyLiveUpdateNow, triggerTestUpdateBanner, LiveUpdateState } from '@/lib/liveUpdate';
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -20,6 +21,31 @@ export default function SettingsPage() {
 
   // Offline sync state from shared context
   const { autoSync, setAutoSync, isSyncing: syncingOffline, syncResult, lastSyncedAt, triggerSync } = useOfflineSync();
+
+  // Live Update (OTA) state
+  const [liveUpdateState, setLiveUpdateState] = useState<LiveUpdateState | null>(null);
+  const [checkingUpdate, setCheckingUpdate] = useState(false);
+  const [updateFeedback, setUpdateFeedback] = useState<string | null>(null);
+
+  useEffect(() => {
+    const unsub = subscribeLiveUpdate((s) => setLiveUpdateState(s));
+    return () => unsub();
+  }, []);
+
+  const handleCheckUpdate = async () => {
+    setCheckingUpdate(true);
+    setUpdateFeedback(null);
+    try {
+      const hasUpdate = await checkForLiveUpdate();
+      if (!hasUpdate) {
+        setUpdateFeedback('You are already running the latest available version.');
+      }
+    } catch (err: any) {
+      setUpdateFeedback(`Check failed: ${err?.message || String(err)}`);
+    } finally {
+      setCheckingUpdate(false);
+    }
+  };
 
   useEffect(() => {
     setCurrentTheme(getStoredTheme());
@@ -486,6 +512,104 @@ export default function SettingsPage() {
                       <div className="bg-white/60 dark:bg-white/[0.04] border border-glass p-3 rounded-2xl flex justify-between items-center">
                         <span className="text-xs text-text-secondary font-medium">Clear Chord</span>
                         <kbd className="px-2 py-0.5 bg-white dark:bg-white/10 border border-glass rounded-md text-[10px] font-mono font-bold text-text-primary">Backspace</kbd>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* App Version & Live Update (OTA) Section */}
+                  <div>
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-text-secondary mb-3 flex items-center">
+                      <Zap size={15} className="mr-2 text-orange-500" /> App Updates &amp; System
+                    </h3>
+                    <div className="bg-white/60 dark:bg-white/[0.04] border border-glass p-4 rounded-3xl space-y-3.5 shadow-sm">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h4 className="text-sm font-bold text-text-primary">Chordly for Mobile &amp; Web</h4>
+                          <p className="text-xs text-text-secondary">Over-The-Air (OTA) live sync enabled</p>
+                        </div>
+                        <span className="text-xs font-mono font-bold px-2.5 py-1 rounded-full bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20">
+                          v0.1.0
+                        </span>
+                      </div>
+
+                      <div className="text-xs space-y-1.5 bg-black/[0.03] dark:bg-white/[0.03] p-3 rounded-2xl border border-black/5 dark:border-white/5 font-mono">
+                        <div className="flex justify-between items-center">
+                          <span className="text-text-secondary">Active Bundle:</span>
+                          <span className="text-text-primary font-bold truncate max-w-[210px]" title={liveUpdateState?.currentBundleId || 'Built-in'}>
+                            {liveUpdateState?.currentBundleId || 'Built-in (APK / IPA)'}
+                          </span>
+                        </div>
+                        {liveUpdateState?.latestManifest && (
+                          <div className="flex justify-between items-center">
+                            <span className="text-text-secondary">Latest Available:</span>
+                            <span className="text-text-primary truncate max-w-[210px]" title={liveUpdateState.latestManifest.bundleId}>
+                              {liveUpdateState.latestManifest.bundleId}
+                            </span>
+                          </div>
+                        )}
+                        {liveUpdateState?.error && (
+                          <div className="pt-1 text-red-500 text-[11px] font-sans">
+                            Notice: {liveUpdateState.error}
+                          </div>
+                        )}
+                      </div>
+
+                      {updateFeedback && (
+                        <div className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5 px-1">
+                          <CheckCircle2 size={14} />
+                          <span>{updateFeedback}</span>
+                        </div>
+                      )}
+
+                      {liveUpdateState?.updateReady && (
+                        <div className="p-3 rounded-2xl bg-gradient-to-r from-orange-500/15 to-rose-500/15 border border-orange-500/30 flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <Zap size={16} className="text-orange-500 shrink-0" />
+                            <span className="text-xs font-bold text-text-primary">Update downloaded &amp; ready!</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => applyLiveUpdateNow()}
+                            className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-orange-500 to-rose-500 text-white text-xs font-bold shadow-md hover:brightness-110 active:scale-95 transition-all cursor-pointer"
+                          >
+                            Restart Now
+                          </button>
+                        </div>
+                      )}
+
+                      <div className="flex gap-2.5 pt-1">
+                        <button
+                          type="button"
+                          disabled={checkingUpdate || liveUpdateState?.isChecking || liveUpdateState?.isDownloading}
+                          onClick={handleCheckUpdate}
+                          className="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:brightness-105 active:scale-95 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-all disabled:opacity-50 cursor-pointer"
+                        >
+                          {checkingUpdate || liveUpdateState?.isChecking ? (
+                            <>
+                              <RefreshCw size={14} className="animate-spin" />
+                              <span>Checking for updates...</span>
+                            </>
+                          ) : liveUpdateState?.isDownloading ? (
+                            <>
+                              <RefreshCw size={14} className="animate-spin" />
+                              <span>Downloading ({liveUpdateState.downloadProgress}%)...</span>
+                            </>
+                          ) : (
+                            <>
+                              <RefreshCw size={14} />
+                              <span>Check for Updates</span>
+                            </>
+                          )}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => triggerTestUpdateBanner()}
+                          title="Simulate how the update ready banner appears"
+                          className="px-3.5 py-2.5 rounded-xl bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/15 text-text-secondary hover:text-text-primary text-xs font-bold transition-all cursor-pointer"
+                        >
+                          Test Banner
+                        </button>
                       </div>
                     </div>
                   </div>

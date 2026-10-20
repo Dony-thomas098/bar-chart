@@ -28,6 +28,9 @@ const config: CapacitorConfig = {
       autoDeleteBundles: true,
       readyTimeout: 10000,
       autoBlockRolledBackBundles: true
+    },
+    CapacitorHttp: {
+      enabled: true
     }
   }
 };

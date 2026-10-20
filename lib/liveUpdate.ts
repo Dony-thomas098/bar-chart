@@ -1,4 +1,4 @@
-import { Capacitor } from '@capacitor/core';
+import { Capacitor, CapacitorHttp } from '@capacitor/core';
 
 export interface UpdateManifest {
   version: string;
@@ -55,6 +55,66 @@ export function getLiveUpdateState(): LiveUpdateState {
 }
 
 /**
+ * Robustly fetches the update manifest across native and webview environments.
+ * Uses native CapacitorHttp on Android & iOS to bypass WebView CORS policies and follow 302 redirects.
+ */
+async function fetchUpdateManifest(candidateUrls: string[]): Promise<UpdateManifest> {
+  let lastError: any = null;
+
+  for (const url of candidateUrls) {
+    // 1. Try CapacitorHttp first on native devices (Java/Swift, zero CORS restrictions, follows 302 redirects)
+    if (Capacitor.isNativePlatform() && CapacitorHttp) {
+      try {
+        console.log('[LiveUpdate] Fetching manifest via CapacitorHttp:', url);
+        const res = await CapacitorHttp.get({
+          url,
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            Pragma: 'no-cache',
+          },
+        });
+
+        if (res.status === 200 && res.data) {
+          const parsed = typeof res.data === 'string' ? JSON.parse(res.data) : res.data;
+          if (parsed && parsed.bundleId) {
+            console.log('[LiveUpdate] Successfully fetched manifest via CapacitorHttp from:', url);
+            return parsed as UpdateManifest;
+          }
+        }
+      } catch (nativeErr) {
+        lastError = nativeErr;
+        console.debug('[LiveUpdate] CapacitorHttp attempt failed for', url, nativeErr);
+      }
+    }
+
+    // 2. Fallback to standard fetch (works for raw.githubusercontent.com and CORS-enabled hosts)
+    try {
+      console.log('[LiveUpdate] Fetching manifest via standard fetch:', url);
+      const res = await fetch(url, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          Pragma: 'no-cache',
+        },
+      });
+
+      if (res.ok) {
+        const parsed = await res.json();
+        if (parsed && parsed.bundleId) {
+          console.log('[LiveUpdate] Successfully fetched manifest via fetch from:', url);
+          return parsed as UpdateManifest;
+        }
+      }
+    } catch (fetchErr) {
+      lastError = fetchErr;
+      console.debug('[LiveUpdate] Standard fetch attempt failed for', url, fetchErr);
+    }
+  }
+
+  throw lastError || new Error('Failed to fetch update manifest from all candidate endpoints.');
+}
+
+/**
  * Initializes Live Update on native devices.
  * 1. Calls ready() to notify native watchdog that the current bundle booted cleanly.
  * 2. Runs a background check for newer bundles.
@@ -81,29 +141,31 @@ export async function initLiveUpdate(): Promise<void> {
       notifyListeners();
     });
 
-    // 3. Trigger silent background update check
+    // 3. Trigger background update check after 2 seconds
     setTimeout(() => {
       checkForLiveUpdate().catch((err) => {
         console.debug('[LiveUpdate] Background check error (non-fatal):', err);
       });
-    }, 2500);
+    }, 2000);
   } catch (err) {
     console.debug('[LiveUpdate] Initialization skipped or failed:', err);
   }
 }
 
 /**
- * Checks the configured OTA endpoint for a new web bundle.
+ * Checks configured OTA endpoints for a new web bundle.
  */
 export async function checkForLiveUpdate(customUrl?: string): Promise<boolean> {
   if (!Capacitor.isNativePlatform()) {
     return false;
   }
 
-  const updateUrl =
-    customUrl ||
-    process.env.NEXT_PUBLIC_LIVE_UPDATE_URL ||
-    'https://github.com/Dony-thomas098/bar-chart/releases/latest/download/update.json';
+  const candidateUrls = [
+    customUrl,
+    process.env.NEXT_PUBLIC_LIVE_UPDATE_URL,
+    'https://raw.githubusercontent.com/Dony-thomas098/bar-chart/main/public/update.json',
+    'https://github.com/Dony-thomas098/bar-chart/releases/latest/download/update.json',
+  ].filter(Boolean) as string[];
 
   updateState.isChecking = true;
   updateState.error = null;
@@ -112,23 +174,14 @@ export async function checkForLiveUpdate(customUrl?: string): Promise<boolean> {
   try {
     const { LiveUpdate } = await import('@capawesome/capacitor-live-update');
 
-    const res = await fetch(updateUrl, {
-      cache: 'no-store',
-      headers: {
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        Pragma: 'no-cache',
-      },
-    });
-
-    if (!res.ok) {
-      throw new Error(`Manifest check failed: HTTP ${res.status}`);
-    }
-
-    const manifest: UpdateManifest = await res.json();
+    const manifest = await fetchUpdateManifest(candidateUrls);
     updateState.latestManifest = manifest;
 
     const current = await LiveUpdate.getCurrentBundle();
     updateState.currentBundleId = current.bundleId;
+
+    console.log(`[LiveUpdate] Active bundle: ${current.bundleId || 'default (built-in)'}`);
+    console.log(`[LiveUpdate] Remote bundle: ${manifest.bundleId}`);
 
     // Check if the remote bundleId is different from active bundle
     if (manifest.bundleId && manifest.bundleId !== current.bundleId && manifest.url) {
@@ -164,7 +217,7 @@ export async function checkForLiveUpdate(customUrl?: string): Promise<boolean> {
     }
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
-    console.debug('[LiveUpdate] Update check skipped or failed:', message);
+    console.error('[LiveUpdate] Update check failed:', message);
     updateState.error = message;
     return false;
   } finally {
@@ -193,15 +246,20 @@ export async function applyLiveUpdateNow(): Promise<void> {
 }
 
 /**
- * Resets the app to the default bundled APK/IPA web assets in case of troubleshooting.
+ * Triggers the update ready banner for UI testing and verification.
  */
-export async function resetToDefaultBundle(): Promise<void> {
-  if (!Capacitor.isNativePlatform()) return;
-  try {
-    const { LiveUpdate } = await import('@capawesome/capacitor-live-update');
-    await LiveUpdate.reset();
-    await LiveUpdate.reload();
-  } catch (e) {
-    console.error('[LiveUpdate] Failed to reset to default bundle:', e);
-  }
+export function triggerTestUpdateBanner(): void {
+  updateState.updateReady = true;
+  updateState.latestManifest = {
+    version: '0.1.0',
+    bundleId: 'bundle-test-preview',
+    url: '',
+    notes: 'Test update banner preview'
+  };
+  notifyListeners();
 }
+
+if (typeof window !== 'undefined') {
+  (window as any).__testOtaBanner = triggerTestUpdateBanner;
+}
+

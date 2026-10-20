@@ -12,6 +12,7 @@ env:
   NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL || 'https://xatrvpgoxywaxjpfydtj.supabase.co' }}
   NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'sb_publishable_GxnEWSL_npNPsO0DmCHkVg_IhVF1g3l' }}
   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_GxnEWSL_npNPsO0DmCHkVg_IhVF1g3l' }}
+  NEXT_PUBLIC_LIVE_UPDATE_URL: 'https://raw.githubusercontent.com/Dony-thomas098/bar-chart/main/public/update.json'
 
 permissions:
   contents: write

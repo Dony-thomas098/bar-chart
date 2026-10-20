@@ -26,7 +26,7 @@ export function LiveUpdateNotification() {
     return (
       <aside 
         aria-label="App update ready notification"
-        className="fixed bottom-[calc(env(safe-area-inset-bottom,0px)+74px)] left-4 right-4 sm:left-auto sm:right-6 sm:w-[380px] z-50 animate-in fade-in slide-in-from-bottom-4 duration-300"
+        className="fixed bottom-[calc(max(env(safe-area-inset-bottom,0px),var(--safe-area-inset-bottom,0px))+82px)] left-4 right-4 sm:left-auto sm:right-6 sm:w-[380px] z-[999] animate-in fade-in slide-in-from-bottom-4 duration-300 pointer-events-auto"
       >
         <div className="bg-[#17171C]/95 backdrop-blur-xl border border-[#FF5A00]/40 rounded-2xl p-4 shadow-[0_12px_40px_rgba(0,0,0,0.8),0_0_24px_rgba(255,90,0,0.2)] flex flex-col gap-3">
           <div className="flex items-start justify-between gap-2">
