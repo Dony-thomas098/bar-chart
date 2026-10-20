@@ -17,7 +17,7 @@ export default function LyricsHome() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col safe-area-screen">
       <Header />
       <main className="flex-1 overflow-y-auto">
         <FolderBrowser folderId={null} kind="lyrics" />

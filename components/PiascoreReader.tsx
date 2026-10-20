@@ -244,6 +244,15 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
   // ── UI Auto-hide / Header Toggle ────────────────────────────────────────────
   const [showUI, setShowUI] = useState(true);
   const [isStageLocked, setIsStageLocked] = useState(false);
+  const [lockToast, setLockToast] = useState<string | null>(null);
+  const lockToastTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const showLockNotification = (msg: string) => {
+    setLockToast(msg);
+    if (lockToastTimerRef.current) clearTimeout(lockToastTimerRef.current);
+    lockToastTimerRef.current = setTimeout(() => setLockToast(null), 2200);
+  };
+
   const isDraggingRef = useRef(false);
   const dragStartPosRef = useRef({ x: 0, y: 0 });
 
@@ -275,6 +284,7 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
     }
     if (isStageLocked) {
       // In stage lock mode, ignore canvas taps to prevent accidental popups on stage
+      showLockNotification('Screen is locked (Tap 🔒 in top-right to unlock)');
       return;
     }
     if (tabs.length === 0) {
@@ -572,7 +582,95 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
         }}
       />
 
-      {/* ── 1. TOP HEADER (Centered Title, Lock Icon, No Catalog/Gesture) ─── */}
+      {/* ── FLOATING TOP-RIGHT STAGE CONTROLS (Always accessible even when UI is hidden) ── */}
+      <div className="fixed top-[calc(0.65rem+env(safe-area-inset-top,0px))] right-3 sm:right-5 z-[60] flex items-center gap-2 select-none no-print">
+        {/* Quick Transpose Pill: enables changing chords / key without popping up editing menus */}
+        {currentChart && (
+          <div className="flex items-center bg-[#14141A]/90 backdrop-blur-md border border-[#2A2A31] rounded-full p-0.5 shadow-[0_4px_16px_rgba(0,0,0,0.5)]">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleTranspose(-1);
+              }}
+              className="w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center font-bold text-xs text-[#8C8A93] hover:text-[#F4F2F0] hover:bg-white/10 active:scale-90 transition-all cursor-pointer"
+              title="Transpose down 1 semitone"
+              aria-label="Transpose down"
+            >
+              ♭
+            </button>
+            <span className="px-1.5 text-[11px] sm:text-xs font-mono font-bold text-[#FF6A1F] min-w-[32px] text-center">
+              {currentChart.semitone_offset === 0
+                ? 'Orig'
+                : `${currentChart.semitone_offset > 0 ? '+' : ''}${currentChart.semitone_offset}`}
+            </span>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleTranspose(1);
+              }}
+              className="w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center font-bold text-xs text-[#8C8A93] hover:text-[#F4F2F0] hover:bg-white/10 active:scale-90 transition-all cursor-pointer"
+              title="Transpose up 1 semitone"
+              aria-label="Transpose up"
+            >
+              ♯
+            </button>
+          </div>
+        )}
+
+        {/* Lock Screen Toggle Button */}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsStageLocked((prev) => {
+              const next = !prev;
+              if (next) {
+                setShowUI(false);
+                closeAllPopups();
+                showLockNotification('Stage Lock ON · Accidental taps disabled');
+              } else {
+                showLockNotification('Stage Lock OFF · Tap screen to show options');
+              }
+              return next;
+            });
+          }}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full font-bold text-xs shadow-[0_4px_16px_rgba(0,0,0,0.6)] backdrop-blur-md transition-all active:scale-95 cursor-pointer border ${
+            isStageLocked
+              ? 'bg-amber-500/20 text-amber-400 border-amber-500/50 shadow-[0_0_16px_rgba(245,158,11,0.35)] ring-1 ring-amber-400/40'
+              : 'bg-[#14141A]/90 text-[#8C8A93] border-[#2A2A31] hover:text-[#F4F2F0] hover:border-[#3E3E48]'
+          }`}
+          title={
+            isStageLocked
+              ? 'Screen Locked: accidental taps will not open editing options. Scrolling & transpose enabled. Tap to unlock.'
+              : 'Lock Screen: prevent editing options from popping up accidentally while scrolling'
+          }
+          aria-label={isStageLocked ? 'Unlock screen' : 'Lock screen'}
+        >
+          {isStageLocked ? (
+            <>
+              <Lock size={15} className="text-amber-400 stroke-[2.5]" />
+              <span className="font-semibold text-amber-400">Locked</span>
+            </>
+          ) : (
+            <>
+              <Unlock size={15} className="stroke-[2.2]" />
+              <span className="font-semibold text-[#8C8A93]">Lock</span>
+            </>
+          )}
+        </button>
+      </div>
+
+      {/* ── STAGE LOCK TOAST NOTIFICATION ───────────────────────────────── */}
+      {lockToast && (
+        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-[70] bg-[#1A1A20]/95 backdrop-blur-md border border-amber-500/40 text-amber-300 px-4 py-2 rounded-full text-xs font-semibold shadow-[0_8px_24px_rgba(0,0,0,0.8)] flex items-center gap-2 animate-in fade-in zoom-in-95 duration-200 pointer-events-none">
+          <Lock size={14} className="text-amber-400 shrink-0" />
+          <span>{lockToast}</span>
+        </div>
+      )}
+
+      {/* ── 1. TOP HEADER (Centered Title, Synchronized Sliding) ─────────── */}
       <header
         className={`fixed top-0 left-0 right-0 z-50 bg-[#0F1015]/85 backdrop-blur-2xl border-b border-[#2A2A31] flex items-center justify-between px-4 pt-[env(safe-area-inset-top,0px)] h-[calc(3.5rem+env(safe-area-inset-top,0px))] transition-transform duration-300 ${
           showUI ? 'translate-y-0' : '-translate-y-full'
@@ -582,7 +680,7 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
         <div className="w-10 shrink-0" />
 
         {/* Center: Song Title & Composer / Subtitle */}
-        <div className="flex flex-col items-center justify-center text-center max-w-[70vw]">
+        <div className="flex flex-col items-center justify-center text-center max-w-[55vw] sm:max-w-[65vw]">
           <h1 className="text-sm sm:text-base font-bold text-[#F4F2F0] truncate tracking-tight">
             {currentChart ? (currentChart.title || 'Untitled') : 'No Song Open'}
             {currentChart && totalLines > 0 ? ` (${currentLineIndex + 1}/${totalLines})` : ''}
@@ -594,21 +692,8 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
           </p>
         </div>
 
-        {/* Right: Stage Lock Button Only */}
-        <div className="w-10 shrink-0 flex justify-end">
-          <button
-            onClick={() => setIsStageLocked((prev) => !prev)}
-            className={`p-2 rounded-xl transition-all active:scale-95 cursor-pointer ${
-              isStageLocked 
-                ? 'text-amber-400 bg-amber-400/15' 
-                : 'text-[#8C8A93] hover:text-[#F4F2F0] hover:bg-white/5'
-            }`}
-            title={isStageLocked ? 'Stage Lock active (taps & tab closing locked)' : 'Lock UI for stage performance'}
-            aria-label={isStageLocked ? 'Unlock screen' : 'Lock screen'}
-          >
-            {isStageLocked ? <Lock size={18} className="text-amber-400" /> : <Unlock size={18} />}
-          </button>
-        </div>
+        {/* Right spacer for top-right floating stage controls */}
+        <div className="w-28 sm:w-36 shrink-0" />
       </header>
 
       {/* ── 2. DOCUMENT TAB NAVIGATION BAR (Below Header) ──────────────────── */}

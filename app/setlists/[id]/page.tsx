@@ -473,7 +473,7 @@ export default function SetlistDetailPage() {
   if (!setlist) return null;
 
   return (
-    <div className="min-h-screen flex flex-col print:min-h-0 print:block w-full print:w-full print:m-0 print:p-0">
+    <div className="min-h-screen flex flex-col safe-area-screen print:min-h-0 print:block w-full print:w-full print:m-0 print:p-0">
       <div className="no-print print:!hidden">
         <Header />
       </div>

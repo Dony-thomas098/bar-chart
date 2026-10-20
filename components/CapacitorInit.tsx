@@ -19,11 +19,17 @@ export function CapacitorInit() {
         // 1. Configure Status Bar
         try {
           const { StatusBar, Style } = await import('@capacitor/status-bar');
-          await StatusBar.setStyle({ style: Style.Dark });
-          if (Capacitor.getPlatform() === 'android') {
-            await StatusBar.setBackgroundColor({ color: '#0B0B0E' });
-            await StatusBar.setOverlaysWebView({ overlay: false });
-          }
+          // Allow content to render edge-to-edge under transparent status bar
+          await StatusBar.setOverlaysWebView({ overlay: true });
+          await StatusBar.setBackgroundColor({ color: '#00000000' });
+
+          const isDark =
+            typeof document !== 'undefined' &&
+            (document.documentElement.classList.contains('dark') ||
+              document.documentElement.getAttribute('data-theme') === 'dark');
+
+          // Style.Dark = light text/icons for dark backgrounds; Style.Light = dark text/icons for light backgrounds
+          await StatusBar.setStyle({ style: isDark ? Style.Dark : Style.Light });
         } catch (e) {
           console.debug('[Capacitor] StatusBar plugin not available', e);
         }

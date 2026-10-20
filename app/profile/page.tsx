@@ -222,9 +222,9 @@ export default function ProfilePage() {
   const initial = (displayName.charAt(0) || user.email?.charAt(0) || 'U').toUpperCase();
 
   return (
-    <div className="min-h-dvh h-dvh flex flex-col bg-[var(--bg-canvas)] text-[#1c1c1e] dark:text-[#f4f4f6]">
+    <div className="min-h-dvh h-dvh flex flex-col safe-area-screen bg-[var(--bg-canvas)] text-[#1c1c1e] dark:text-[#f4f4f6]">
       <Header />
-      <main className="flex-1 overflow-y-auto overflow-x-hidden w-full px-4 pt-4 pb-[calc(6.5rem+env(safe-area-inset-bottom,0px))]">
+      <main className="flex-1 overflow-y-auto overflow-x-hidden w-full px-4 pt-4 pb-[calc(7.5rem+max(env(safe-area-inset-bottom,0px),var(--safe-area-inset-bottom,0px)))]">
         <div className="mx-auto w-full max-w-[430px] flex flex-col gap-4">
           
           {/* Top Bar Header */}

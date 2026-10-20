@@ -30,9 +30,9 @@ export default function BookmarksPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col safe-area-screen">
       <Header />
-      <main className="flex-1 overflow-y-auto w-full max-w-7xl mx-auto px-4 pt-[max(env(safe-area-inset-top,1.5rem),1.5rem)] pb-36">
+      <main className="flex-1 overflow-y-auto w-full max-w-7xl mx-auto px-4 pt-3 pb-[calc(7.5rem+max(env(safe-area-inset-bottom,0px),var(--safe-area-inset-bottom,0px)))]">
         <div className="flex items-center gap-3 mb-8 mt-2">
           <div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-text-primary tracking-tight flex items-center gap-2.5">

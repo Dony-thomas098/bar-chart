@@ -218,6 +218,15 @@ export function PiascoreLyricsReader({ initialLyric, folderId }: Props) {
     }
   };
 
+  const [lockToast, setLockToast] = useState<string | null>(null);
+  const lockToastTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const showLockNotification = (msg: string) => {
+    setLockToast(msg);
+    if (lockToastTimerRef.current) clearTimeout(lockToastTimerRef.current);
+    lockToastTimerRef.current = setTimeout(() => setLockToast(null), 2200);
+  };
+
   const closeAllPopups = () => {
     setIsBookmarkOpen(false);
     setIsAdjustOpen(false);
@@ -233,6 +242,7 @@ export function PiascoreLyricsReader({ initialLyric, folderId }: Props) {
     }
     if (isStageLocked) {
       // In stage lock mode, ignore canvas taps to prevent accidental popups on stage
+      showLockNotification('Screen is locked (Tap 🔒 in top-right to unlock)');
       return;
     }
     const hasOpenPopup =
@@ -444,6 +454,59 @@ export function PiascoreLyricsReader({ initialLyric, folderId }: Props) {
 
   return (
     <div className="fixed inset-0 w-screen h-screen bg-[#e8e8ec] dark:bg-[#121214] text-slate-800 dark:text-slate-100 flex flex-col overflow-hidden select-none font-sans">
+      {/* ── FLOATING TOP-RIGHT STAGE CONTROLS (Always accessible even when UI is hidden) ── */}
+      <div className="fixed top-[calc(0.65rem+env(safe-area-inset-top,0px))] right-3 sm:right-5 z-[60] flex items-center gap-2 select-none no-print">
+        {/* Lock Screen Toggle Button */}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsStageLocked((prev) => {
+              const next = !prev;
+              if (next) {
+                setShowUI(false);
+                closeAllPopups();
+                showLockNotification('Stage Lock ON · Accidental taps disabled');
+              } else {
+                showLockNotification('Stage Lock OFF · Tap screen to show options');
+              }
+              return next;
+            });
+          }}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full font-bold text-xs shadow-[0_4px_16px_rgba(0,0,0,0.6)] backdrop-blur-md transition-all active:scale-95 cursor-pointer border ${
+            isStageLocked
+              ? 'bg-amber-500/20 text-amber-400 border-amber-500/50 shadow-[0_0_16px_rgba(245,158,11,0.35)] ring-1 ring-amber-400/40'
+              : 'bg-[#14141A]/90 text-[#8C8A93] border-[#2A2A31] hover:text-[#F4F2F0] hover:border-[#3E3E48]'
+          }`}
+          title={
+            isStageLocked
+              ? 'Screen Locked: accidental taps will not open editing options. Scrolling enabled. Tap to unlock.'
+              : 'Lock Screen: prevent editing options from popping up accidentally while scrolling'
+          }
+          aria-label={isStageLocked ? 'Unlock screen' : 'Lock screen'}
+        >
+          {isStageLocked ? (
+            <>
+              <Lock size={15} className="text-amber-400 stroke-[2.5]" />
+              <span className="font-semibold text-amber-400">Locked</span>
+            </>
+          ) : (
+            <>
+              <Unlock size={15} className="stroke-[2.2]" />
+              <span className="font-semibold text-[#8C8A93]">Lock</span>
+            </>
+          )}
+        </button>
+      </div>
+
+      {/* ── STAGE LOCK TOAST NOTIFICATION ───────────────────────────────── */}
+      {lockToast && (
+        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-[70] bg-[#1A1A20]/95 backdrop-blur-md border border-amber-500/40 text-amber-300 px-4 py-2 rounded-full text-xs font-semibold shadow-[0_8px_24px_rgba(0,0,0,0.8)] flex items-center gap-2 animate-in fade-in zoom-in-95 duration-200 pointer-events-none">
+          <Lock size={14} className="text-amber-400 shrink-0" />
+          <span>{lockToast}</span>
+        </div>
+      )}
+
       {/* ── 1. TOP HEADER (Piascore Style) ────────────────────────────────── */}
       <header
         className={`fixed top-0 left-0 right-0 z-50 bg-white/60 dark:bg-[#1a1a1e]/60 backdrop-blur-2xl saturate-[180%] border-b border-white/60 dark:border-white/15 flex items-center justify-between px-3 pt-[env(safe-area-inset-top,0px)] h-[calc(3rem+env(safe-area-inset-top,0px))] transition-transform duration-300 ${
@@ -462,7 +525,7 @@ export function PiascoreLyricsReader({ initialLyric, folderId }: Props) {
         </button>
 
         {/* Center: Song Title & Subtitle */}
-        <div className="flex flex-col items-center justify-center text-center max-w-[50vw]">
+        <div className="flex flex-col items-center justify-center text-center max-w-[45vw] sm:max-w-[55vw]">
           <h1 className="text-sm font-bold text-slate-900 dark:text-white truncate tracking-tight flex items-center gap-1.5">
             <Type size={14} className="text-accent-start" />
             {currentLyric.title || 'Untitled Lyrics'}
@@ -472,21 +535,8 @@ export function PiascoreLyricsReader({ initialLyric, folderId }: Props) {
           </p>
         </div>
 
-        {/* Right: Stage Lock & Gesture / Sync Button */}
-        <div className="flex items-center gap-1.5">
-          <button
-            onClick={() => setIsStageLocked(prev => !prev)}
-            className={`flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg transition-all active:scale-95 ${
-              isStageLocked 
-                ? 'bg-amber-500 text-white shadow-xs' 
-                : 'text-slate-600 dark:text-slate-300 hover:bg-black/5 dark:hover:bg-white/5'
-            }`}
-            title={isStageLocked ? "Stage Lock active (taps locked)" : "Lock UI for stage performance"}
-          >
-            {isStageLocked ? <Lock size={15} /> : <Unlock size={15} />}
-            <span className="hidden sm:inline">{isStageLocked ? 'Locked' : 'Lock'}</span>
-          </button>
-
+        {/* Right: Gesture / Sync Button and spacer for floating lock button */}
+        <div className="flex items-center gap-1.5 pr-20 sm:pr-24">
           <button
             onClick={() => setIsSyncModalOpen(true)}
             className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-accent-start hover:bg-black/5 dark:hover:bg-white/5 rounded-lg transition-all active:scale-95"

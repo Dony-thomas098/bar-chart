@@ -398,9 +398,9 @@ export default function SetlistsPage() {
   if (authLoading) return null;
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col safe-area-screen">
       <Header />
-      <main className="flex-1 overflow-y-auto w-full max-w-4xl mx-auto px-4 pt-[max(env(safe-area-inset-top,1.5rem),1.5rem)] pb-36">
+      <main className="flex-1 overflow-y-auto w-full max-w-4xl mx-auto px-4 pt-3 pb-[calc(7.5rem+max(env(safe-area-inset-bottom,0px),var(--safe-area-inset-bottom,0px)))]">
 
         {/* Action row */}
         <div className="flex items-center justify-between mb-6 mt-2">

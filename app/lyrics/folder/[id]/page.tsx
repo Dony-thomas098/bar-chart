@@ -19,7 +19,7 @@ export default function LyricsFolderPage(props: { params: Promise<{ id: string }
   if (authLoading || !user) return <div className="flex h-screen items-center justify-center text-white">Loading...</div>;
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col safe-area-screen">
       <Header />
       <main className="flex-1 overflow-y-auto">
         <FolderBrowser folderId={params.id} folderName={folderName} kind="lyrics" />

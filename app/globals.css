@@ -3,6 +3,12 @@
 @variant dark (&:where(.dark, [data-theme="dark"], .dark *));
 
 :root {
+  /* Safe Area Insets: Standard CSS env() with fallback to Capacitor-injected CSS vars */
+  --safe-area-top: max(env(safe-area-inset-top, 0px), var(--safe-area-inset-top, 0px));
+  --safe-area-bottom: max(env(safe-area-inset-bottom, 0px), var(--safe-area-inset-bottom, 0px));
+  --safe-area-left: max(env(safe-area-inset-left, 0px), var(--safe-area-inset-left, 0px));
+  --safe-area-right: max(env(safe-area-inset-right, 0px), var(--safe-area-inset-right, 0px));
+
   /* Canvas Background */
   --bg-canvas: #ececee;
   --bg-canvas-end: #f4f4f6;
@@ -173,6 +179,18 @@ body {
 
 /* Glass Card & Utilities */
 @layer utilities {
+  .safe-area-container {
+    padding-top: var(--safe-area-top);
+    padding-bottom: var(--safe-area-bottom);
+    padding-left: var(--safe-area-left);
+    padding-right: var(--safe-area-right);
+  }
+
+  .safe-area-screen {
+    padding-left: var(--safe-area-left);
+    padding-right: var(--safe-area-right);
+  }
+
   .glass-card {
     background: var(--surface-glass);
     backdrop-filter: blur(20px) saturate(140%);

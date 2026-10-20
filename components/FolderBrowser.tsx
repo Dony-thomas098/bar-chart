@@ -661,7 +661,14 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
   const [createDropdownOpen, setCreateDropdownOpen] = useState(false);
 
   return (
-    <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 pt-3 pb-32">
+    <div
+      className="w-full max-w-7xl mx-auto px-4 sm:px-6 pt-2 sm:pt-3"
+      style={{
+        paddingLeft: 'calc(1rem + max(env(safe-area-inset-left, 0px), var(--safe-area-inset-left, 0px)))',
+        paddingRight: 'calc(1rem + max(env(safe-area-inset-right, 0px), var(--safe-area-inset-right, 0px)))',
+        paddingBottom: 'calc(7.5rem + max(env(safe-area-inset-bottom, 0px), var(--safe-area-inset-bottom, 0px)))',
+      }}
+    >
       {/* Back button (only inside subfolders on desktop; phones/tablets use system back) */}
       {folderId && (
         <div className="mb-4 flex items-center gap-3">

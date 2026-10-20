@@ -250,11 +250,11 @@ export default function PrinterPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col print:min-h-0 print:block w-full print:w-full print:m-0 print:p-0">
+    <div className="min-h-screen flex flex-col safe-area-screen print:min-h-0 print:block w-full print:w-full print:m-0 print:p-0">
       <div className="print:hidden">
         <Header />
       </div>
-      <main className="flex-1 overflow-y-auto w-full max-w-7xl mx-auto px-4 pt-[max(env(safe-area-inset-top,2rem),2rem)] pb-24 print:hidden">
+      <main className="flex-1 overflow-y-auto w-full max-w-7xl mx-auto px-4 pt-3 pb-[calc(7.5rem+max(env(safe-area-inset-bottom,0px),var(--safe-area-inset-bottom,0px)))] print:hidden">
         <div className="print:hidden mb-8">
 
           {/* Module Switcher Tabs */}

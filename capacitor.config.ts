@@ -15,8 +15,14 @@ const config: CapacitorConfig = {
       androidScaleType: 'CENTER_CROP',
     },
     StatusBar: {
-      style: 'DARK',
-      backgroundColor: '#0B0B0E',
+      overlaysWebView: true,
+      style: 'DEFAULT',
+    },
+    SystemBars: {
+      insetsHandling: 'css',
+      initialViewportFitValueHint: 'cover',
+      style: 'DEFAULT',
+      hidden: false,
     },
     LiveUpdate: {
       autoDeleteBundles: true,

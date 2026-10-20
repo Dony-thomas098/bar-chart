@@ -70,9 +70,9 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col safe-area-screen">
       <Header />
-      <main className="flex-1 overflow-y-auto w-full pt-6 pb-36 px-4 flex justify-center">
+      <main className="flex-1 overflow-y-auto w-full pt-4 pb-[calc(7.5rem+max(env(safe-area-inset-bottom,0px),var(--safe-area-inset-bottom,0px)))] px-4 flex justify-center">
         <GlassCard className="w-full max-w-4xl p-0 overflow-hidden flex flex-col max-h-[82vh] shadow-glass-strong">
           
           {/* Header */}

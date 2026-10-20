@@ -406,32 +406,30 @@ export function Navigation() {
     return null;
   }
 
-  // Hide on reading mode (lyrics score or chord score viewer), full-screen live performance screens, and print
   const cleanPath = (pathname || '').replace(/\/+$/, '') || '/';
-  const isLyricsMainOrFolder = cleanPath === '/lyrics' || cleanPath.startsWith('/lyrics/folder');
-  const isChartMainOrFolder = cleanPath === '/chart' || cleanPath === '/' || cleanPath.startsWith('/folder');
-  const isEditScreen = cleanPath.endsWith('/edit') || cleanPath.includes('/edit');
 
-  const isReadingScreen =
-    !isLyricsMainOrFolder &&
-    !isChartMainOrFolder &&
-    !isEditScreen &&
-    (cleanPath.startsWith('/lyrics/view') ||
-      (cleanPath.startsWith('/lyrics/') && cleanPath !== '/lyrics') ||
-      (cleanPath.startsWith('/chart/') && cleanPath !== '/chart'));
+  // NEVER show main navigation bar on:
+  // - Chord charts reader or editor (/chart, /chart/*)
+  // - Lyrics reader or editor (/lyrics/view, /lyrics/* except /lyrics and /lyrics/folder)
+  // - Live performance screens (/perform, /perform/*)
+  // - Printer screen (/printer, /printer/*)
+  const isChartScreen = cleanPath === '/chart' || cleanPath.startsWith('/chart/');
+  const isLyricsReaderOrEditor =
+    cleanPath.startsWith('/lyrics/view') ||
+    cleanPath.includes('/edit') ||
+    (cleanPath.startsWith('/lyrics/') && !cleanPath.startsWith('/lyrics/folder'));
+  const isPerformScreen = cleanPath.startsWith('/perform');
+  const isPrinterScreen = cleanPath.startsWith('/printer');
 
-  const isPerformScreen =
-    isReadingScreen ||
-    (cleanPath.startsWith('/perform/') && cleanPath.split('/').length === 3) ||
-    (cleanPath.includes('/perform') && cleanPath.split('/').length >= 4);
-
-  if (isPerformScreen) return null;
+  if (isChartScreen || isLyricsReaderOrEditor || isPerformScreen || isPrinterScreen) {
+    return null;
+  }
 
   return (
     <>
       {/* Floating Water-Jump Bottom Dock */}
       <div
-        className={`fixed bottom-0 left-0 right-0 z-40 px-3 pointer-events-none no-print transition-all duration-300 ease-in-out pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))] ${
+        className={`fixed bottom-0 left-0 right-0 z-40 px-3 pointer-events-none no-print transition-all duration-300 ease-in-out pb-[calc(0.5rem+max(env(safe-area-inset-bottom,0px),var(--safe-area-inset-bottom,0px)))] ${
           selectionActive ? 'translate-y-28 opacity-0 pointer-events-none' : 'translate-y-0 opacity-100'
         }`}
       >
@@ -484,7 +482,7 @@ export function Navigation() {
           onClick={() => setCreateModalOpen(false)}
         >
           <div
-            className="bg-[#1A1A20] border border-[#2A2A31] rounded-t-[32px] sm:rounded-[32px] w-full max-w-[430px] p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] shadow-[0_16px_48px_rgba(0,0,0,0.85)] space-y-4 animate-in slide-in-from-bottom duration-200 text-[#F4F2F0]"
+            className="bg-[#1A1A20] border border-[#2A2A31] rounded-t-[32px] sm:rounded-[32px] w-full max-w-[430px] p-6 pb-[calc(1.5rem+max(env(safe-area-inset-bottom,0px),var(--safe-area-inset-bottom,0px)))] shadow-[0_16px_48px_rgba(0,0,0,0.85)] space-y-4 animate-in slide-in-from-bottom duration-200 text-[#F4F2F0]"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Grab handle */}

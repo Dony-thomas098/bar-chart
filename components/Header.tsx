@@ -23,10 +23,17 @@ export function Header() {
 
   return (
     <>
-      <header className="sticky top-0 z-40 no-print transition-colors pt-2 sm:pt-3">
-        {/* Transparent over canvas */}
+      <header
+        className="sticky top-0 z-40 no-print transition-colors bg-[var(--bg-canvas)]/80 dark:bg-[var(--bg-canvas)]/80 backdrop-blur-xl"
+        style={{
+          paddingTop: 'calc(max(env(safe-area-inset-top, 0px), var(--safe-area-inset-top, 0px)) + 14px)',
+          paddingLeft: 'max(env(safe-area-inset-left, 0px), var(--safe-area-inset-left, 0px))',
+          paddingRight: 'max(env(safe-area-inset-right, 0px), var(--safe-area-inset-right, 0px))',
+          paddingBottom: '8px',
+        }}
+      >
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="relative flex items-center justify-between h-13 sm:h-14">
+          <div className="relative flex items-center justify-between min-h-[56px] h-14">
             
             {/* Left: Hamburger menu + Brand Logo (both mobile & desktop) */}
             <div className="flex items-center gap-2 sm:gap-3 z-10">

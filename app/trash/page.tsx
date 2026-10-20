@@ -279,10 +279,10 @@ export default function TrashPage() {
   const isAllSelected = allItems.length > 0 && selectedIds.size === allItems.length;
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col safe-area-screen">
       <Header />
       
-      <main className="flex-1 overflow-y-auto w-full max-w-7xl mx-auto px-4 pt-[max(env(safe-area-inset-top,1.5rem),1.5rem)] pb-36">
+      <main className="flex-1 overflow-y-auto w-full max-w-7xl mx-auto px-4 pt-3 pb-[calc(7.5rem+max(env(safe-area-inset-bottom,0px),var(--safe-area-inset-bottom,0px)))]">
         {/* Title + Actions Row */}
         <div className="flex items-center gap-3 mb-4 mt-2">
           <div className="w-12 h-12 bg-red-500/10 rounded-2xl flex items-center justify-center border border-red-500/20 text-red-500 shadow-inner-glass">
