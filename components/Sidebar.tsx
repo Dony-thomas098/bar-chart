@@ -4,6 +4,7 @@ import React, { useState, useEffect, useTransition } from 'react';
 import { useAuth, canModifySection } from '@/components/AuthProvider';
 import { getRecentCharts, createFolder, saveChart } from '@/lib/storage';
 import { saveLyrics } from '@/lib/lyrics';
+import { createDefaultLine } from '@/lib/chart-types';
 import { X, User, LogOut, Settings, Folder as FolderIcon, FileText, Printer, Trash2, Music, Music2, ListMusic, Star, Download, ChevronRight, Plus, Sun, Moon, Sparkles, Users } from 'lucide-react';
 import { useRouter, usePathname } from 'next/navigation';
 import { getStoredTheme, setTheme, ThemeMode } from '@/lib/theme';
@@ -93,17 +94,17 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
   };
 
   const handleCreateChart = async () => {
-    if (!user) return;
+    const currentUserId = user?.id || (typeof window !== 'undefined' ? localStorage.getItem('chord-grid-offline-user-id') : null) || 'guest-user';
     const chart = {
       id: crypto.randomUUID(),
       title: 'Untitled Chart',
       tempo: 120,
       time_sig: '4/4',
-      lines: [],
+      lines: [createDefaultLine(), createDefaultLine()],
       semitone_offset: 0,
       prefer_flats: false,
       folder_id: currentFolderId,
-      created_by: user.id,
+      created_by: currentUserId,
       updated_at: new Date().toISOString(),
     };
     await saveChart(chart);
@@ -112,13 +113,13 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
   };
 
   const handleCreateLyrics = async () => {
-    if (!user) return;
+    const currentUserId = user?.id || (typeof window !== 'undefined' ? localStorage.getItem('chord-grid-offline-user-id') : null) || 'guest-user';
     const lyric = {
       id: crypto.randomUUID(),
       title: 'Untitled Lyrics',
       body: '',
       folder_id: currentFolderId,
-      created_by: user.id,
+      created_by: currentUserId,
       updated_at: new Date().toISOString(),
     };
     await saveLyrics(lyric);

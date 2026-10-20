@@ -96,8 +96,10 @@ export async function flushPendingSaves() {
         }
       } else if (item.action === 'delete') {
         if (item.type === 'chart') {
+          await supabase.from('setlist_items').delete().eq('item_id', item.id);
           await supabase.from('charts').delete().eq('id', item.id);
         } else if (item.type === 'lyrics') {
+          await supabase.from('setlist_items').delete().eq('item_id', item.id);
           await supabase.from('lyrics').delete().eq('id', item.id);
         } else if (item.type === 'folder') {
           await supabase.from('folders').delete().eq('id', item.id);
@@ -352,12 +354,28 @@ export async function deleteEntry(id: string, type: 'folder' | 'chart' | 'lyrics
   if (isOnline()) {
     try {
       if (type === 'folder') {
+        // Cascade delete lyrics inside this folder
+        await supabase.from('lyrics').delete().eq('folder_id', id);
+        // Find charts in this folder to clean up referencing setlist_items
+        const { data: folderCharts } = await supabase.from('charts').select('id').eq('folder_id', id);
+        if (folderCharts && folderCharts.length > 0) {
+          const chartIds = folderCharts.map(c => c.id);
+          await supabase.from('setlist_items').delete().in('item_id', chartIds);
+          await supabase.from('charts').delete().eq('folder_id', id);
+        }
+        // Subfolders
+        await supabase.from('folders').delete().eq('parent_id', id);
+        // Delete folder itself
         const { error } = await supabase.from('folders').delete().eq('id', id);
         if (error) console.warn('[Storage] Supabase delete folder error:', error);
       } else if (type === 'chart') {
+        // Clean up setlist_items referencing this chart first
+        await supabase.from('setlist_items').delete().eq('item_id', id);
         const { error } = await supabase.from('charts').delete().eq('id', id);
         if (error) console.warn('[Storage] Supabase delete chart error:', error);
       } else if (type === 'lyrics') {
+        // Clean up setlist_items referencing this lyric first
+        await supabase.from('setlist_items').delete().eq('item_id', id);
         const { error } = await supabase.from('lyrics').delete().eq('id', id);
         if (error) console.warn('[Storage] Supabase delete lyrics error:', error);
       }
@@ -422,18 +440,19 @@ export async function moveToTrash(id: string, type: 'folder' | 'chart' | 'lyrics
 
   let existingName = '';
   let existingParentId: string | null = null;
+  let existingItem: any = null;
 
   if (isOnline()) {
     try {
       if (type === 'folder') {
-        const { data } = await supabase.from('folders').select('name, parent_id').eq('id', id).single();
-        if (data) { existingName = data.name; existingParentId = data.parent_id; }
+        const { data } = await supabase.from('folders').select('*').eq('id', id).maybeSingle();
+        if (data) { existingName = data.name; existingParentId = data.parent_id; existingItem = data; }
       } else if (type === 'chart') {
-        const { data } = await supabase.from('charts').select('title, folder_id').eq('id', id).single();
-        if (data) { existingName = data.title; existingParentId = data.folder_id; }
+        const { data } = await supabase.from('charts').select('*').eq('id', id).maybeSingle();
+        if (data) { existingName = data.title; existingParentId = data.folder_id; existingItem = data; }
       } else if (type === 'lyrics') {
-        const { data } = await supabase.from('lyrics').select('title, folder_id').eq('id', id).single();
-        if (data) { existingName = data.title; existingParentId = data.folder_id; }
+        const { data } = await supabase.from('lyrics').select('*').eq('id', id).maybeSingle();
+        if (data) { existingName = data.title; existingParentId = data.folder_id; existingItem = data; }
       }
     } catch (err) {
       console.warn('[Storage] Supabase get for trash error:', err);
@@ -446,6 +465,7 @@ export async function moveToTrash(id: string, type: 'folder' | 'chart' | 'lyrics
       const db = await dbPromise;
       const existing = await db.get(storeName, id);
       if (existing) {
+        existingItem = existing;
         if (type === 'folder') {
           existingName = (existing as Folder).name;
           existingParentId = (existing as Folder).parent_id;
@@ -460,6 +480,18 @@ export async function moveToTrash(id: string, type: 'folder' | 'chart' | 'lyrics
   }
 
   if (!existingName) return;
+
+  // Strip existing __TRASH__: prefix to prevent duplicate nesting (__TRASH__:root:__TRASH__:...)
+  if (existingName.startsWith('__TRASH__:')) {
+    const p = existingName.split(':');
+    if (p.length >= 3) {
+      existingParentId = p[1] === 'root' ? null : p[1];
+      existingName = p.slice(2).join(':');
+    } else if (p.length === 2) {
+      existingParentId = null;
+      existingName = p[1];
+    }
+  }
 
   const trashedName = `__TRASH__:${existingParentId || 'root'}:${existingName}`;
 
@@ -481,20 +513,18 @@ export async function moveToTrash(id: string, type: 'folder' | 'chart' | 'lyrics
   if (dbPromise) {
     try {
       const db = await dbPromise;
-      const existing = await db.get(storeName, id);
-      if (existing) {
-        const updated: any = { ...existing, updated_at };
-        if (type === 'folder') {
-          updated.name = trashedName;
-          updated.parent_id = null;
-        } else {
-          updated.title = trashedName;
-          updated.folder_id = null;
-        }
-        await db.put(storeName, updated);
-        if (!isOnline()) {
-          await db.put('pending_saves', { id, type, data: updated, action: 'upsert' });
-        }
+      const existing = (await db.get(storeName, id)) || existingItem;
+      const updated: any = existing ? { ...existing, updated_at } : { id, updated_at };
+      if (type === 'folder') {
+        updated.name = trashedName;
+        updated.parent_id = null;
+      } else {
+        updated.title = trashedName;
+        updated.folder_id = null;
+      }
+      await db.put(storeName, updated);
+      if (!isOnline()) {
+        await db.put('pending_saves', { id, type, data: updated, action: 'upsert' });
       }
     } catch (err) {
       console.warn('[Storage] DB moveToTrash error:', err);
@@ -507,20 +537,59 @@ export async function restoreFromTrash(id: string, type: 'folder' | 'chart' | 'l
   const storeName = type === 'folder' ? 'folders' : type === 'chart' ? 'charts' : 'lyrics';
 
   const parts = trashedName.split(':');
-  if (parts.length < 3 || parts[0] !== '__TRASH__') return;
+  let originalParentId: string | null = null;
+  let originalName = trashedName;
 
-  const originalParentIdRaw = parts[1];
-  const originalParentId = originalParentIdRaw === 'root' ? null : originalParentIdRaw;
-  const originalName = parts.slice(2).join(':');
+  if (parts.length >= 3 && parts[0] === '__TRASH__') {
+    originalParentId = parts[1] === 'root' ? null : parts[1];
+    originalName = parts.slice(2).join(':');
+  } else if (parts.length === 2 && parts[0] === '__TRASH__') {
+    originalParentId = null;
+    originalName = parts[1];
+  }
+
+  // Verify whether originalParentId exists in folders; if not (e.g. parent was deleted), fallback to root (null)
+  let finalParentId = originalParentId;
+  if (finalParentId) {
+    let folderExists = false;
+    if (isOnline()) {
+      try {
+        const { data } = await supabase.from('folders').select('id, name').eq('id', finalParentId).maybeSingle();
+        if (data && !data.name.startsWith('__TRASH__:')) {
+          folderExists = true;
+        }
+      } catch {}
+    }
+    if (!folderExists && dbPromise) {
+      try {
+        const db = await dbPromise;
+        const localFolder = await db.get('folders', finalParentId);
+        if (localFolder && !localFolder.name.startsWith('__TRASH__:')) {
+          folderExists = true;
+        }
+      } catch {}
+    }
+    if (!folderExists) {
+      finalParentId = null;
+    }
+  }
+
+  let itemData: any = null;
 
   if (isOnline()) {
     try {
       if (type === 'folder') {
-        await supabase.from('folders').update({ name: originalName, parent_id: originalParentId, updated_at }).eq('id', id);
+        const { data, error } = await supabase.from('folders').update({ name: originalName, parent_id: finalParentId, updated_at }).eq('id', id).select().maybeSingle();
+        if (data) itemData = data;
+        if (error) console.warn('[Storage] Supabase restore folder error:', error);
       } else if (type === 'chart') {
-        await supabase.from('charts').update({ title: originalName, folder_id: originalParentId, updated_at }).eq('id', id);
+        const { data, error } = await supabase.from('charts').update({ title: originalName, folder_id: finalParentId, updated_at }).eq('id', id).select().maybeSingle();
+        if (data) itemData = data;
+        if (error) console.warn('[Storage] Supabase restore chart error:', error);
       } else if (type === 'lyrics') {
-        await supabase.from('lyrics').update({ title: originalName, folder_id: originalParentId, updated_at }).eq('id', id);
+        const { data, error } = await supabase.from('lyrics').update({ title: originalName, folder_id: finalParentId, updated_at }).eq('id', id).select().maybeSingle();
+        if (data) itemData = data;
+        if (error) console.warn('[Storage] Supabase restore lyrics error:', error);
       }
     } catch (err) {
       console.warn('[Storage] Supabase restoreFromTrash error:', err);
@@ -531,20 +600,20 @@ export async function restoreFromTrash(id: string, type: 'folder' | 'chart' | 'l
   if (dbPromise) {
     try {
       const db = await dbPromise;
-      const existing = await db.get(storeName, id);
-      if (existing) {
-        const updated: any = { ...existing, updated_at };
-        if (type === 'folder') {
-          updated.name = originalName;
-          updated.parent_id = originalParentId;
-        } else {
-          updated.title = originalName;
-          updated.folder_id = originalParentId;
-        }
-        await db.put(storeName, updated);
-        if (!isOnline()) {
-          await db.put('pending_saves', { id, type, data: updated, action: 'upsert' });
-        }
+      const existing = (await db.get(storeName, id)) || itemData;
+      const updated: any = existing ? { ...existing, updated_at } : { id, updated_at };
+      if (type === 'folder') {
+        updated.name = originalName;
+        updated.parent_id = finalParentId;
+      } else {
+        updated.title = originalName;
+        updated.folder_id = finalParentId;
+      }
+      await db.put(storeName, updated);
+      if (!isOnline()) {
+        await db.put('pending_saves', { id, type, data: updated, action: 'upsert' });
+      } else {
+        await db.delete('pending_saves', id);
       }
     } catch (err) {
       console.warn('[Storage] DB restoreFromTrash error:', err);
@@ -553,34 +622,65 @@ export async function restoreFromTrash(id: string, type: 'folder' | 'chart' | 'l
 }
 
 export async function listTrash() {
-  if (isOnline()) {
-    const foldersRes = await supabase.from('folders').select('*').like('name', '__TRASH__:%').order('updated_at', { ascending: false });
-    const chartsRes = await supabase.from('charts').select('id, title, updated_at').like('title', '__TRASH__:%').order('updated_at', { ascending: false });
-    const lyricsRes = await supabase.from('lyrics').select('id, title, updated_at').like('title', '__TRASH__:%').order('updated_at', { ascending: false });
-    return {
-      folders: foldersRes.data || [],
-      charts: [
-        ...(chartsRes.data || []).map((c) => ({ ...c, type: 'chart' })),
-        ...(lyricsRes.data || []).map((l) => ({ ...l, type: 'lyrics' }))
-      ].sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()),
-    };
-  } else if (dbPromise) {
-    const db = await dbPromise;
-    const allFolders = await db.getAll('folders');
-    const allCharts = await db.getAll('charts');
-    const allLyrics = await db.getAll('lyrics');
-    const folders = allFolders.filter((f) => f.name.startsWith('__TRASH__:'));
-    const charts = allCharts.filter((c) => c.title.startsWith('__TRASH__:'));
-    const lyrics = allLyrics.filter((l) => l.title.startsWith('__TRASH__:'));
-    return {
-      folders,
-      charts: [
-        ...charts.map((c) => ({ id: c.id, title: c.title, updated_at: c.updated_at, type: 'chart' })),
-        ...lyrics.map((l) => ({ id: l.id, title: l.title, updated_at: l.updated_at, type: 'lyrics' }))
-      ].sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()),
-    };
+  const folderMap = new Map<string, Folder>();
+  const itemMap = new Map<string, { id: string; title: string; updated_at: string; type: 'chart' | 'lyrics'; created_by?: string }>();
+
+  // 1. Read from local IndexedDB first
+  if (dbPromise) {
+    try {
+      const db = await dbPromise;
+      const allFolders = await db.getAll('folders');
+      const allCharts = await db.getAll('charts');
+      const allLyrics = await db.getAll('lyrics');
+
+      allFolders.filter((f) => f.name && f.name.startsWith('__TRASH__:')).forEach(f => folderMap.set(f.id, f));
+      allCharts.filter((c) => c.title && c.title.startsWith('__TRASH__:')).forEach(c => itemMap.set(c.id, { id: c.id, title: c.title, updated_at: c.updated_at, type: 'chart', created_by: c.created_by }));
+      allLyrics.filter((l) => l.title && l.title.startsWith('__TRASH__:')).forEach(l => itemMap.set(l.id, { id: l.id, title: l.title, updated_at: l.updated_at, type: 'lyrics', created_by: l.created_by }));
+    } catch (err) {
+      console.warn('[Storage] listTrash IndexedDB read error:', err);
+    }
   }
-  return { folders: [], charts: [] };
+
+  // 2. If online, fetch from Supabase and merge
+  if (isOnline()) {
+    try {
+      const [foldersRes, chartsRes, lyricsRes] = await Promise.all([
+        supabase.from('folders').select('*').like('name', '__TRASH__:%').order('updated_at', { ascending: false }),
+        supabase.from('charts').select('id, title, updated_at, created_by').like('title', '__TRASH__:%').order('updated_at', { ascending: false }),
+        supabase.from('lyrics').select('id, title, updated_at, created_by').like('title', '__TRASH__:%').order('updated_at', { ascending: false }),
+      ]);
+
+      if (foldersRes.data) {
+        foldersRes.data.forEach((f: Folder) => folderMap.set(f.id, f));
+      }
+      if (chartsRes.data) {
+        chartsRes.data.forEach((c: any) => itemMap.set(c.id, { id: c.id, title: c.title, updated_at: c.updated_at, type: 'chart', created_by: c.created_by }));
+      }
+      if (lyricsRes.data) {
+        lyricsRes.data.forEach((l: any) => itemMap.set(l.id, { id: l.id, title: l.title, updated_at: l.updated_at, type: 'lyrics', created_by: l.created_by }));
+      }
+    } catch (err) {
+      console.warn('[Storage] listTrash Supabase read error:', err);
+    }
+  }
+
+  // 3. Exclude any items that are pending deletion
+  if (dbPromise) {
+    try {
+      const db = await dbPromise;
+      const pending = await db.getAll('pending_saves');
+      const pendingDeletes = new Set(pending.filter(p => p.action === 'delete').map(p => p.id));
+      for (const id of pendingDeletes) {
+        folderMap.delete(id);
+        itemMap.delete(id);
+      }
+    } catch {}
+  }
+
+  const folders = Array.from(folderMap.values()).sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+  const charts = Array.from(itemMap.values()).sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+
+  return { folders, charts };
 }
 
 export async function moveEntry(id: string, type: 'folder' | 'chart' | 'lyrics', newParentId: string | null) {
@@ -622,6 +722,7 @@ export async function moveEntry(id: string, type: 'folder' | 'chart' | 'lyrics',
 
 export async function saveChart(chart: Chart) {
   chart.updated_at = new Date().toISOString();
+  await cacheChart(chart);
   let savedOnline = false;
   if (isOnline()) {
     try {
@@ -638,7 +739,6 @@ export async function saveChart(chart: Chart) {
     const db = await dbPromise;
     await db.put('pending_saves', { id: chart.id, type: 'chart', data: chart, action: 'upsert' });
   }
-  await cacheChart(chart);
 }
 
 export async function readChart(id: string, bypassCache = false): Promise<Chart | null> {
@@ -910,20 +1010,29 @@ export async function importChart(file: File, targetFolderId: string | null) {
 
 export async function saveLyrics(lyrics: any) {
   lyrics.updated_at = new Date().toISOString();
+  if (dbPromise) {
+    try {
+      const db = await dbPromise;
+      await db.put('lyrics', lyrics);
+    } catch {}
+  }
+  let savedOnline = false;
   if (isOnline()) {
-    const { type, ...dbPayload } = lyrics;
-    const { error } = await supabase.from('lyrics').upsert(dbPayload);
-    if (error) {
-      console.error('Failed to save lyrics:', error);
-      throw error;
+    try {
+      const { type, ...dbPayload } = lyrics;
+      const { error } = await supabase.from('lyrics').upsert(dbPayload);
+      if (!error) {
+        savedOnline = true;
+      } else {
+        console.warn('[Storage] Failed to save lyrics online, queuing offline:', error);
+      }
+    } catch (err) {
+      console.warn('[Storage] Network error saving lyrics:', err);
     }
-  } else if (dbPromise) {
+  }
+  if (!savedOnline && dbPromise) {
     const db = await dbPromise;
     await db.put('pending_saves', { id: lyrics.id, type: 'lyrics', data: lyrics, action: 'upsert' });
-  }
-  if (dbPromise) {
-    const db = await dbPromise;
-    await db.put('lyrics', lyrics);
   }
 }
 

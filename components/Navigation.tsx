@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useAuth, canModifySection } from './AuthProvider';
 import { saveChart } from '@/lib/storage';
 import { saveLyrics } from '@/lib/lyrics';
+import { createDefaultLine } from '@/lib/chart-types';
 import { Music, Type, X } from 'lucide-react';
 import styles from './WaterJumpNavbar.module.css';
 
@@ -368,17 +369,17 @@ export function Navigation() {
 
   const handleCreateNewChart = async () => {
     setCreateModalOpen(false);
-    if (!canCreateChart || !user) return;
+    const currentUserId = user?.id || (typeof window !== 'undefined' ? localStorage.getItem('chord-grid-offline-user-id') : null) || 'guest-user';
     const chart = {
       id: crypto.randomUUID(),
       title: 'Untitled Chart',
       tempo: 120,
       time_sig: '4/4',
-      lines: [],
+      lines: [createDefaultLine(), createDefaultLine()],
       semitone_offset: 0,
       prefer_flats: false,
       folder_id: null,
-      created_by: user.id,
+      created_by: currentUserId,
       updated_at: new Date().toISOString(),
     };
     await saveChart(chart);
@@ -387,13 +388,13 @@ export function Navigation() {
 
   const handleCreateNewLyrics = async () => {
     setCreateModalOpen(false);
-    if (!canCreateLyrics || !user) return;
+    const currentUserId = user?.id || (typeof window !== 'undefined' ? localStorage.getItem('chord-grid-offline-user-id') : null) || 'guest-user';
     const lyrics = {
       id: crypto.randomUUID(),
       title: 'Untitled Lyrics',
       body: '',
       folder_id: null,
-      created_by: user.id,
+      created_by: currentUserId,
       updated_at: new Date().toISOString(),
     };
     await saveLyrics(lyrics);

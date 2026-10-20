@@ -4,13 +4,13 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { listTrash, deleteEntry, restoreFromTrash, Folder } from '@/lib/storage';
 import { useAuth } from '@/components/AuthProvider';
-import { Folder as FolderIcon, FileText, Trash2, RefreshCw, AlertTriangle, CheckCircle2, XCircle, Check } from 'lucide-react';
+import { Folder as FolderIcon, FileText, Trash2, RefreshCw, AlertTriangle, CheckCircle2, XCircle, Check, Music } from 'lucide-react';
 import { Header } from '@/components/Header';
 import { GlassCard, PillButton, IconButton } from '@/components/ui/primitives';
 
 type TrashItem = {
   id: string;
-  type: 'folder' | 'chart';
+  type: 'folder' | 'chart' | 'lyrics';
   originalName: string;
   trashedName: string;
   updatedAt: string;
@@ -32,8 +32,8 @@ export default function TrashPage() {
   const longPressTriggered = useRef(false);
 
   // Modals state
-  const [restoreItem, setRestoreItem] = useState<{ id: string, type: 'folder' | 'chart', trashedName: string, originalName: string } | null>(null);
-  const [deleteItem, setDeleteItem] = useState<{ id: string, type: 'folder' | 'chart', originalName: string } | null>(null);
+  const [restoreItem, setRestoreItem] = useState<{ id: string, type: 'folder' | 'chart' | 'lyrics', trashedName: string, originalName: string } | null>(null);
+  const [deleteItem, setDeleteItem] = useState<{ id: string, type: 'folder' | 'chart' | 'lyrics', originalName: string } | null>(null);
   const [bulkDeleteModal, setBulkDeleteModal] = useState(false);
   const [deleteAllModal, setDeleteAllModal] = useState(false);
 
@@ -53,7 +53,7 @@ export default function TrashPage() {
     })),
     ...charts.map(c => ({
       id: c.id,
-      type: 'chart' as const,
+      type: (c.type || 'chart') as 'chart' | 'lyrics',
       originalName: getOriginalName(c.title),
       trashedName: c.title,
       updatedAt: c.updated_at,
@@ -252,7 +252,7 @@ export default function TrashPage() {
           <AlertTriangle className="w-12 h-12 text-orange-500 mx-auto mb-4" />
           <h2 className="text-xl font-bold text-text-primary mb-2">Access Denied</h2>
           <p className="text-text-secondary mb-6 text-xs">Please log in to view your trash.</p>
-          <PillButton onClick={() => router.push('/login')} variant="primary-dark" className="w-full py-3 text-sm">
+          <PillButton onClick={() => router.push('/auth')} variant="primary-dark" className="w-full py-3 text-sm">
             Go to Login
           </PillButton>
         </GlassCard>
@@ -443,6 +443,7 @@ export default function TrashPage() {
               {charts.map(chart => {
                 const originalName = getOriginalName(chart.title);
                 const isSelected = selectedIds.has(chart.id);
+                const itemType: 'chart' | 'lyrics' = chart.type === 'lyrics' ? 'lyrics' : 'chart';
                 return (
                   <div
                     key={chart.id}
@@ -469,14 +470,23 @@ export default function TrashPage() {
                       {/* Card Content (Icon + Title + Date) */}
                       <div className="flex flex-col items-center justify-center text-center w-full min-w-0 flex-1 pt-1">
                         <div className={`w-14 h-14 sm:w-16 sm:h-16 bg-white/80 dark:bg-white/10 rounded-2xl flex items-center justify-center mb-3 shadow-inner-glass border border-glass transition-all group-hover:scale-105 ${selectionMode && !isSelected ? 'opacity-50' : 'opacity-85'}`}>
-                          <FileText size={26} className="text-orange-500 stroke-[2.2]" />
+                          {itemType === 'lyrics' ? (
+                            <FileText size={26} className="text-amber-500 stroke-[2.2]" />
+                          ) : (
+                            <Music size={26} className="text-orange-500 stroke-[2.2]" />
+                          )}
                         </div>
                         <p className="text-xs sm:text-sm font-bold text-text-primary text-center w-full line-clamp-1 tracking-tight px-1">
                           {originalName}
                         </p>
-                        <p className="text-[10px] text-text-muted mt-1 truncate">
-                          Deleted: {new Date(chart.updated_at).toLocaleDateString()}
-                        </p>
+                        <div className="flex items-center justify-center gap-1.5 mt-1">
+                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-black/5 dark:bg-white/10 text-text-muted uppercase tracking-wider">
+                            {itemType}
+                          </span>
+                          <span className="text-[10px] text-text-muted truncate">
+                            {new Date(chart.updated_at).toLocaleDateString()}
+                          </span>
+                        </div>
                       </div>
 
                       {/* Action buttons (only in non-selection mode) */}
@@ -486,7 +496,7 @@ export default function TrashPage() {
                             type="button"
                             onClick={(e: React.MouseEvent) => {
                               e.stopPropagation();
-                              setRestoreItem({ id: chart.id, type: 'chart', trashedName: chart.title, originalName });
+                              setRestoreItem({ id: chart.id, type: itemType, trashedName: chart.title, originalName });
                             }}
                             className="flex-1 min-h-[32px] px-2 py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 active:scale-95 text-emerald-600 dark:text-emerald-400 font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer border border-emerald-500/20 shadow-xs"
                             title="Restore"
@@ -499,7 +509,7 @@ export default function TrashPage() {
                             type="button"
                             onClick={(e: React.MouseEvent) => {
                               e.stopPropagation();
-                              setDeleteItem({ id: chart.id, type: 'chart', originalName });
+                              setDeleteItem({ id: chart.id, type: itemType, originalName });
                             }}
                             className="w-8 h-8 rounded-xl bg-red-500/10 hover:bg-red-500/20 active:scale-95 text-red-600 dark:text-red-400 font-bold text-xs flex items-center justify-center transition-all cursor-pointer border border-red-500/20 shadow-xs shrink-0"
                             title="Delete Permanently"
@@ -525,7 +535,7 @@ export default function TrashPage() {
             <div className="w-16 h-16 mx-auto bg-orange-500/10 border border-orange-500/20 rounded-full flex items-center justify-center mb-5 text-orange-500 shadow-inner-glass">
               <RefreshCw size={24} />
             </div>
-            <h3 className="text-lg font-bold text-text-primary mb-2">Restore {restoreItem.type}?</h3>
+            <h3 className="text-lg font-bold text-text-primary mb-2">Restore {restoreItem.type === 'lyrics' ? 'Lyrics' : restoreItem.type === 'chart' ? 'Chart' : 'Folder'}?</h3>
             <p className="text-xs text-text-secondary mb-6 leading-relaxed">
               &quot;{restoreItem.originalName}&quot; will be restored to its original location.
             </p>

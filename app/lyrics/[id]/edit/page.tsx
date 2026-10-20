@@ -4,6 +4,7 @@ import { useAuth, canModifySection } from '@/components/AuthProvider';
 import { useLyricsSync } from '@/hooks/useLyricsSync';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { moveEntry } from '@/lib/storage';
+import { saveLyrics, Lyric } from '@/lib/lyrics';
 import { FolderPickerModal } from '@/components/FolderPickerModal';
 import { CornerLeftUp, Folder as FolderIcon, RefreshCw, Cloud, CloudOff, Copy } from 'lucide-react';
 import React, { useState } from 'react';
@@ -15,6 +16,24 @@ export default function LyricsEditor() {
   const router = useRouter();
   const lyricId = (params?.id as string) || searchParams?.get('id') || '';
   const canEdit = canModifySection(profile?.profession, 'lyrics');
+
+  React.useEffect(() => {
+    if (!lyricId && !authLoading) {
+      const newId = crypto.randomUUID();
+      const currentUserId = user?.id || (typeof window !== 'undefined' ? localStorage.getItem('chord-grid-offline-user-id') : null) || 'guest-user';
+      const newLyric: Lyric = {
+        id: newId,
+        title: 'Untitled Lyrics',
+        body: '',
+        folder_id: null,
+        created_by: currentUserId,
+        updated_at: new Date().toISOString(),
+      };
+      saveLyrics(newLyric).then(() => {
+        router.replace(`/lyrics/edit?id=${newId}`);
+      });
+    }
+  }, [lyricId, authLoading, user, router]);
 
   React.useEffect(() => {
     if (!authLoading && !canEdit) {
@@ -30,7 +49,7 @@ export default function LyricsEditor() {
     return <div className="flex h-screen items-center justify-center text-white">Loading...</div>;
   }
 
-  if (!user || !lyric) {
+  if (!lyric) {
     return (
       <div className="flex h-screen flex-col items-center justify-center text-white">
         <p>Lyrics not found or access denied.</p>
@@ -60,7 +79,7 @@ export default function LyricsEditor() {
             <button 
               onClick={async () => {
                 await forceSave();
-                router.push(`/lyrics/${lyric.id}`);
+                router.push(`/lyrics/view?id=${lyric.id}`);
               }}
               className="hidden lg:flex px-4 py-2 text-sm font-bold tracking-widest uppercase text-text-secondary hover:text-white bg-surface border border-border shadow-md rounded-xl hover:bg-surface-raised items-center transition-all"
             >

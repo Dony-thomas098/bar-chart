@@ -18,9 +18,7 @@ export function canModifySection(
   profession: UserProfession | undefined,
   sectionKind: 'chart' | 'lyrics'
 ): boolean {
-  if (!profession || profession === 'admin') return true;
-  if (profession === 'singing') return sectionKind === 'lyrics';
-  if (profession === 'instrument') return sectionKind === 'chart';
+  // All band members, singers, instrumentalists, and admins can collaboratively create and modify charts and lyrics
   return true;
 }
 

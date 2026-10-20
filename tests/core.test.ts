@@ -32,13 +32,50 @@ describe('Role-Based Section Authorization', () => {
     expect(canModifySection('admin', 'lyrics')).toBe(true);
   });
 
-  it('restricts singers to lyrics only', () => {
+  it('allows singers and instrumentalists to collaboratively create and modify charts and lyrics', () => {
     expect(canModifySection('singing', 'lyrics')).toBe(true);
-    expect(canModifySection('singing', 'chart')).toBe(false);
+    expect(canModifySection('singing', 'chart')).toBe(true);
+    expect(canModifySection('instrument', 'chart')).toBe(true);
+    expect(canModifySection('instrument', 'lyrics')).toBe(true);
+  });
+});
+
+describe('Trash Naming and Recovery Logic', () => {
+  const parseTrashName = (trashedName: string) => {
+    const parts = trashedName.split(':');
+    let originalParentId: string | null = null;
+    let originalName = trashedName;
+    if (parts.length >= 3 && parts[0] === '__TRASH__') {
+      originalParentId = parts[1] === 'root' ? null : parts[1];
+      originalName = parts.slice(2).join(':');
+    } else if (parts.length === 2 && parts[0] === '__TRASH__') {
+      originalParentId = null;
+      originalName = parts[1];
+    }
+    return { originalParentId, originalName };
+  };
+
+  it('correctly parses root-level trashed items', () => {
+    const { originalParentId, originalName } = parseTrashName('__TRASH__:root:My Awesome Chart');
+    expect(originalParentId).toBeNull();
+    expect(originalName).toBe('My Awesome Chart');
   });
 
-  it('restricts instrumentalists to charts only', () => {
-    expect(canModifySection('instrument', 'chart')).toBe(true);
-    expect(canModifySection('instrument', 'lyrics')).toBe(false);
+  it('correctly parses folder-nested trashed items', () => {
+    const { originalParentId, originalName } = parseTrashName('__TRASH__:folder-abc-123:My Lyrics');
+    expect(originalParentId).toBe('folder-abc-123');
+    expect(originalName).toBe('My Lyrics');
+  });
+
+  it('handles item names that contain colons', () => {
+    const { originalParentId, originalName } = parseTrashName('__TRASH__:root:Part 1: The Intro: Final');
+    expect(originalParentId).toBeNull();
+    expect(originalName).toBe('Part 1: The Intro: Final');
+  });
+
+  it('handles legacy or two-part trashed names gracefully', () => {
+    const { originalParentId, originalName } = parseTrashName('__TRASH__:Legacy Song');
+    expect(originalParentId).toBeNull();
+    expect(originalName).toBe('Legacy Song');
   });
 });

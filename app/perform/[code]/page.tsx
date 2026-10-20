@@ -347,7 +347,7 @@ export default function PerformancePage() {
               onClick={(e) => {
                 e.stopPropagation();
                 if (!currentChart) return;
-                router.push(`/chart/${currentChart.id}/edit?returnTo=/perform/${code}`);
+                router.push(`/chart/edit?id=${currentChart.id}&returnTo=/perform/${code}`);
               }}
               disabled={!currentChart}
               className="p-2 bg-accent-gradient text-white rounded-lg hover:brightness-110 transition-all disabled:opacity-40"

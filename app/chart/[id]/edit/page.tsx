@@ -8,7 +8,7 @@ import { transposeChart, resetChartTranspose } from '@/lib/transpose';
 import { createDefaultLine, createDefaultBlock, Line, Block } from '@/lib/chart-types';
 import { parseChord, parseChordToText, normalizeChordInput } from '@/lib/chord-parser';
 import { getChordNotes } from '@/lib/chord-notes';
-import { moveEntry } from '@/lib/storage';
+import { moveEntry, saveChart } from '@/lib/storage';
 import { FolderPickerModal } from '@/components/FolderPickerModal';
 import { X, Plus, LogOut, Download, Copy, RefreshCw, Cloud, CloudOff, Edit2, Folder as FolderIcon, CornerLeftUp, ChevronLeft, ChevronRight, Check, Keyboard, Music } from 'lucide-react';
 import { ChartData } from '@/lib/chart-types';
@@ -22,6 +22,28 @@ export default function ChartEditor() {
   const router = useRouter();
   const chartId = (params?.id as string) || searchParams.get('id') || '';
   const canEdit = canModifySection(profile?.profession, 'chart');
+
+  useEffect(() => {
+    if (!chartId && !authLoading) {
+      const newId = crypto.randomUUID();
+      const currentUserId = user?.id || (typeof window !== 'undefined' ? localStorage.getItem('chord-grid-offline-user-id') : null) || 'guest-user';
+      const newChart: ChartData = {
+        id: newId,
+        title: 'Untitled Chart',
+        tempo: 120,
+        time_sig: '4/4',
+        lines: [createDefaultLine(), createDefaultLine()],
+        semitone_offset: 0,
+        prefer_flats: false,
+        folder_id: null,
+        created_by: currentUserId,
+        updated_at: new Date().toISOString(),
+      };
+      saveChart(newChart).then(() => {
+        router.replace(`/chart/edit?id=${newId}`);
+      });
+    }
+  }, [chartId, authLoading, user, router]);
 
   useEffect(() => {
     if (!authLoading && !canEdit) {
@@ -261,6 +283,12 @@ export default function ChartEditor() {
   const handleBlockEdit = useCallback((updates: Partial<ChartData>) => {
     updateChart({ ...updates, custom_text: null });
   }, [updateChart]);
+
+  useEffect(() => {
+    if (chart && (!chart.lines || chart.lines.length === 0)) {
+      handleBlockEdit({ lines: [createDefaultLine(), createDefaultLine()] });
+    }
+  }, [chart, handleBlockEdit]);
 
   const formatChordCase = useCallback((val: string) => {
     if (!val) return val;
@@ -687,7 +715,7 @@ export default function ChartEditor() {
     );
   }
 
-  if (!user || !chart) {
+  if (!chart) {
     return (
       <div className="flex h-screen flex-col items-center justify-center text-white bg-bg gap-4">
         <p className="text-text-secondary">Chart not found or access denied.</p>
@@ -698,14 +726,14 @@ export default function ChartEditor() {
     );
   }
 
-  const totalLines = chart.lines.length;
-  const totalBars = chart.lines.reduce((sum, line) => sum + line.blocks.reduce((bSum, block) => bSum + block.bars.length, 0), 0);
+  const totalLines = chart.lines ? chart.lines.length : 0;
+  const totalBars = (chart.lines || []).reduce((sum, line) => sum + (line.blocks || []).reduce((bSum, block) => bSum + (block.bars || []).length, 0), 0);
 
   // Active chord voicing calculation for bottom sheet
   const activeChordVal = getActiveBarValue();
   const activeChordVoicing = activeChordVal ? getChordNotes(activeChordVal) : null;
-  const activeLine = chart.lines.find(l => l.id === activeMobileSelection?.lineId);
-  const activeBlock = activeLine?.blocks.find(b => b.id === activeMobileSelection?.blockId);
+  const activeLine = (chart.lines || []).find(l => l.id === activeMobileSelection?.lineId);
+  const activeBlock = activeLine?.blocks?.find(b => b.id === activeMobileSelection?.blockId);
 
   return (
     <div className={`min-h-screen bg-bg flex flex-col text-text-primary relative ${activeMobileSelection ? 'pb-80 sm:pb-32' : 'pb-32'}`}>
@@ -722,7 +750,7 @@ export default function ChartEditor() {
               <button 
                 onClick={async () => {
                   await forceSave();
-                  router.push(returnTo ?? `/chart/${chart.id}`);
+                  router.push(returnTo ?? `/chart?id=${chart.id}`);
                 }}
                 className="hidden lg:flex px-4 py-2.5 text-xs font-bold tracking-wider uppercase text-text-primary bg-white/70 dark:bg-white/10 border border-glass shadow-sm rounded-full hover:bg-white items-center transition-all active:scale-95"
               >
@@ -792,7 +820,7 @@ export default function ChartEditor() {
               MOBILE PHONE VIEW (< md): Stacked Cards & Touch Targets
               ═══════════════════════════════════════════════════════════════ */}
           <div className="block md:hidden space-y-3">
-            {chart.lines.map((line) => (
+            {(chart.lines || []).map((line) => (
               <div key={line.id} className="bg-surface-glass backdrop-blur-xl border border-glass shadow-glass rounded-[24px] p-3.5 flex flex-col gap-3">
                 
                 {/* Line Header: Part name, Text annotation & Delete */}
@@ -811,7 +839,7 @@ export default function ChartEditor() {
                   />
                   <button 
                     onClick={() => removeLine(line.id)}
-                    disabled={chart.lines.length <= 1}
+                    disabled={(chart.lines || []).length <= 1}
                     className="w-9 h-9 flex items-center justify-center text-text-muted hover:text-rose-500 bg-white/70 dark:bg-white/[0.06] border border-glass shadow-sm rounded-xl shrink-0 disabled:opacity-30 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-all"
                     title="Remove line"
                   >
@@ -919,7 +947,7 @@ export default function ChartEditor() {
               DESKTOP VIEW (>= md): Full Width Grid with Inline Inputs
               ═══════════════════════════════════════════════════════════════ */}
           <div className="hidden md:block space-y-6">
-            {chart.lines.map((line) => (
+            {(chart.lines || []).map((line) => (
               <div key={line.id} className="flex items-stretch bg-surface-glass backdrop-blur-xl border border-glass shadow-glass rounded-[24px] relative group overflow-hidden">
                 
                 {/* Left controls: Part name & Delete */}
@@ -933,7 +961,7 @@ export default function ChartEditor() {
                     />
                     <button 
                       onClick={() => removeLine(line.id)}
-                      disabled={chart.lines.length <= 1}
+                      disabled={(chart.lines || []).length <= 1}
                       className="text-text-muted hover:text-rose-500 disabled:opacity-30 opacity-0 group-hover:opacity-100 transition-opacity bg-white/70 dark:bg-white/10 border border-glass shadow-sm rounded-lg p-1.5"
                       title="Remove line"
                     >

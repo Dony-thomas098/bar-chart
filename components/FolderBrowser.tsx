@@ -8,6 +8,7 @@ import {
 } from '@/lib/storage';
 import { FolderPickerModal } from './FolderPickerModal';
 import { LogoLoading } from './LogoLoading';
+import { createDefaultLine } from '@/lib/chart-types';
 import { seedSampleData } from '@/lib/sampleData';
 import { useAuth, canModifySection } from '@/components/AuthProvider';
 import { BandConnectModal } from './BandConnectModal';
@@ -343,34 +344,35 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
   };
 
   const handleCreateChart = async () => {
-    if (!canEdit || !user) return;
+    if (!canEdit) return;
+    const currentUserId = user?.id || (typeof window !== 'undefined' ? localStorage.getItem('chord-grid-offline-user-id') : null) || 'guest-user';
     if (kind === 'lyrics') {
       const lyrics = {
         id: crypto.randomUUID(),
         title: 'Untitled lyrics',
         body: '',
         folder_id: folderId,
-        created_by: user.id,
+        created_by: currentUserId,
         updated_at: new Date().toISOString(),
       };
-      const { saveLyrics } = await import('@/lib/storage');
+      const { saveLyrics } = await import('@/lib/lyrics');
       await saveLyrics(lyrics);
-      router.push(`/lyrics/${lyrics.id}/edit`);
+      router.push(`/lyrics/edit?id=${lyrics.id}`);
     } else {
       const chart = {
         id: crypto.randomUUID(),
         title: 'Untitled Chart',
         tempo: 120,
         time_sig: '4/4',
-        lines: [],
+        lines: [createDefaultLine(), createDefaultLine()],
         semitone_offset: 0,
         prefer_flats: false,
         folder_id: folderId,
-        created_by: user.id,
+        created_by: currentUserId,
         updated_at: new Date().toISOString(),
       };
       await saveChart(chart);
-      router.push(`/chart/${chart.id}/edit`);
+      router.push(`/chart/edit?id=${chart.id}`);
     }
   };
 
