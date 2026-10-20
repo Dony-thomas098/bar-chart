@@ -1,20 +1,13 @@
-/* Instant hide when already shown in current session */
-:global(.no-splash) .root {
-  display: none !important;
-  visibility: hidden !important;
-  pointer-events: none !important;
-}
-
 .root {
   position: fixed;
   inset: 0;
   z-index: 999999;
-  background: #0b0b0e;
+  background: #09090b;
   overflow: hidden;
   user-select: none;
   -webkit-user-select: none;
-  transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1),
-              visibility 0.3s ease;
+  transition: opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+              visibility 0.35s ease;
   will-change: opacity;
 }
 

@@ -519,11 +519,4 @@ body {
   }
 }
 
-/* Suppress splash screen on subsequent in-session navigations */
-.no-splash [data-splash] {
-  display: none !important;
-  visibility: hidden !important;
-  pointer-events: none !important;
-}
-
 

@@ -1,17 +1,17 @@
 'use client';
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from './AuthProvider';
 import { ChordlyLoader } from './ChordlyLoader';
 import styles from './SplashScreen.module.css';
 
 /**
  * Animated Brand Launch / Splash Screen.
- * - Shows on app cold launch or hard reload.
- * - Loops the new animated logo loader until initial authentication and catalog sync finish.
- * - Enforces minimum 800ms display time to avoid UI flashes.
- * - Fades out smoothly over 300ms upon completion.
- * - Respects prefers-reduced-motion and tab backgrounding.
+ * - Displays on app cold launch and after every hard refresh or reload.
+ * - Features the animated Chordly logo banner with soundwave shockwaves,
+ *   specular sheen sweep, and harmonic embers.
+ * - Displays for at least minDisplayMs (1000ms) to ensure smooth presentation without flashes.
+ * - Seamlessly fades out over 350ms once initial auth & catalog sync finish.
  */
 export function SplashScreen() {
   let authLoading = false;
@@ -26,42 +26,24 @@ export function SplashScreen() {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    // Ensure no stale no-splash class prevents the animation on load/reload
+    try {
+      document.documentElement.classList.remove('no-splash');
+    } catch {}
+
     setMounted(true);
 
-    try {
-      const navEntries = performance.getEntriesByType('navigation') as PerformanceNavigationTiming[];
-      const isReload =
-        (navEntries.length > 0 && navEntries[0].type === 'reload') ||
-        (typeof performance !== 'undefined' && (performance as any).navigation?.type === 1);
-      const splashShown = sessionStorage.getItem('chordly_splash_shown');
-
-      if (splashShown && !isReload) {
-        setGone(true);
-        document.documentElement.classList.add('no-splash');
-        return;
-      }
-
-      sessionStorage.setItem('chordly_splash_shown', 'true');
-      document.documentElement.classList.remove('no-splash');
-    } catch {
-      // In case sessionStorage is restricted
-    }
-
-    // Intercept hard refresh key combos so next load displays splash
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (
-        ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'r' || e.key === 'R')) ||
-        (e.ctrlKey && e.key === 'F5')
-      ) {
-        try {
-          sessionStorage.removeItem('chordly_splash_shown');
-        } catch {}
-      }
+    // Ensure subsequent reloads or hard refreshes clean any suppression flags
+    const handleBeforeUnload = () => {
+      try {
+        sessionStorage.removeItem('chordly_splash_shown');
+      } catch {}
     };
-    window.addEventListener('keydown', handleKeyDown);
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
 
     return () => {
-      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
     };
   }, []);
 
@@ -77,13 +59,10 @@ export function SplashScreen() {
       <ChordlyLoader
         statusText="Synchronizing your catalog"
         isDone={!authLoading}
-        minDisplayMs={800}
-        fadeDurationMs={300}
+        minDisplayMs={1000}
+        fadeDurationMs={350}
         onFadeComplete={() => {
           setGone(true);
-          try {
-            document.documentElement.classList.add('no-splash');
-          } catch {}
         }}
       />
     </div>
