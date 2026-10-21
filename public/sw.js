@@ -392,7 +392,7 @@ const PRECACHE_ASSETS = [
   "/_next/static/chunks/app/perform/stage/page-f94a95dc5a15fd3b.js",
   "/_next/static/chunks/app/perform/[code]/layout-31e8e7f3cec06d1e.js",
   "/_next/static/chunks/app/perform/[code]/page-5eee78dfff3aa8f5.js",
-  "/_next/static/chunks/app/printer/page-b83408c92d32d308.js",
+  "/_next/static/chunks/app/printer/page-cd9cda0381e08414.js",
   "/_next/static/chunks/app/profile/page-5faec7fcc4bc6ecc.js",
   "/_next/static/chunks/app/setlists/page-79844cced881113b.js",
   "/_next/static/chunks/app/setlists/perform/page-b27e8ae040f8a9b3.js",
@@ -413,11 +413,13 @@ const PRECACHE_ASSETS = [
   "/_next/static/chunks/next/dist/client/components/builtin/unauthorized-31e8e7f3cec06d1e.js",
   "/_next/static/chunks/polyfills-42372ed130431b0a.js",
   "/_next/static/chunks/webpack-99c90f3a7e8fdb09.js",
+  "/_next/static/css/5f84397c27a47b8f.css",
   "/_next/static/css/604775b3a74dc580.css",
   "/_next/static/css/676caacb685ce77a.css",
   "/_next/static/css/68b5b925d1cfe237.css",
-  "/_next/static/css/6b04a79db40f1cf7.css",
   "/_next/static/css/9cdd061e9fa6d1a6.css",
+  "/_next/static/Hm-cjgNLTvrFn4udrMKqr/_buildManifest.js",
+  "/_next/static/Hm-cjgNLTvrFn4udrMKqr/_ssgManifest.js",
   "/_next/static/media/558ca1a6aa3cb55e-s.p.woff2",
   "/_next/static/media/636a5ac981f94f8b-s.p.woff2",
   "/_next/static/media/64d784ea54a4acde-s.woff2",
@@ -427,9 +429,7 @@ const PRECACHE_ASSETS = [
   "/_next/static/media/9e7b0a821b9dfcb4-s.woff2",
   "/_next/static/media/ac0e76ddaeeb7981-s.woff2",
   "/_next/static/media/edc640959b0c7826-s.woff2",
-  "/_next/static/media/ff71da380fbe67dd-s.woff2",
-  "/_next/static/Oq8nSXSNrwG2BoPNsfaSP/_buildManifest.js",
-  "/_next/static/Oq8nSXSNrwG2BoPNsfaSP/_ssgManifest.js"
+  "/_next/static/media/ff71da380fbe67dd-s.woff2"
 ];
 
 // Install: precache ALL routes, HTML files, and static JS/CSS chunks safely

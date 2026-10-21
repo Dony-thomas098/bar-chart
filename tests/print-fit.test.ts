@@ -4,6 +4,7 @@ import {
   paginateChartLines,
   getDefaultSectionColor,
   DEFAULT_SECTION_COLORS,
+  getRowGapEm,
 } from '../components/PrintChart';
 import { Line } from '../lib/chart-types';
 
@@ -56,7 +57,7 @@ describe('Print Chart Auto-Fit & Pagination Logic', () => {
       // Short chart easily fits at 40px (height: 40*7.5=300 <= 950, width: 40*12=480 <= 703)
       expect(result.fitsOnPage).toBe(true);
       expect(result.fontSize).toBe(40);
-      expect(chartEl.style.justifyContent).toBe('space-evenly');
+      expect(chartEl.style.justifyContent).toBe('center');
       expect(chartEl.style.height).toBe('100%');
     });
 
@@ -132,6 +133,30 @@ describe('Print Chart Auto-Fit & Pagination Logic', () => {
     });
   });
 
+  describe('Row Gap & Line Spacing', () => {
+    it('provides tight, normal, and relaxed spacing with tighter gaps for continuation lines', () => {
+      // Continuation lines (within same section)
+      const tightCont = getRowGapEm(false, 'tight');
+      const normalCont = getRowGapEm(false, 'normal');
+      const relaxedCont = getRowGapEm(false, 'relaxed');
+
+      expect(tightCont).toBeLessThan(normalCont);
+      expect(normalCont).toBeLessThan(relaxedCont);
+
+      // Section starts (distinct musical sections)
+      const tightSec = getRowGapEm(true, 'tight');
+      const normalSec = getRowGapEm(true, 'normal');
+      const relaxedSec = getRowGapEm(true, 'relaxed');
+
+      expect(tightSec).toBeLessThan(normalSec);
+      expect(normalSec).toBeLessThan(relaxedSec);
+
+      // Section starts should always have more breathing room than continuation lines
+      expect(normalSec).toBeGreaterThan(normalCont);
+      expect(tightSec).toBeGreaterThan(tightCont);
+    });
+  });
+
   describe('paginateChartLines multi-page continuation', () => {
     const makeSampleLines = (count: number): Line[] => {
       const lines: Line[] = [];
@@ -155,7 +180,7 @@ describe('Print Chart Auto-Fit & Pagination Logic', () => {
       const rowHeights = new Array(8).fill(30); // 8 * 30 = 240px
       const availableHeight = 800;
 
-      const pages = paginateChartLines(lines, rowHeights, availableHeight, 10);
+      const pages = paginateChartLines(lines, rowHeights, availableHeight, 'normal', 14);
       expect(pages.length).toBe(1);
       expect(pages[0].length).toBe(8);
     });
@@ -165,7 +190,7 @@ describe('Print Chart Auto-Fit & Pagination Logic', () => {
       const rowHeights = new Array(25).fill(40); // 25 * 40 = 1000px
       const availableHeight = 500; // fits ~10 rows per page with gaps
 
-      const pages = paginateChartLines(lines, rowHeights, availableHeight, 10);
+      const pages = paginateChartLines(lines, rowHeights, availableHeight, 'normal', 14);
 
       // Should paginate into multiple pages
       expect(pages.length).toBeGreaterThan(1);
@@ -191,6 +216,7 @@ describe('Print Chart Auto-Fit & Pagination Logic', () => {
       expect(getDefaultSectionColor('Chorus', 2)).toBe(DEFAULT_SECTION_COLORS.chorus);
       expect(getDefaultSectionColor('Bridge', 3)).toBe(DEFAULT_SECTION_COLORS.bridge);
       expect(getDefaultSectionColor('Outro', 4)).toBe(DEFAULT_SECTION_COLORS.outro);
+      expect(getDefaultSectionColor('Flute', 5)).toBe(DEFAULT_SECTION_COLORS.flute);
     });
 
     it('falls back to warm palette for unknown labels or empty labels', () => {
