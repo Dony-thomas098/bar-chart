@@ -1,8 +1,9 @@
 // Chordly Service Worker - Full Offline PWA Cache
-const CACHE_NAME = 'chordly-v8';
+const CACHE_NAME = 'chordly-v9';
 
 const PRECACHE_ASSETS = [
   "/",
+  "/index.html",
   "/folder",
   "/folder/",
   "/chart",
@@ -17,17 +18,33 @@ const PRECACHE_ASSETS = [
   "/lyrics/view/",
   "/lyrics/edit",
   "/lyrics/edit/",
+  "/lyrics/folder",
+  "/lyrics/folder/",
   "/setlists",
   "/setlists/",
+  "/setlists/perform",
+  "/setlists/perform/",
+  "/setlists/view",
+  "/setlists/view/",
   "/perform",
   "/perform/",
+  "/perform/stage",
+  "/perform/stage/",
   "/printer",
+  "/printer/",
   "/profile",
+  "/profile/",
   "/settings",
+  "/settings/",
+  "/trash",
+  "/trash/",
+  "/bookmarks",
+  "/bookmarks/",
   "/auth",
   "/auth/",
   "/404/index.html",
   "/404.html",
+  "/apple-icon.jpg",
   "/apple-icon.png",
   "/apple-touch-icon.png",
   "/auth/index.html",
@@ -97,6 +114,7 @@ const PRECACHE_ASSETS = [
   "/chords/__next._tree.txt",
   "/favicon-32x32.png",
   "/favicon.ico",
+  "/file.svg",
   "/folder/demo/index.html",
   "/folder/demo/index.txt",
   "/folder/demo/__next.folder/$d$id/__PAGE__.txt",
@@ -114,11 +132,12 @@ const PRECACHE_ASSETS = [
   "/folder/__next._head.txt",
   "/folder/__next._index.txt",
   "/folder/__next._tree.txt",
+  "/globe.svg",
   "/icon-192x192.png",
   "/icon-512x512.png",
   "/icon-maskable-512x512.png",
+  "/icon.jpg",
   "/icon.png",
-  "/index.html",
   "/index.txt",
   "/logo-banner.png",
   "/logo-review/index.html",
@@ -194,6 +213,7 @@ const PRECACHE_ASSETS = [
   "/lyrics/__next._index.txt",
   "/lyrics/__next._tree.txt",
   "/manifest.json",
+  "/next.svg",
   "/perform/demo/index.html",
   "/perform/demo/index.txt",
   "/perform/demo/__next.perform/$d$code/__PAGE__.txt",
@@ -299,6 +319,8 @@ const PRECACHE_ASSETS = [
   "/trash/__next._index.txt",
   "/trash/__next._tree.txt",
   "/update.json",
+  "/vercel.svg",
+  "/window.svg",
   "/_not-found/index.html",
   "/_not-found/index.txt",
   "/_not-found/__next._full.txt",
@@ -317,7 +339,7 @@ const PRECACHE_ASSETS = [
   "/_next/static/chunks/1966.d10b448f42cccd98.js",
   "/_next/static/chunks/2180-33277038fbce0dbf.js",
   "/_next/static/chunks/2502-2b636d2e017d8079.js",
-  "/_next/static/chunks/2657-27f8eaa0749e390c.js",
+  "/_next/static/chunks/2657-5a2d1e430e87105a.js",
   "/_next/static/chunks/2721-f5bcc39d2f07899b.js",
   "/_next/static/chunks/2864-edf5516b5cb3264b.js",
   "/_next/static/chunks/3133-5f73dec2bbe7fdb0.js",
@@ -332,7 +354,7 @@ const PRECACHE_ASSETS = [
   "/_next/static/chunks/5549-e5cae4215a51c818.js",
   "/_next/static/chunks/561-a992753025f5473b.js",
   "/_next/static/chunks/6250-aedcb7b22a3ceb4b.js",
-  "/_next/static/chunks/6308-e1f697ce8f798d4f.js",
+  "/_next/static/chunks/6308-3a6167cb563686e6.js",
   "/_next/static/chunks/6736-a56012626fe75d00.js",
   "/_next/static/chunks/7365-332c90a412a672b6.js",
   "/_next/static/chunks/8351-2ed0aee60593d1c2.js",
@@ -340,7 +362,7 @@ const PRECACHE_ASSETS = [
   "/_next/static/chunks/868-5b2521bfbef94869.js",
   "/_next/static/chunks/9021-4195476aad28f661.js",
   "/_next/static/chunks/9123-b845fb2c6d13b993.js",
-  "/_next/static/chunks/app/auth/page-b68df6cb5bd8c90d.js",
+  "/_next/static/chunks/app/auth/page-b93d8d1458ad4f75.js",
   "/_next/static/chunks/app/bookmarks/page-dd721dc93219a784.js",
   "/_next/static/chunks/app/chart/edit/page-82fc2f5405c619c0.js",
   "/_next/static/chunks/app/chart/layout-31e8e7f3cec06d1e.js",
@@ -364,15 +386,15 @@ const PRECACHE_ASSETS = [
   "/_next/static/chunks/app/lyrics/[id]/edit/page-172ce12802568c94.js",
   "/_next/static/chunks/app/lyrics/[id]/layout-31e8e7f3cec06d1e.js",
   "/_next/static/chunks/app/lyrics/[id]/page-b665f2b2517ff572.js",
-  "/_next/static/chunks/app/not-found-7a8585145bce0d17.js",
+  "/_next/static/chunks/app/not-found-f73a068cc30cd1f0.js",
   "/_next/static/chunks/app/page-bec5b05de78f453f.js",
   "/_next/static/chunks/app/perform/page-26863256b7257318.js",
   "/_next/static/chunks/app/perform/stage/page-f94a95dc5a15fd3b.js",
   "/_next/static/chunks/app/perform/[code]/layout-31e8e7f3cec06d1e.js",
   "/_next/static/chunks/app/perform/[code]/page-5eee78dfff3aa8f5.js",
-  "/_next/static/chunks/app/printer/page-e61ee75cc7b46ffb.js",
+  "/_next/static/chunks/app/printer/page-b83408c92d32d308.js",
   "/_next/static/chunks/app/profile/page-5faec7fcc4bc6ecc.js",
-  "/_next/static/chunks/app/setlists/page-cd8d68a7267a2de6.js",
+  "/_next/static/chunks/app/setlists/page-79844cced881113b.js",
   "/_next/static/chunks/app/setlists/perform/page-b27e8ae040f8a9b3.js",
   "/_next/static/chunks/app/setlists/view/page-78e23a54b1669436.js",
   "/_next/static/chunks/app/setlists/[id]/layout-31e8e7f3cec06d1e.js",
@@ -394,8 +416,8 @@ const PRECACHE_ASSETS = [
   "/_next/static/css/604775b3a74dc580.css",
   "/_next/static/css/676caacb685ce77a.css",
   "/_next/static/css/68b5b925d1cfe237.css",
+  "/_next/static/css/6b04a79db40f1cf7.css",
   "/_next/static/css/9cdd061e9fa6d1a6.css",
-  "/_next/static/css/c3978b0c4fafd2d4.css",
   "/_next/static/media/558ca1a6aa3cb55e-s.p.woff2",
   "/_next/static/media/636a5ac981f94f8b-s.p.woff2",
   "/_next/static/media/64d784ea54a4acde-s.woff2",
@@ -406,8 +428,8 @@ const PRECACHE_ASSETS = [
   "/_next/static/media/ac0e76ddaeeb7981-s.woff2",
   "/_next/static/media/edc640959b0c7826-s.woff2",
   "/_next/static/media/ff71da380fbe67dd-s.woff2",
-  "/_next/static/rMb5Qm9uiMfpC2FkAh72y/_buildManifest.js",
-  "/_next/static/rMb5Qm9uiMfpC2FkAh72y/_ssgManifest.js"
+  "/_next/static/Oq8nSXSNrwG2BoPNsfaSP/_buildManifest.js",
+  "/_next/static/Oq8nSXSNrwG2BoPNsfaSP/_ssgManifest.js"
 ];
 
 // Install: precache ALL routes, HTML files, and static JS/CSS chunks safely
@@ -423,7 +445,37 @@ self.addEventListener('install', (event) => {
             try {
               const response = await fetch(asset, { cache: 'no-cache' });
               if (response && response.ok) {
-                await cache.put(asset, response);
+                await cache.put(asset, response.clone());
+
+                // Dynamically harvest and precache referenced script chunks & CSS
+                const contentType = response.headers.get('content-type') || '';
+                if (contentType.includes('text/html') || asset.endsWith('.html') || !asset.includes('.')) {
+                  try {
+                    const text = await response.text();
+                    const scriptRegex = /src="(\/_next\/static\/chunks\/[^"]+\.js)"/g;
+                    let m;
+                    while ((m = scriptRegex.exec(text)) !== null) {
+                      const chunkUrl = m[1];
+                      try {
+                        const chunkRes = await fetch(chunkUrl);
+                        if (chunkRes && chunkRes.ok) {
+                          await cache.put(chunkUrl, chunkRes);
+                        }
+                      } catch (err) {}
+                    }
+
+                    const cssRegex = /href="(\/_next\/static\/css\/[^"]+\.css)"/g;
+                    while ((m = cssRegex.exec(text)) !== null) {
+                      const cssUrl = m[1];
+                      try {
+                        const cssRes = await fetch(cssUrl);
+                        if (cssRes && cssRes.ok) {
+                          await cache.put(cssUrl, cssRes);
+                        }
+                      } catch (err) {}
+                    }
+                  } catch (parseErr) {}
+                }
               }
             } catch (e) {
               // Silently ignore individual asset precache failures
@@ -448,7 +500,7 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Fetch: Stale-While-Revalidate for static assets, Network-First with multi-level offline fallback for HTML/RSC
+// Fetch: Multi-strategy caching with robust offline fallbacks
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
@@ -465,7 +517,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Handle HTML page navigation with multi-level offline fallback
+  // 1. Handle HTML page navigation with multi-level offline fallback
   if (request.mode === 'navigate') {
     event.respondWith(
       fetch(request)
@@ -497,23 +549,57 @@ self.addEventListener('fetch', (event) => {
           const indexHtmlMatch = await caches.match(indexHtmlPath, { ignoreSearch: true });
           if (indexHtmlMatch) return indexHtmlMatch;
 
-          // 4. Dynamic route fallbacks for stage room codes, charts, and lyrics
-          if (url.pathname.startsWith('/perform/')) {
+          // 4. Dynamic route fallbacks for stage room codes, charts, lyrics, trash, settings, profile
+          if (url.pathname.startsWith('/perform')) {
             const stageCached = await caches.match('/perform/stage/index.html', { ignoreSearch: true }) ||
-                                 await caches.match('/perform/stage/', { ignoreSearch: true });
+                                 await caches.match('/perform/stage/', { ignoreSearch: true }) ||
+                                 await caches.match('/perform/index.html', { ignoreSearch: true }) ||
+                                 await caches.match('/perform/', { ignoreSearch: true });
             if (stageCached) return stageCached;
           }
 
-          if (url.pathname.startsWith('/chart/')) {
+          if (url.pathname.startsWith('/chart')) {
             const chartCached = await caches.match('/chart/index.html', { ignoreSearch: true }) ||
                                 await caches.match('/chart/', { ignoreSearch: true });
             if (chartCached) return chartCached;
           }
 
-          if (url.pathname.startsWith('/lyrics/')) {
+          if (url.pathname.startsWith('/lyrics')) {
             const lyricsCached = await caches.match('/lyrics/view/index.html', { ignoreSearch: true }) ||
-                                 await caches.match('/lyrics/view/', { ignoreSearch: true });
+                                 await caches.match('/lyrics/view/', { ignoreSearch: true }) ||
+                                 await caches.match('/lyrics/index.html', { ignoreSearch: true }) ||
+                                 await caches.match('/lyrics/', { ignoreSearch: true });
             if (lyricsCached) return lyricsCached;
+          }
+
+          if (url.pathname.startsWith('/trash')) {
+            const trashCached = await caches.match('/trash/index.html', { ignoreSearch: true }) ||
+                                await caches.match('/trash/', { ignoreSearch: true });
+            if (trashCached) return trashCached;
+          }
+
+          if (url.pathname.startsWith('/settings')) {
+            const settingsCached = await caches.match('/settings/index.html', { ignoreSearch: true }) ||
+                                   await caches.match('/settings/', { ignoreSearch: true });
+            if (settingsCached) return settingsCached;
+          }
+
+          if (url.pathname.startsWith('/profile')) {
+            const profileCached = await caches.match('/profile/index.html', { ignoreSearch: true }) ||
+                                  await caches.match('/profile/', { ignoreSearch: true });
+            if (profileCached) return profileCached;
+          }
+
+          if (url.pathname.startsWith('/bookmarks')) {
+            const bookmarksCached = await caches.match('/bookmarks/index.html', { ignoreSearch: true }) ||
+                                    await caches.match('/bookmarks/', { ignoreSearch: true });
+            if (bookmarksCached) return bookmarksCached;
+          }
+
+          if (url.pathname.startsWith('/setlists')) {
+            const setlistsCached = await caches.match('/setlists/index.html', { ignoreSearch: true }) ||
+                                   await caches.match('/setlists/', { ignoreSearch: true });
+            if (setlistsCached) return setlistsCached;
           }
 
           // 5. Fallback to folder or root app shell
@@ -522,7 +608,8 @@ self.addEventListener('fetch', (event) => {
                                await caches.match('/folder/index.html', { ignoreSearch: true });
           if (folderCached) return folderCached;
 
-          const rootCached = await caches.match('/', { ignoreSearch: true });
+          const rootCached = await caches.match('/', { ignoreSearch: true }) ||
+                             await caches.match('/index.html', { ignoreSearch: true });
           if (rootCached) return rootCached;
 
           return new Response('Offline - Chordly is ready when reconnected', {
@@ -535,17 +622,107 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Handle static assets (_next, images, css, js, fonts) and Next.js RSC payloads (.txt)
+  // 2. Handle Next.js RSC Flight Payloads (Soft Client-Side Navigations)
+  const isRsc = request.headers.get('RSC') === '1' ||
+                url.searchParams.has('_rsc') ||
+                url.pathname.endsWith('.txt');
+
+  if (isRsc) {
+    event.respondWith(
+      (async () => {
+        // Try exact cache match first
+        const cached = await caches.match(request, { ignoreSearch: true });
+        if (cached) return cached;
+
+        const trimmed = url.pathname.replace(/\/$/, '');
+
+        // Try candidate RSC paths
+        const candidates = [
+          trimmed + '/index.txt',
+          trimmed + '.txt',
+          trimmed + '/__next._full.txt',
+          url.pathname,
+          url.pathname + '/index.txt'
+        ];
+
+        for (const candidate of candidates) {
+          const match = await caches.match(candidate, { ignoreSearch: true });
+          if (match) return match;
+        }
+
+        // Prefix fallbacks for dynamic and parameterized routes
+        if (url.pathname.startsWith('/perform')) {
+          const fallback = await caches.match('/perform/stage/index.txt', { ignoreSearch: true }) ||
+                           await caches.match('/perform/index.txt', { ignoreSearch: true });
+          if (fallback) return fallback;
+        }
+        if (url.pathname.startsWith('/chart')) {
+          const fallback = await caches.match('/chart/index.txt', { ignoreSearch: true });
+          if (fallback) return fallback;
+        }
+        if (url.pathname.startsWith('/lyrics')) {
+          const fallback = await caches.match('/lyrics/view/index.txt', { ignoreSearch: true }) ||
+                           await caches.match('/lyrics/index.txt', { ignoreSearch: true });
+          if (fallback) return fallback;
+        }
+        if (url.pathname.startsWith('/trash')) {
+          const fallback = await caches.match('/trash/index.txt', { ignoreSearch: true });
+          if (fallback) return fallback;
+        }
+        if (url.pathname.startsWith('/settings')) {
+          const fallback = await caches.match('/settings/index.txt', { ignoreSearch: true });
+          if (fallback) return fallback;
+        }
+        if (url.pathname.startsWith('/profile')) {
+          const fallback = await caches.match('/profile/index.txt', { ignoreSearch: true });
+          if (fallback) return fallback;
+        }
+        if (url.pathname.startsWith('/bookmarks')) {
+          const fallback = await caches.match('/bookmarks/index.txt', { ignoreSearch: true });
+          if (fallback) return fallback;
+        }
+        if (url.pathname.startsWith('/setlists')) {
+          const fallback = await caches.match('/setlists/index.txt', { ignoreSearch: true });
+          if (fallback) return fallback;
+        }
+
+        // If online, fetch from network and update cache
+        try {
+          const networkRes = await fetch(request);
+          if (networkRes && networkRes.status === 200) {
+            const clone = networkRes.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(request, clone);
+              cache.put(trimmed + '/index.txt', networkRes.clone());
+            });
+          }
+          return networkRes;
+        } catch (e) {
+          // Fallback to root index.txt
+          const rootTxt = await caches.match('/index.txt', { ignoreSearch: true }) ||
+                          await caches.match('/__next._full.txt', { ignoreSearch: true });
+          if (rootTxt) return rootTxt;
+
+          return new Response('', { status: 404, statusText: 'Offline Resource Not Found' });
+        }
+      })()
+    );
+    return;
+  }
+
+  // 3. Handle static assets (_next, images, css, js, fonts)
   event.respondWith(
     caches.match(request, { ignoreSearch: true }).then(async (cachedResponse) => {
       if (cachedResponse) {
-        // Return cached immediately; optionally revalidate in background if online
         if (navigator.onLine) {
           fetch(request)
             .then((networkResponse) => {
               if (networkResponse && networkResponse.status === 200) {
                 const responseClone = networkResponse.clone();
-                caches.open(CACHE_NAME).then((cache) => cache.put(request, responseClone));
+                caches.open(CACHE_NAME).then((cache) => {
+                  cache.put(request, responseClone);
+                  cache.put(url.pathname, networkResponse.clone());
+                });
               }
             })
             .catch(() => {});
@@ -557,25 +734,58 @@ self.addEventListener('fetch', (event) => {
       const pathMatch = await caches.match(url.pathname, { ignoreSearch: true });
       if (pathMatch) return pathMatch;
 
-      // Fetch from network with cache update
+      // If online, fetch from network with cache update
       return fetch(request)
         .then((networkResponse) => {
           if (networkResponse && networkResponse.status === 200) {
             const responseClone = networkResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(request, responseClone));
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(request, responseClone);
+              cache.put(url.pathname, networkResponse.clone());
+            });
           }
           return networkResponse;
         })
         .catch(async () => {
-          // If offline and requesting an RSC payload (.txt), try fallback paths
-          if (url.pathname.endsWith('.txt')) {
-            const fallbackTxt = await caches.match(url.pathname, { ignoreSearch: true });
-            if (fallbackTxt) return fallbackTxt;
+          // OFFLINE FALLBACK FOR JS CHUNKS:
+          // If a requested chunk has a hash mismatch (e.g. page-hash1.js vs page-hash2.js),
+          // search the cache for any chunk matching the same component path prefix
+          if (url.pathname.startsWith('/_next/static/chunks/') && url.pathname.endsWith('.js')) {
+            try {
+              const cache = await caches.open(CACHE_NAME);
+              const keys = await cache.keys();
+              // Strip trailing hash from chunk filename: e.g. "page-e4806be85e52a4ad.js" -> "page-"
+              const prefix = url.pathname.replace(/-[a-f0-9]+\.js$/, '-');
+              if (prefix !== url.pathname) {
+                const matchingKey = keys.find((k) => {
+                  try {
+                    const kUrl = new URL(k.url);
+                    return kUrl.pathname.startsWith(prefix) && kUrl.pathname.endsWith('.js');
+                  } catch (e) {
+                    return false;
+                  }
+                });
+                if (matchingKey) {
+                  const fallbackChunk = await cache.match(matchingKey);
+                  if (fallbackChunk) return fallbackChunk;
+                }
+              }
+            } catch (e) {}
 
-            const trimmedTxt = url.pathname.replace(/\/index\.txt$/, '') + '/index.txt';
-            const trimmedMatch = await caches.match(trimmedTxt, { ignoreSearch: true });
-            if (trimmedMatch) return trimmedMatch;
+            // Return a safe empty JS script instead of 404 text so webpack doesn't crash fatally
+            return new Response('/* offline chunk placeholder */', {
+              status: 200,
+              headers: { 'Content-Type': 'application/javascript' },
+            });
           }
+
+          if (url.pathname.endsWith('.css')) {
+            return new Response('', {
+              status: 200,
+              headers: { 'Content-Type': 'text/css' },
+            });
+          }
+
           return new Response('', { status: 404, statusText: 'Offline Resource Not Found' });
         });
     })

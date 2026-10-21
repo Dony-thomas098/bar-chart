@@ -487,3 +487,41 @@ describe('Multi-Device Band Synchronization & Profile Field Preservation', () =>
 });
 
 
+
+describe('Setlist Routing and 404 Fallback Logic', () => {
+  it('correctly matches setlist perform and setlist view dynamic paths in not-found fallback regex', () => {
+    const performRegex = /^\/setlists\/([A-Za-z0-9_-]{4,})\/perform/i;
+    const testPerformPath = '/setlists/a1b2-c3d4/perform';
+    const performMatch = testPerformPath.match(performRegex);
+    expect(performMatch).not.toBeNull();
+    expect(performMatch?.[1]).toBe('a1b2-c3d4');
+
+    const viewRegex = /^\/setlists\/([A-Za-z0-9_-]{4,})/i;
+    const testViewPath = '/setlists/a1b2-c3d4';
+    const viewMatch = testViewPath.match(viewRegex);
+    expect(viewMatch).not.toBeNull();
+    expect(viewMatch?.[1]).toBe('a1b2-c3d4');
+  });
+
+  it('guarantees setlist pages route to static export exportable query targets', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+
+    const detailPage = fs.readFileSync(path.resolve(__dirname, '../app/setlists/[id]/page.tsx'), 'utf-8');
+    const performPage = fs.readFileSync(path.resolve(__dirname, '../app/setlists/[id]/perform/page.tsx'), 'utf-8');
+    const notFoundPage = fs.readFileSync(path.resolve(__dirname, '../app/not-found.tsx'), 'utf-8');
+
+    // Detail page routes Play / View Set to /setlists/perform?id=
+    expect(detailPage).toContain('/setlists/perform?id=');
+    expect(detailPage).not.toContain('router.push(/setlists//perform)');
+
+    // Perform page back buttons route to /setlists/view?id=
+    expect(performPage).toContain('/setlists/view?id=');
+    expect(performPage).not.toContain('router.push(/setlists/)');
+
+    // not-found.tsx handles setlist fallback redirects
+    expect(notFoundPage).toContain('Setlist Performance');
+    expect(notFoundPage).toContain('/setlists/perform?id=');
+    expect(notFoundPage).toContain('/setlists/view?id=');
+  });
+});

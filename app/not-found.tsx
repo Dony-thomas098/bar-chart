@@ -54,6 +54,26 @@ export default function NotFound() {
       router.replace(target);
       return;
     }
+
+    // 5. Check for /setlists/ID/perform -> Redirect to /setlists/perform?id=ID
+    const setlistPerformMatch = path.match(/^\/setlists\/([A-Za-z0-9_-]{4,})\/perform/i);
+    if (setlistPerformMatch && setlistPerformMatch[1].toLowerCase() !== 'demo') {
+      const target = `/setlists/perform?id=${setlistPerformMatch[1]}`;
+      setRedirecting(true);
+      setRedirectTarget('Setlist Performance');
+      router.replace(target);
+      return;
+    }
+
+    // 6. Check for /setlists/ID -> Redirect to /setlists/view?id=ID
+    const setlistMatch = path.match(/^\/setlists\/([A-Za-z0-9_-]{4,})/i);
+    if (setlistMatch && setlistMatch[1].toLowerCase() !== 'demo' && setlistMatch[1].toLowerCase() !== 'view' && setlistMatch[1].toLowerCase() !== 'perform') {
+      const target = `/setlists/view?id=${setlistMatch[1]}`;
+      setRedirecting(true);
+      setRedirectTarget('Setlist');
+      router.replace(target);
+      return;
+    }
   }, [router]);
 
   if (redirecting) {

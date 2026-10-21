@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev --webpack",
     "build": "next build --webpack && node scripts/generate-sw.js",
+    "postbuild": "node scripts/generate-sw.js",
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run"

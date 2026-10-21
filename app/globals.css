@@ -415,13 +415,23 @@ body {
   }
 }
 
-/* Print Overrides */
+/* ==========================================================================
+   PRINT LAYOUT & PAGE SETUP (CHORDLY)
+   Standard: A4 portrait (210mm x 297mm) with 12mm margins => 186mm x 273mm printable area.
+   Switch to US Letter: Change 'size: A4 portrait;' below to 'size: letter portrait;'
+   or use the [data-paper-size="letter"] attribute / .paper-letter class.
+   ========================================================================== */
+@page {
+  size: A4 portrait;
+  margin: 12mm;
+}
+
+@page letter-page {
+  size: letter portrait;
+  margin: 12mm;
+}
+
 @media print {
-  @page {
-    margin: 8mm 10mm;
-    size: portrait;
-  }
-  
   :root {
     --bg: #ffffff !important;
     --text-primary: #000000 !important;
@@ -435,9 +445,17 @@ body {
     color: #000000 !important;
     height: auto !important;
     min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
     overflow: visible !important;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Retain all section label colors and graphics */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 
   .glass-card, .shadow-card, .shadow-hover, .shadow-popover {
@@ -446,7 +464,8 @@ body {
     border: none !important;
   }
 
-  .fixed, button, .no-print, nav, footer, aside, [role="navigation"] {
+  /* Hide all non-chart UI */
+  .fixed, button, .no-print, nav, footer, aside, header, [role="navigation"], .print\:hidden, .print-hidden {
     display: none !important;
   }
 
@@ -459,15 +478,43 @@ body {
     min-height: 0 !important;
     overflow: visible !important;
   }
-  
-  .print-reset-scale {
-    font-size: 15px !important;
-    line-height: 1.35 !important;
+
+  /* Each song / sheet page fills exact printable area and breaks after */
+  .print-page {
+    box-sizing: border-box !important;
     width: 100% !important;
-    max-width: 100% !important;
-    margin: 0 auto !important;
+    /* A4: 297mm - 2*12mm = 273mm */
+    height: 273mm !important;
+    max-height: 273mm !important;
+    min-height: 273mm !important;
     padding: 0 !important;
-    overflow: visible !important;
+    margin: 0 !important;
+    page-break-after: always !important;
+    break-after: page !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid-page !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    position: relative !important;
+  }
+
+  /* US Letter switch: 11in (279.4mm) - 2*12mm = 255.4mm */
+  body[data-paper-size="letter"] .print-page,
+  [data-paper-size="letter"] .print-page,
+  .print-page.paper-letter {
+    page: letter-page !important;
+    height: 255.4mm !important;
+    max-height: 255.4mm !important;
+    min-height: 255.4mm !important;
+  }
+
+  /* Never split a section row across pages */
+  .print-chart-row {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
   }
 
   .react-transform-component,
@@ -484,11 +531,8 @@ body {
     width: 100% !important;
     height: auto !important;
     min-height: 0 !important;
-    max-height: 275mm !important;
     page-break-inside: avoid !important;
     break-inside: avoid-page !important;
-    page-break-after: avoid !important;
-    break-after: avoid-page !important;
   }
 
   .text-accent-gradient, .text-craft-gradient {
@@ -497,19 +541,17 @@ body {
     background: none !important;
   }
 
-  .no-print {
-    display: none !important;
-  }
-
   .print-only {
     display: block !important;
   }
 
   .page-break {
-    page-break-before: always;
+    page-break-before: always !important;
+    break-before: page !important;
   }
   .page-break-after {
-    page-break-after: always;
+    page-break-after: always !important;
+    break-after: page !important;
   }
 }
 
@@ -517,6 +559,36 @@ body {
   .print-only {
     display: none !important;
   }
+
+  /* Measurable container off-screen so layout effects can size accurately */
+  .print-screen-container {
+    position: fixed;
+    top: 0;
+    left: -99999px;
+    width: 186mm;
+    visibility: hidden;
+    pointer-events: none;
+    z-index: -9999;
+  }
+
+  [data-paper-size="letter"] .print-screen-container {
+    width: 191.9mm;
+  }
+
+  .print-page {
+    box-sizing: border-box;
+    width: 186mm;
+    height: 273mm;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: #ffffff;
+    color: #000000;
+  }
+
+  .print-page.paper-letter,
+  [data-paper-size="letter"] .print-page {
+    width: 191.9mm;
+    height: 255.4mm;
+  }
 }
-
-
