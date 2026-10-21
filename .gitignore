@@ -41,14 +41,6 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# mobile / capacitor
-/out/
-/dist-mobile/
-android/.gradle/
-android/build/
-android/app/build/
-android/local.properties
-android/.idea/
-ios/App/build/
+# scratch files
 scratch_db.ts
 scratch_*.ts

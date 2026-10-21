@@ -25,23 +25,6 @@ export function applyTheme(mode: ThemeMode) {
     root.classList.remove('dark');
     root.setAttribute('data-theme', 'light');
   }
-
-  // Automatically sync mobile status bar icon style with current theme
-  if (typeof window !== 'undefined') {
-    import('@capacitor/core')
-      .then(({ Capacitor }) => {
-        if (Capacitor.isNativePlatform()) {
-          import('@capacitor/status-bar')
-            .then(({ StatusBar, Style }) => {
-              // Style.Dark = light text/icons for dark theme; Style.Light = dark text/icons for light theme
-              StatusBar.setStyle({ style: isDark ? Style.Dark : Style.Light }).catch(() => {});
-              StatusBar.setBackgroundColor({ color: '#00000000' }).catch(() => {});
-            })
-            .catch(() => {});
-        }
-      })
-      .catch(() => {});
-  }
 }
 
 export function setTheme(mode: ThemeMode) {

@@ -391,13 +391,14 @@ describe('Multi-Device Band Synchronization & Profile Field Preservation', () =>
     expect(capConfig).not.toContain('CapacitorHttp');
   });
 
-  it('verifies AndroidManifest.xml includes both INTERNET and ACCESS_NETWORK_STATE permissions', async () => {
+  it('guarantees native Android and iOS folders are not present in repository', async () => {
     const fs = await import('fs');
     const path = await import('path');
-    const manifest = fs.readFileSync(path.resolve(__dirname, '../android/app/src/main/AndroidManifest.xml'), 'utf-8');
+    const androidExists = fs.existsSync(path.resolve(__dirname, '../android'));
+    const iosExists = fs.existsSync(path.resolve(__dirname, '../ios'));
 
-    expect(manifest).toContain('android.permission.INTERNET');
-    expect(manifest).toContain('android.permission.ACCESS_NETWORK_STATE');
+    expect(androidExists).toBe(false);
+    expect(iosExists).toBe(false);
   });
 
   it('guarantees calculateScoreFit provides strictly symmetric horizontal centering across all device sizes', async () => {

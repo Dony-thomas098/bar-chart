@@ -536,7 +536,7 @@ export default function SettingsPage() {
                         <div className="flex justify-between items-center">
                           <span className="text-text-secondary">Active Bundle:</span>
                           <span className="text-text-primary font-bold truncate max-w-[210px]" title={liveUpdateState?.currentBundleId || 'Built-in'}>
-                            {liveUpdateState?.currentBundleId || 'Built-in (APK / IPA)'}
+                            {liveUpdateState?.currentBundleId || 'Web App (PWA)'}
                           </span>
                         </div>
                         {liveUpdateState?.latestManifest && (

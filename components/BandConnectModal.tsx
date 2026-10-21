@@ -183,7 +183,7 @@ export function BandConnectModal({ isOpen, onClose, onSuccess }: Props) {
             </div>
 
             <p className="text-xs text-text-secondary leading-relaxed">
-              All folders, charts, and lyrics created by you or your band members are synced live across Vercel, Android APK, and iOS devices.
+              All folders, charts, and lyrics created by you or your band members are synced live across all your devices.
             </p>
 
             {profile?.profession === 'admin' && (
