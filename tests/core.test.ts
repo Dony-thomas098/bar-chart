@@ -540,21 +540,20 @@ describe('SplashScreen Safety and Localhost Service Worker Invariants', () => {
     expect(splashCss).toContain('visibility: hidden !important;');
   });
 
-  it('guarantees service worker is unregistered on localhost and bypassed in development', async () => {
-    const fs = await import('fs');
+  it('guarantees service worker is registered and bypasses development HMR without breaking offline mode', async () => {
+    const fs = await import('path');
     const path = await import('path');
+    const fsMod = await import('fs');
 
-    const layoutFile = fs.readFileSync(path.resolve(__dirname, '../app/layout.tsx'), 'utf-8');
-    const swRegisterFile = fs.readFileSync(path.resolve(__dirname, '../components/SWRegister.tsx'), 'utf-8');
-    const swFile = fs.readFileSync(path.resolve(__dirname, '../public/sw.js'), 'utf-8');
-    const genSwFile = fs.readFileSync(path.resolve(__dirname, '../scripts/generate-sw.js'), 'utf-8');
+    const layoutFile = fsMod.readFileSync(path.resolve(__dirname, '../app/layout.tsx'), 'utf-8');
+    const swRegisterFile = fsMod.readFileSync(path.resolve(__dirname, '../components/SWRegister.tsx'), 'utf-8');
+    const swFile = fsMod.readFileSync(path.resolve(__dirname, '../public/sw.js'), 'utf-8');
+    const genSwFile = fsMod.readFileSync(path.resolve(__dirname, '../scripts/generate-sw.js'), 'utf-8');
 
-    expect(layoutFile).toContain('window.location.hostname === \'localhost\'');
-    expect(layoutFile).toContain('regs[i].unregister()');
-    expect(swRegisterFile).toContain('window.location.hostname === \'localhost\'');
-    expect(swRegisterFile).toContain('reg.unregister()');
-    expect(swFile).toContain('url.hostname === \'localhost\'');
-    expect(genSwFile).toContain('url.hostname === \'localhost\'');
+    expect(layoutFile).toContain("navigator.serviceWorker.register('/sw.js')");
+    expect(swRegisterFile).toContain("navigator.serviceWorker");
+    expect(swFile).toContain('/_next/webpack-hmr');
+    expect(genSwFile).toContain('/_next/webpack-hmr');
   });
 });
 

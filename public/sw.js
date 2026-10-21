@@ -374,7 +374,7 @@ const PRECACHE_ASSETS = [
   "/_next/static/chunks/app/folder/page-b542c4e323cbf91a.js",
   "/_next/static/chunks/app/folder/[id]/layout-31e8e7f3cec06d1e.js",
   "/_next/static/chunks/app/folder/[id]/page-2480d789feba0eff.js",
-  "/_next/static/chunks/app/layout-c86f34bb7954a624.js",
+  "/_next/static/chunks/app/layout-d643dd88ab474f0c.js",
   "/_next/static/chunks/app/loading-2b5485e0ca876619.js",
   "/_next/static/chunks/app/logo-review/page-5585976affa5af13.js",
   "/_next/static/chunks/app/lyrics/edit/page-8140ac081cb771ad.js",
@@ -428,8 +428,8 @@ const PRECACHE_ASSETS = [
   "/_next/static/media/ac0e76ddaeeb7981-s.woff2",
   "/_next/static/media/edc640959b0c7826-s.woff2",
   "/_next/static/media/ff71da380fbe67dd-s.woff2",
-  "/_next/static/XuIOO914IXS9emmZNPaaY/_buildManifest.js",
-  "/_next/static/XuIOO914IXS9emmZNPaaY/_ssgManifest.js"
+  "/_next/static/NOqKtRD1V1gQ-0vNES201/_buildManifest.js",
+  "/_next/static/NOqKtRD1V1gQ-0vNES201/_ssgManifest.js"
 ];
 
 // Install: precache ALL routes, HTML files, and static JS/CSS chunks safely
@@ -505,12 +505,9 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Bypass dev mode HMR, chrome extensions, Supabase API calls, OTA update manifest, and localhost
+  // Bypass dev mode HMR, chrome extensions, Supabase API calls, OTA update manifest
   if (
     request.method !== 'GET' ||
-    url.hostname === 'localhost' ||
-    url.hostname === '127.0.0.1' ||
-    url.hostname === '[::1]' ||
     url.pathname.startsWith('/_next/webpack-hmr') ||
     url.hostname.includes('supabase.co') ||
     url.protocol.startsWith('chrome-extension') ||
