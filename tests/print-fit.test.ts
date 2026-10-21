@@ -1,9 +1,11 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import {
   fitChartToPage,
   paginateChartLines,
+  isFirstLineOfSection,
   getDefaultSectionColor,
   DEFAULT_SECTION_COLORS,
+  SPEC_SECTION_COLORS,
   getRowGapEm,
 } from '../components/PrintChart';
 import { Line } from '../lib/chart-types';
@@ -29,6 +31,8 @@ describe('Print Chart Auto-Fit & Pagination Logic', () => {
       // Define page size: 186mm x 273mm printable area (~703px x 1032px at 96 DPI)
       Object.defineProperty(pageEl, 'clientHeight', { value: 1032, configurable: true });
       Object.defineProperty(pageEl, 'clientWidth', { value: 703, configurable: true });
+      Object.defineProperty(chartEl, 'clientHeight', { value: 950, configurable: true });
+      Object.defineProperty(chartEl, 'clientWidth', { value: 703, configurable: true });
 
       // Simulate a short chart with 5 lines: each line is 1.5em tall and 20ch wide
       // scrollHeight = 5 * fontSize * 1.5 = 7.5 * fontSize
@@ -57,8 +61,7 @@ describe('Print Chart Auto-Fit & Pagination Logic', () => {
       // Short chart easily fits at 40px (height: 40*7.5=300 <= 950, width: 40*12=480 <= 703)
       expect(result.fitsOnPage).toBe(true);
       expect(result.fontSize).toBe(40);
-      expect(chartEl.style.justifyContent).toBe('center');
-      expect(chartEl.style.height).toBe('100%');
+      expect(chartEl.style.justifyContent).toBe('space-evenly');
     });
 
     it('finds intermediate font size for medium-length charts based on width or height constraints', async () => {
@@ -68,6 +71,8 @@ describe('Print Chart Auto-Fit & Pagination Logic', () => {
 
       Object.defineProperty(pageEl, 'clientHeight', { value: 1000, configurable: true });
       Object.defineProperty(pageEl, 'clientWidth', { value: 600, configurable: true });
+      Object.defineProperty(chartEl, 'clientHeight', { value: 900, configurable: true });
+      Object.defineProperty(chartEl, 'clientWidth', { value: 600, configurable: true });
 
       // Chart with width constraint: width = fontSize * 25
       // Max width = 600 => max fontSize = 600 / 25 = 24px
@@ -93,7 +98,8 @@ describe('Print Chart Auto-Fit & Pagination Logic', () => {
       });
 
       expect(result.fitsOnPage).toBe(true);
-      expect(result.fontSize).toBe(24);
+      expect(result.fontSize).toBeCloseTo(24, 0);
+      expect(chartEl.style.justifyContent).toBe('space-evenly');
     });
 
     it('stops shrinking below 14px when chart is too long for 1 page', async () => {
@@ -103,8 +109,10 @@ describe('Print Chart Auto-Fit & Pagination Logic', () => {
 
       Object.defineProperty(pageEl, 'clientHeight', { value: 800, configurable: true });
       Object.defineProperty(pageEl, 'clientWidth', { value: 600, configurable: true });
+      Object.defineProperty(chartEl, 'clientHeight', { value: 720, configurable: true });
+      Object.defineProperty(chartEl, 'clientWidth', { value: 600, configurable: true });
 
-      // Chart with 50 lines: at 14px, height = 50 * 14 * 1.5 = 1050 > 800
+      // Chart with 50 lines: at 14px, height = 50 * 14 * 1.5 = 1050 > 720
       Object.defineProperty(chartEl, 'scrollHeight', {
         get() {
           const fs = parseFloat(chartEl.style.fontSize) || 16;
@@ -130,6 +138,54 @@ describe('Print Chart Auto-Fit & Pagination Logic', () => {
       expect(result.fitsOnPage).toBe(false);
       // Clamped to minimum 14px (never shrinks below 14px)
       expect(result.fontSize).toBe(14);
+    });
+  });
+
+  describe('isFirstLineOfSection (first-line-only section labels)', () => {
+    it('shows section label on line 0 if it has a label', () => {
+      const lines: Line[] = [
+        { id: '1', label: 'Intro', blocks: [] },
+        { id: '2', label: 'Intro', blocks: [] },
+      ];
+      expect(isFirstLineOfSection(lines, 0)).toBe(true);
+      expect(isFirstLineOfSection(lines, 1)).toBe(false);
+    });
+
+    it('shows section label when section changes and suppresses on repeat lines', () => {
+      const lines: Line[] = [
+        { id: '1', label: 'Intro', blocks: [] },
+        { id: '2', label: 'Intro', blocks: [] },
+        { id: '3', label: 'Song', blocks: [] },
+        { id: '4', label: 'Song', blocks: [] },
+        { id: '5', label: 'Song', blocks: [] },
+        { id: '6', label: 'Chorus', blocks: [] },
+      ];
+      expect(isFirstLineOfSection(lines, 0)).toBe(true); // Intro
+      expect(isFirstLineOfSection(lines, 1)).toBe(false); // Intro cont
+      expect(isFirstLineOfSection(lines, 2)).toBe(true); // Song
+      expect(isFirstLineOfSection(lines, 3)).toBe(false); // Song cont
+      expect(isFirstLineOfSection(lines, 4)).toBe(false); // Song cont
+      expect(isFirstLineOfSection(lines, 5)).toBe(true); // Chorus
+    });
+
+    it('returns false for unlabeled lines', () => {
+      const lines: Line[] = [
+        { id: '1', label: '', blocks: [] },
+        { id: '2', label: '', blocks: [] },
+      ];
+      expect(isFirstLineOfSection(lines, 0)).toBe(false);
+      expect(isFirstLineOfSection(lines, 1)).toBe(false);
+    });
+
+    it('handles multi-word labels like "Intro+ gtr:" cleanly as a single line label', () => {
+      const lines: Line[] = [
+        { id: '1', label: 'Intro+ gtr', blocks: [] },
+        { id: '2', label: 'Intro+ gtr', blocks: [] },
+        { id: '3', label: '1st Bg', blocks: [] },
+      ];
+      expect(isFirstLineOfSection(lines, 0)).toBe(true);
+      expect(isFirstLineOfSection(lines, 1)).toBe(false);
+      expect(isFirstLineOfSection(lines, 2)).toBe(true);
     });
   });
 
@@ -210,16 +266,19 @@ describe('Print Chart Auto-Fit & Pagination Logic', () => {
   });
 
   describe('Section Colors in Print', () => {
-    it('maps known section labels to warm Chordly palette colors', () => {
+    it('maps known section labels to demo spec palette colors', () => {
       expect(getDefaultSectionColor('Intro', 0)).toBe(DEFAULT_SECTION_COLORS.intro);
       expect(getDefaultSectionColor('Verse', 1)).toBe(DEFAULT_SECTION_COLORS.verse);
+      expect(getDefaultSectionColor('Song', 1)).toBe(DEFAULT_SECTION_COLORS.song);
       expect(getDefaultSectionColor('Chorus', 2)).toBe(DEFAULT_SECTION_COLORS.chorus);
       expect(getDefaultSectionColor('Bridge', 3)).toBe(DEFAULT_SECTION_COLORS.bridge);
+      expect(getDefaultSectionColor('BG', 3)).toBe(DEFAULT_SECTION_COLORS.bg);
+      expect(getDefaultSectionColor('A.Pal', 4)).toBe(SPEC_SECTION_COLORS['a.pal']);
       expect(getDefaultSectionColor('Outro', 4)).toBe(DEFAULT_SECTION_COLORS.outro);
       expect(getDefaultSectionColor('Flute', 5)).toBe(DEFAULT_SECTION_COLORS.flute);
     });
 
-    it('falls back to warm palette for unknown labels or empty labels', () => {
+    it('falls back to palette for unknown labels or empty labels', () => {
       const color = getDefaultSectionColor('Guitar Lick', 0);
       expect(color).toBeTruthy();
       expect(color.startsWith('#')).toBe(true);

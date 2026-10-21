@@ -5,6 +5,21 @@ import { useEffect } from 'react';
 export function SWRegister() {
   useEffect(() => {
     if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+      const isLocal =
+        window.location.hostname === 'localhost' ||
+        window.location.hostname === '127.0.0.1' ||
+        window.location.hostname === '[::1]' ||
+        process.env.NODE_ENV === 'development';
+
+      if (isLocal) {
+        navigator.serviceWorker.getRegistrations().then((registrations) => {
+          for (const reg of registrations) {
+            reg.unregister();
+          }
+        });
+        return;
+      }
+
       const register = () => {
         navigator.serviceWorker
           .register('/sw.js')

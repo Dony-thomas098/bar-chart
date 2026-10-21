@@ -149,41 +149,66 @@ export default function PrinterPage() {
     if (savedWatermark) setWatermark(savedWatermark);
   }, []);
 
+  // Update dynamic @page style for A4 / Letter matching demo spec
   useEffect(() => {
-    const loadCharts = async () => {
-      const newCharts = { ...charts };
-      let changed = false;
-      for (const id of chartQueue) {
-        if (!newCharts[id]) {
-          const c = await readChart(id);
-          if (c) {
-            newCharts[id] = c as Chart;
-            changed = true;
-          }
-        }
+    if (typeof document === 'undefined') return;
+    let styleEl = document.getElementById('print-page-style') as HTMLStyleElement | null;
+    if (!styleEl) {
+      styleEl = document.createElement('style');
+      styleEl.id = 'print-page-style';
+      document.head.appendChild(styleEl);
+    }
+    const isLetter = paperSize === 'letter';
+    styleEl.textContent = `@page { size: ${isLetter ? 'Letter' : 'A4'} portrait; margin: 12mm; } @media print { .paper, .print-page { height: calc(${isLetter ? '279.4mm' : '297mm'} - 24mm) !important; } }`;
+  }, [paperSize]);
+
+  const loadCharts = React.useCallback(async () => {
+    const newCharts: Record<string, Chart> = {};
+    for (const id of chartQueue) {
+      try {
+        const c = await readChart(id);
+        if (c) newCharts[id] = c as Chart;
+      } catch (err) {
+        console.warn('[Printer] Error loading chart:', err);
       }
-      if (changed) setCharts(newCharts);
-    };
-    loadCharts();
+    }
+    setCharts(newCharts);
   }, [chartQueue]);
 
-  useEffect(() => {
-    const loadLyrics = async () => {
-      const newLyrics = { ...lyrics };
-      let changed = false;
-      for (const id of lyricsQueue) {
-        if (!newLyrics[id]) {
-          const l = await readLyrics(id);
-          if (l) {
-            newLyrics[id] = l as Lyric;
-            changed = true;
-          }
-        }
+  const loadLyrics = React.useCallback(async () => {
+    const newLyrics: Record<string, Lyric> = {};
+    for (const id of lyricsQueue) {
+      try {
+        const l = await readLyrics(id);
+        if (l) newLyrics[id] = l as Lyric;
+      } catch (err) {
+        console.warn('[Printer] Error loading lyrics:', err);
       }
-      if (changed) setLyrics(newLyrics);
-    };
-    loadLyrics();
+    }
+    setLyrics(newLyrics);
   }, [lyricsQueue]);
+
+  useEffect(() => {
+    loadCharts().catch(() => {});
+  }, [loadCharts]);
+
+  useEffect(() => {
+    loadLyrics().catch(() => {});
+  }, [loadLyrics]);
+
+  // Always refresh items on page focus or beforeprint
+  useEffect(() => {
+    const handleRefresh = () => {
+      loadCharts().catch(() => {});
+      loadLyrics().catch(() => {});
+    };
+    window.addEventListener('focus', handleRefresh);
+    window.addEventListener('beforeprint', handleRefresh);
+    return () => {
+      window.removeEventListener('focus', handleRefresh);
+      window.removeEventListener('beforeprint', handleRefresh);
+    };
+  }, [loadCharts, loadLyrics]);
 
   useEffect(() => {
     const doSearch = async () => {
@@ -253,6 +278,11 @@ export default function PrinterPage() {
   };
 
   const handlePrint = async () => {
+    if (mode === 'chart') {
+      await loadCharts();
+    } else {
+      await loadLyrics();
+    }
     if (typeof document !== 'undefined' && document.fonts && document.fonts.ready) {
       try {
         await document.fonts.ready;
@@ -529,7 +559,7 @@ export default function PrinterPage() {
         className="print-screen-container print:static print:block w-full max-w-none m-0 p-0 overflow-visible text-black"
         data-paper-size={paperSize}
       >
-        {activeQueue.length > 0 && (
+        {activeQueue.length > 1 && (
           <div className="page-break-after w-[min(100%,60rem)] mx-auto px-12 pt-20 pb-16 text-black block">
             <h1 className="text-4xl sm:text-5xl font-extrabold print:!font-bold tracking-normal text-black mb-3">
               {setlistName || (mode === 'chart' ? 'Charts Print Queue' : 'Lyrics Print Queue')}

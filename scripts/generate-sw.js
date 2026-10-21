@@ -176,9 +176,12 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Bypass dev mode HMR, chrome extensions, Supabase API calls, and OTA update manifest
+  // Bypass dev mode HMR, chrome extensions, Supabase API calls, OTA update manifest, and localhost
   if (
     request.method !== 'GET' ||
+    url.hostname === 'localhost' ||
+    url.hostname === '127.0.0.1' ||
+    url.hostname === '[::1]' ||
     url.pathname.startsWith('/_next/webpack-hmr') ||
     url.hostname.includes('supabase.co') ||
     url.protocol.startsWith('chrome-extension') ||

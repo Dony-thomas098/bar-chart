@@ -95,11 +95,22 @@ export default function RootLayout({
               })();
               if ('serviceWorker' in navigator) {
                 try {
-                  navigator.serviceWorker.register('/sw.js').then(function(reg) {
-                    console.log('[SW] Registered successfully:', reg.scope);
-                  }).catch(function(err) {
-                    console.warn('[SW] Registration failed:', err);
-                  });
+                  var isLocal = window.location.hostname === 'localhost' ||
+                                window.location.hostname === '127.0.0.1' ||
+                                window.location.hostname === '[::1]';
+                  if (isLocal) {
+                    navigator.serviceWorker.getRegistrations().then(function(regs) {
+                      for (var i = 0; i < regs.length; i++) {
+                        regs[i].unregister();
+                      }
+                    });
+                  } else {
+                    navigator.serviceWorker.register('/sw.js').then(function(reg) {
+                      console.log('[SW] Registered successfully:', reg.scope);
+                    }).catch(function(err) {
+                      console.warn('[SW] Registration failed:', err);
+                    });
+                  }
                 } catch (e) {}
               }
             `,

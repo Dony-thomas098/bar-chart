@@ -420,19 +420,52 @@ export default function SetlistDetailPage() {
     return () => window.removeEventListener('refresh-setlists', handleRefresh);
   }, [load]);
 
-  // Pre-load print data whenever items change
-  useEffect(() => {
+  // Reusable function to refresh print data with latest saved charts & lyrics
+  const refreshPrintData = useCallback(async () => {
     const chartItems = items.filter(i => i.item_type === 'chart');
     const lyricsItems = items.filter(i => i.item_type === 'lyrics');
-    chartItems.forEach(async item => {
-      const chart = await readChart(item.item_id);
-      if (chart) setPrintCharts(prev => ({ ...prev, [item.item_id]: chart as ChartData }));
-    });
-    lyricsItems.forEach(async item => {
-      const lyr = await readLyrics(item.item_id);
-      if (lyr) setPrintLyricsMap(prev => ({ ...prev, [item.item_id]: lyr }));
-    });
+    await Promise.all([
+      ...chartItems.map(async item => {
+        try {
+          const chart = await readChart(item.item_id);
+          if (chart) setPrintCharts(prev => ({ ...prev, [item.item_id]: chart as ChartData }));
+        } catch (err) {
+          console.warn('[Setlist] Error loading print chart:', err);
+        }
+      }),
+      ...lyricsItems.map(async item => {
+        try {
+          const lyr = await readLyrics(item.item_id);
+          if (lyr) setPrintLyricsMap(prev => ({ ...prev, [item.item_id]: lyr }));
+        } catch (err) {
+          console.warn('[Setlist] Error loading print lyrics:', err);
+        }
+      })
+    ]);
   }, [items]);
+
+  // Pre-load print data whenever items change
+  useEffect(() => {
+    refreshPrintData().catch(() => {});
+  }, [refreshPrintData]);
+
+  // Auto-refresh print data on window focus and beforeprint (e.g. after returning from editing a chart)
+  useEffect(() => {
+    const handleFocusOrBeforePrint = () => {
+      refreshPrintData().catch(() => {});
+    };
+    window.addEventListener('beforeprint', handleFocusOrBeforePrint);
+    window.addEventListener('focus', handleFocusOrBeforePrint);
+    return () => {
+      window.removeEventListener('beforeprint', handleFocusOrBeforePrint);
+      window.removeEventListener('focus', handleFocusOrBeforePrint);
+    };
+  }, [refreshPrintData]);
+
+  const handlePrintSetlist = async () => {
+    await refreshPrintData();
+    window.print();
+  };
 
 
   // Drag and drop - Admin only
@@ -670,7 +703,7 @@ export default function SetlistDetailPage() {
           {items.length > 0 && (
             <div className="flex items-center justify-center gap-3 mt-6">
               <button
-                onClick={() => window.print()}
+                onClick={handlePrintSetlist}
                 className="py-2 px-4 glass-pill text-xs font-bold text-text-secondary hover:text-text-primary flex items-center gap-1.5 cursor-pointer"
               >
                 <Printer size={14} /> Print Setlist

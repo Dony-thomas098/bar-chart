@@ -480,6 +480,7 @@ body {
   }
 
   /* Each song / sheet page fills exact printable area and breaks after */
+  .paper,
   .print-page {
     box-sizing: border-box !important;
     width: 100% !important;
@@ -497,13 +498,16 @@ body {
     flex-direction: column !important;
     overflow: hidden !important;
     background: #ffffff !important;
-    color: #000000 !important;
+    color: #111111 !important;
     position: relative !important;
   }
 
   /* US Letter switch: 11in (279.4mm) - 2*12mm = 255.4mm */
+  body[data-paper-size="letter"] .paper,
   body[data-paper-size="letter"] .print-page,
+  [data-paper-size="letter"] .paper,
   [data-paper-size="letter"] .print-page,
+  .paper.paper-letter,
   .print-page.paper-letter {
     page: letter-page !important;
     height: 255.4mm !important;
@@ -511,7 +515,22 @@ body {
     min-height: 255.4mm !important;
   }
 
+  /* Print color adjust for headers, charts, and section labels */
+  .paper,
+  .print-page,
+  .chart,
+  .print-chart,
+  .hd,
+  .print-hd,
+  .lab,
+  .print-lab {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
   /* Never split a section row across pages */
+  .row,
+  .print-row,
   .print-chart-row {
     break-inside: avoid !important;
     page-break-inside: avoid !important;
@@ -560,6 +579,25 @@ body {
     display: none !important;
   }
 
+  /* Standalone screen preview paper styling matching spec */
+  .paper {
+    width: min(100%, 600px);
+    aspect-ratio: 210/297;
+    margin: 0 auto;
+    background: #fff;
+    color: #111;
+    display: flex;
+    flex-direction: column;
+    padding: 5.5% 5%;
+    box-shadow: 0 2px 18px rgba(0, 0, 0, 0.25);
+    font-size: 13px;
+  }
+
+  .paper.paper-letter,
+  [data-paper-size="letter"] .paper {
+    aspect-ratio: 8.5/11;
+  }
+
   /* Measurable container off-screen so layout effects can size accurately */
   .print-screen-container {
     position: fixed;
@@ -575,17 +613,25 @@ body {
     width: 191.9mm;
   }
 
+  .print-screen-container .paper,
   .print-page {
     box-sizing: border-box;
     width: 186mm;
     height: 273mm;
+    aspect-ratio: auto;
+    padding: 0;
+    margin: 0;
+    box-shadow: none;
     display: flex;
     flex-direction: column;
     overflow: hidden;
     background: #ffffff;
-    color: #000000;
+    color: #111111;
+    font-size: 13px;
   }
 
+  .print-screen-container .paper.paper-letter,
+  .print-screen-container [data-paper-size="letter"] .paper,
   .print-page.paper-letter,
   [data-paper-size="letter"] .print-page {
     width: 191.9mm;

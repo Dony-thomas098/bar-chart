@@ -14,7 +14,7 @@ interface Props {
 export function BandConnectModal({ isOpen, onClose, onSuccess }: Props) {
   const { user, profile, updateProfile } = useAuth();
   const [activeTab, setActiveTab] = useState<'join' | 'create'>('join');
-  const [currentBand, setCurrentBand] = useState<ReturnType<typeof getStoredBand>>(getStoredBand());
+  const [currentBand, setCurrentBand] = useState<ReturnType<typeof getStoredBand>>({ id: null, name: null, code: null });
 
   // Form states
   const [joinCodeInput, setJoinCodeInput] = useState('');

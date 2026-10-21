@@ -310,6 +310,7 @@ const PRECACHE_ASSETS = [
   "/settings/__next._head.txt",
   "/settings/__next._index.txt",
   "/settings/__next._tree.txt",
+  "/Sneham Baliyay_ auto-fit print demo.html",
   "/trash/index.html",
   "/trash/index.txt",
   "/trash/__next.trash/__PAGE__.txt",
@@ -334,12 +335,14 @@ const PRECACHE_ASSETS = [
   "/__next._index.txt",
   "/__next._tree.txt",
   "/__next.__PAGE__.txt",
+  "/_next/static/61bk8oYXLWLD64NWMIah6/_buildManifest.js",
+  "/_next/static/61bk8oYXLWLD64NWMIah6/_ssgManifest.js",
   "/_next/static/chunks/1643-c5ec9103c3f03f45.js",
-  "/_next/static/chunks/1867-4275f757fd82a928.js",
+  "/_next/static/chunks/1867-92af7297d6728f00.js",
   "/_next/static/chunks/1966.d10b448f42cccd98.js",
   "/_next/static/chunks/2180-33277038fbce0dbf.js",
   "/_next/static/chunks/2502-2b636d2e017d8079.js",
-  "/_next/static/chunks/2657-5a2d1e430e87105a.js",
+  "/_next/static/chunks/2657-22f4833720f4712a.js",
   "/_next/static/chunks/2721-f5bcc39d2f07899b.js",
   "/_next/static/chunks/2864-edf5516b5cb3264b.js",
   "/_next/static/chunks/3133-5f73dec2bbe7fdb0.js",
@@ -352,7 +355,7 @@ const PRECACHE_ASSETS = [
   "/_next/static/chunks/5334-4c687c69621663e1.js",
   "/_next/static/chunks/5339-48217cd7f1f0a02a.js",
   "/_next/static/chunks/5549-e5cae4215a51c818.js",
-  "/_next/static/chunks/561-a992753025f5473b.js",
+  "/_next/static/chunks/561-309cb23a3e82978a.js",
   "/_next/static/chunks/6250-aedcb7b22a3ceb4b.js",
   "/_next/static/chunks/6308-3a6167cb563686e6.js",
   "/_next/static/chunks/6736-a56012626fe75d00.js",
@@ -360,7 +363,7 @@ const PRECACHE_ASSETS = [
   "/_next/static/chunks/8351-2ed0aee60593d1c2.js",
   "/_next/static/chunks/8527-055bc2d3221fef94.js",
   "/_next/static/chunks/868-5b2521bfbef94869.js",
-  "/_next/static/chunks/9021-4195476aad28f661.js",
+  "/_next/static/chunks/9021-70c4c14a756e7f52.js",
   "/_next/static/chunks/9123-b845fb2c6d13b993.js",
   "/_next/static/chunks/app/auth/page-b93d8d1458ad4f75.js",
   "/_next/static/chunks/app/bookmarks/page-dd721dc93219a784.js",
@@ -374,9 +377,9 @@ const PRECACHE_ASSETS = [
   "/_next/static/chunks/app/folder/page-b542c4e323cbf91a.js",
   "/_next/static/chunks/app/folder/[id]/layout-31e8e7f3cec06d1e.js",
   "/_next/static/chunks/app/folder/[id]/page-2480d789feba0eff.js",
-  "/_next/static/chunks/app/layout-b63e9a5b28a1249c.js",
-  "/_next/static/chunks/app/loading-27c02134ea35ef39.js",
-  "/_next/static/chunks/app/logo-review/page-7ab1515d68056cb3.js",
+  "/_next/static/chunks/app/layout-c86f34bb7954a624.js",
+  "/_next/static/chunks/app/loading-2b5485e0ca876619.js",
+  "/_next/static/chunks/app/logo-review/page-5585976affa5af13.js",
   "/_next/static/chunks/app/lyrics/edit/page-8140ac081cb771ad.js",
   "/_next/static/chunks/app/lyrics/folder/page-62ce1e8e0821a8fa.js",
   "/_next/static/chunks/app/lyrics/folder/[id]/layout-31e8e7f3cec06d1e.js",
@@ -392,8 +395,8 @@ const PRECACHE_ASSETS = [
   "/_next/static/chunks/app/perform/stage/page-f94a95dc5a15fd3b.js",
   "/_next/static/chunks/app/perform/[code]/layout-31e8e7f3cec06d1e.js",
   "/_next/static/chunks/app/perform/[code]/page-5eee78dfff3aa8f5.js",
-  "/_next/static/chunks/app/printer/page-cd9cda0381e08414.js",
-  "/_next/static/chunks/app/profile/page-5faec7fcc4bc6ecc.js",
+  "/_next/static/chunks/app/printer/page-bcd8df5d327dd131.js",
+  "/_next/static/chunks/app/profile/page-99861f694820e5d8.js",
   "/_next/static/chunks/app/setlists/page-79844cced881113b.js",
   "/_next/static/chunks/app/setlists/perform/page-b27e8ae040f8a9b3.js",
   "/_next/static/chunks/app/setlists/view/page-78e23a54b1669436.js",
@@ -413,13 +416,11 @@ const PRECACHE_ASSETS = [
   "/_next/static/chunks/next/dist/client/components/builtin/unauthorized-31e8e7f3cec06d1e.js",
   "/_next/static/chunks/polyfills-42372ed130431b0a.js",
   "/_next/static/chunks/webpack-99c90f3a7e8fdb09.js",
-  "/_next/static/css/5f84397c27a47b8f.css",
+  "/_next/static/css/0425d4fe2442af46.css",
+  "/_next/static/css/1de9b0b9de0c038b.css",
   "/_next/static/css/604775b3a74dc580.css",
   "/_next/static/css/676caacb685ce77a.css",
-  "/_next/static/css/68b5b925d1cfe237.css",
   "/_next/static/css/9cdd061e9fa6d1a6.css",
-  "/_next/static/Hm-cjgNLTvrFn4udrMKqr/_buildManifest.js",
-  "/_next/static/Hm-cjgNLTvrFn4udrMKqr/_ssgManifest.js",
   "/_next/static/media/558ca1a6aa3cb55e-s.p.woff2",
   "/_next/static/media/636a5ac981f94f8b-s.p.woff2",
   "/_next/static/media/64d784ea54a4acde-s.woff2",
@@ -505,9 +506,12 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Bypass dev mode HMR, chrome extensions, Supabase API calls, and OTA update manifest
+  // Bypass dev mode HMR, chrome extensions, Supabase API calls, OTA update manifest, and localhost
   if (
     request.method !== 'GET' ||
+    url.hostname === 'localhost' ||
+    url.hostname === '127.0.0.1' ||
+    url.hostname === '[::1]' ||
     url.pathname.startsWith('/_next/webpack-hmr') ||
     url.hostname.includes('supabase.co') ||
     url.protocol.startsWith('chrome-extension') ||

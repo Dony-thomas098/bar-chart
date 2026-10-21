@@ -525,3 +525,76 @@ describe('Setlist Routing and 404 Fallback Logic', () => {
     expect(notFoundPage).toContain('/setlists/view?id=');
   });
 });
+
+describe('SplashScreen Safety and Localhost Service Worker Invariants', () => {
+  it('guarantees splash screen enforces hard safety fallback timeout', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+
+    const splashFile = fs.readFileSync(path.resolve(__dirname, '../components/SplashScreen.tsx'), 'utf-8');
+    const splashCss = fs.readFileSync(path.resolve(__dirname, '../components/SplashScreen.module.css'), 'utf-8');
+
+    expect(splashFile).toContain('safetyTimer');
+    expect(splashFile).toContain('2500');
+    expect(splashCss).toContain(':global(.no-splash) .root');
+    expect(splashCss).toContain('visibility: hidden !important;');
+  });
+
+  it('guarantees service worker is unregistered on localhost and bypassed in development', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+
+    const layoutFile = fs.readFileSync(path.resolve(__dirname, '../app/layout.tsx'), 'utf-8');
+    const swRegisterFile = fs.readFileSync(path.resolve(__dirname, '../components/SWRegister.tsx'), 'utf-8');
+    const swFile = fs.readFileSync(path.resolve(__dirname, '../public/sw.js'), 'utf-8');
+    const genSwFile = fs.readFileSync(path.resolve(__dirname, '../scripts/generate-sw.js'), 'utf-8');
+
+    expect(layoutFile).toContain('window.location.hostname === \'localhost\'');
+    expect(layoutFile).toContain('regs[i].unregister()');
+    expect(swRegisterFile).toContain('window.location.hostname === \'localhost\'');
+    expect(swRegisterFile).toContain('reg.unregister()');
+    expect(swFile).toContain('url.hostname === \'localhost\'');
+    expect(genSwFile).toContain('url.hostname === \'localhost\'');
+  });
+});
+
+describe('Hydration Invariants and SSR Consistency', () => {
+  it('ensures Sidebar, Profile, and BandConnectModal avoid synchronous localStorage reads during useState initial render', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+
+    const sidebar = fs.readFileSync(path.resolve(__dirname, '../components/Sidebar.tsx'), 'utf-8');
+    const profile = fs.readFileSync(path.resolve(__dirname, '../app/profile/page.tsx'), 'utf-8');
+    const modal = fs.readFileSync(path.resolve(__dirname, '../components/BandConnectModal.tsx'), 'utf-8');
+
+    // None of these should call useState(getStoredBand()) directly as that causes SSR hydration mismatch
+    expect(sidebar).not.toContain('useState(getStoredBand())');
+    expect(profile).not.toContain('useState(getStoredBand())');
+    expect(modal).not.toContain('useState<ReturnType<typeof getStoredBand>>(getStoredBand())');
+
+    // Sidebar must have suppressHydrationWarning on the Band Workspace title block
+    expect(sidebar).toContain('suppressHydrationWarning');
+  });
+});
+
+describe('Print Data Freshness and Realtime Synchronization', () => {
+  it('guarantees setlist and printer pages auto-refresh latest chart data before printing', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+
+    const setlistPage = fs.readFileSync(path.resolve(__dirname, '../app/setlists/[id]/page.tsx'), 'utf-8');
+    const printerPage = fs.readFileSync(path.resolve(__dirname, '../app/printer/page.tsx'), 'utf-8');
+
+    // Setlist page must have refreshPrintData and beforeprint / focus hooks
+    expect(setlistPage).toContain('refreshPrintData');
+    expect(setlistPage).toContain('handlePrintSetlist');
+    expect(setlistPage).toContain('window.addEventListener(\'beforeprint\'');
+    expect(setlistPage).toContain('window.addEventListener(\'focus\'');
+
+    // Printer page must re-fetch latest items before window.print and listen to beforeprint
+    expect(printerPage).toContain('loadCharts');
+    expect(printerPage).toContain('loadLyrics');
+    expect(printerPage).toContain('window.addEventListener(\'beforeprint\'');
+    expect(printerPage).toContain('window.addEventListener(\'focus\'');
+  });
+});
