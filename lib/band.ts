@@ -167,7 +167,21 @@ export async function syncBandForUser(user: { id: string; email?: string | null;
           admin_id: bandData.admin_id,
           created_at: bandData.created_at,
         };
-        saveBandLocally(band, user.email);
+        const currentStored = getStoredBand();
+        if (currentStored.id && currentStored.id !== band.id) {
+          try {
+            const { clearBandCache, syncAllOffline } = await import('./storage');
+            await clearBandCache(currentStored.id);
+            saveBandLocally(band, user.email);
+            await syncAllOffline(band.id);
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(new CustomEvent('refresh-folder'));
+              window.dispatchEvent(new CustomEvent('refresh-setlists'));
+            }
+          } catch {}
+        } else {
+          saveBandLocally(band, user.email);
+        }
 
         // Ensure user's profile has this band populated if missing
         try {
@@ -334,8 +348,32 @@ export async function createBand(name: string, code: string): Promise<{ success:
       console.warn('[Band] Error inserting band:', insertError);
     }
 
+    // If switching from another band, clear previous band's cached data
+    const currentStored = getStoredBand();
+    if (currentStored.id && currentStored.id !== newBand.id) {
+      try {
+        const { clearBandCache } = await import('./storage');
+        await clearBandCache(currentStored.id);
+      } catch (err) {
+        console.warn('[Band] Error clearing previous band cache on create:', err);
+      }
+    }
+
     // Persist locally for active session and user email
     saveBandLocally(newBand, user?.email);
+
+    // Sync new band's data
+    try {
+      const { syncAllOffline } = await import('./storage');
+      await syncAllOffline(newBand.id);
+    } catch (err) {
+      console.warn('[Band] Error syncing new band data on create:', err);
+    }
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('refresh-folder'));
+      window.dispatchEvent(new CustomEvent('refresh-setlists'));
+    }
 
     // Update profile in background if user is authenticated
     if (user) {
@@ -389,8 +427,32 @@ export async function joinBand(code: string): Promise<{ success: boolean; band?:
     const band: Band = data;
     const { data: { user } } = await supabase.auth.getUser();
 
+    // If switching from another band, clear previous band's cached data from IndexedDB
+    const currentStored = getStoredBand();
+    if (currentStored.id && currentStored.id !== band.id) {
+      try {
+        const { clearBandCache } = await import('./storage');
+        await clearBandCache(currentStored.id);
+      } catch (err) {
+        console.warn('[Band] Error clearing previous band cache on switch:', err);
+      }
+    }
+
     // Persist locally for active session and user email
     saveBandLocally(band, user?.email);
+
+    // Sync new band's data into IndexedDB
+    try {
+      const { syncAllOffline } = await import('./storage');
+      await syncAllOffline(band.id);
+    } catch (err) {
+      console.warn('[Band] Error syncing new band data on join:', err);
+    }
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('refresh-folder'));
+      window.dispatchEvent(new CustomEvent('refresh-setlists'));
+    }
 
     // Update profile in background if user is authenticated
     if (user) {
@@ -418,9 +480,22 @@ export async function joinBand(code: string): Promise<{ success: boolean; band?:
 
 /** Disconnect / leave the current band workspace */
 export async function leaveBand(email?: string | null): Promise<void> {
+  const currentBand = getStoredBand();
+  if (currentBand.id) {
+    try {
+      const { clearBandCache } = await import('./storage');
+      await clearBandCache(currentBand.id);
+    } catch (err) {
+      console.warn('[Band] Error clearing band cache on leave:', err);
+    }
+  }
   clearActiveBandSession();
   if (email && typeof window !== 'undefined') {
     localStorage.removeItem(getEmailBandCacheKey(email));
+  }
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('refresh-folder'));
+    window.dispatchEvent(new CustomEvent('refresh-setlists'));
   }
   try {
     const { data: { user } } = await supabase.auth.getUser();

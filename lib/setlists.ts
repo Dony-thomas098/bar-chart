@@ -9,6 +9,7 @@ export type Setlist = {
   notes: string | null;
   created_by: string;
   updated_at: string;
+  band_id?: string | null;
 };
 
 export type SetlistItem = {
@@ -20,6 +21,7 @@ export type SetlistItem = {
   transpose_override: number | null;
   notes: string | null;
   lines_override?: any;
+  band_id?: string | null;
   // display fields populated by join
   title?: string;
   is_deleted?: boolean;
@@ -27,10 +29,18 @@ export type SetlistItem = {
 
 // ─── Setlist CRUD ─────────────────────────────────────────────────────────────
 
-export async function listSetlists(): Promise<Setlist[]> {
+export async function listSetlists(bandId?: string | null): Promise<Setlist[]> {
+  const isGuestMode = typeof window !== 'undefined' && localStorage.getItem('chord-grid-guest-mode') === 'true';
+  const activeBandId = bandId !== undefined ? bandId : (typeof window !== 'undefined' ? localStorage.getItem('chord-grid-band-id') : null);
+
+  if (isGuestMode || !activeBandId) {
+    return [];
+  }
+
   const { data, error } = await supabase
     .from('setlists')
     .select('*')
+    .eq('band_id', activeBandId)
     .order('updated_at', { ascending: false });
   if (error) throw error;
   return data || [];
@@ -40,8 +50,10 @@ export async function createSetlist(
   name: string,
   date?: string | null,
   notes?: string | null,
+  bandId?: string | null,
 ): Promise<Setlist> {
   const { data: { user } } = await supabase.auth.getUser();
+  const activeBandId = bandId !== undefined ? bandId : (typeof window !== 'undefined' ? localStorage.getItem('chord-grid-band-id') : null);
   const { data, error } = await supabase
     .from('setlists')
     .insert({
@@ -49,6 +61,7 @@ export async function createSetlist(
       date: date || null,
       notes: notes || null,
       created_by: user?.id,
+      band_id: activeBandId || null,
       updated_at: new Date().toISOString(),
     })
     .select()
@@ -75,6 +88,7 @@ export async function deleteSetlist(id: string): Promise<void> {
 
 export async function duplicateSetlist(id: string): Promise<Setlist> {
   const { data: { user } } = await supabase.auth.getUser();
+  const activeBandId = typeof window !== 'undefined' ? localStorage.getItem('chord-grid-band-id') : null;
 
   // Fetch original
   const { data: original, error: fetchErr } = await supabase
@@ -99,6 +113,7 @@ export async function duplicateSetlist(id: string): Promise<Setlist> {
       date: original.date,
       notes: original.notes,
       created_by: user?.id,
+      band_id: original.band_id || activeBandId || null,
       updated_at: new Date().toISOString(),
     })
     .select()
@@ -115,6 +130,7 @@ export async function duplicateSetlist(id: string): Promise<Setlist> {
       transpose_override: item.transpose_override,
       notes: item.notes,
       lines_override: item.lines_override || null,
+      band_id: item.band_id || newSetlist.band_id || activeBandId || null,
     }));
     await supabase.from('setlist_items').insert(newItems);
   }
@@ -167,12 +183,15 @@ export async function addSetlistItems(
   setlistId: string,
   items: Array<{ item_type: 'chart' | 'lyrics'; item_id: string }>,
   startPosition: number,
+  bandId?: string | null,
 ): Promise<SetlistItem[]> {
+  const activeBandId = bandId !== undefined ? bandId : (typeof window !== 'undefined' ? localStorage.getItem('chord-grid-band-id') : null);
   const rows = items.map((item, i) => ({
     setlist_id: setlistId,
     item_type: item.item_type,
     item_id: item.item_id,
     position: startPosition + i,
+    band_id: activeBandId || null,
   }));
   const { data, error } = await supabase
     .from('setlist_items')

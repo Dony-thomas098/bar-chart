@@ -13,6 +13,7 @@ export type Chart = {
   created_by: string;
   updated_at: string;
   is_bookmarked?: boolean;
+  band_id?: string | null;
 };
 
 export type Folder = {
@@ -22,6 +23,7 @@ export type Folder = {
   created_by: string;
   updated_at: string;
   kind: 'chart' | 'lyrics';
+  band_id?: string | null;
 };
 
 interface BarChartDB extends DBSchema {
@@ -179,34 +181,136 @@ export async function deleteFromCache(id: string, store: 'charts' | 'lyrics' | '
   }
 }
 
+/** Clear all cached data belonging to a specific band from IndexedDB */
+export async function clearBandCache(bandId?: string | null) {
+  if (!dbPromise) return;
+  try {
+    const db = await dbPromise;
+    if (!db) return;
+
+    const [allCharts, allLyrics, allFolders] = await Promise.all([
+      db.getAll('charts'),
+      db.getAll('lyrics'),
+      db.getAll('folders'),
+    ]);
+
+    const chartTx = db.transaction('charts', 'readwrite');
+    for (const c of allCharts) {
+      if (!bandId || c.band_id === bandId || !c.band_id) {
+        await chartTx.store.delete(c.id);
+      }
+    }
+    await chartTx.done;
+
+    const lyricTx = db.transaction('lyrics', 'readwrite');
+    for (const l of allLyrics) {
+      if (!bandId || l.band_id === bandId || !l.band_id) {
+        await lyricTx.store.delete(l.id);
+      }
+    }
+    await lyricTx.done;
+
+    const folderTx = db.transaction('folders', 'readwrite');
+    for (const f of allFolders) {
+      if (!bandId || f.band_id === bandId || !f.band_id) {
+        await folderTx.store.delete(f.id);
+      }
+    }
+    await folderTx.done;
+
+    // Also clean up any pending_saves that belong to that band if not in guest mode
+    const isGuest = typeof window !== 'undefined' && localStorage.getItem('chord-grid-guest-mode') === 'true';
+    if (!isGuest) {
+      const allPending = await db.getAll('pending_saves');
+      const pendingTx = db.transaction('pending_saves', 'readwrite');
+      for (const p of allPending) {
+        if (p.data && (!bandId || p.data.band_id === bandId)) {
+          await pendingTx.store.delete(p.id);
+        }
+      }
+      await pendingTx.done;
+    }
+  } catch (err) {
+    console.warn('[Storage] clearBandCache error:', err);
+  }
+}
+
 // --- Data Access Layer ---
 
-export async function listFolderFromCache(folderId: string | null, kind: 'chart' | 'lyrics' = 'chart') {
+export async function listFolderFromCache(
+  folderId: string | null,
+  kind: 'chart' | 'lyrics' = 'chart',
+  bandId?: string | null
+) {
   if (!dbPromise) return { folders: [], charts: [] };
   const db = await dbPromise;
+  if (!db) return { folders: [], charts: [] };
+
+  const isGuestMode = typeof window !== 'undefined' && localStorage.getItem('chord-grid-guest-mode') === 'true';
+  const activeBandId = bandId !== undefined ? bandId : (typeof window !== 'undefined' ? localStorage.getItem('chord-grid-band-id') : null);
+
   const allFolders = await db.getAll('folders');
   const allItems = await db.getAll(kind === 'chart' ? 'charts' : 'lyrics');
+
+  const matchesBand = (itemBandId: string | null | undefined) => {
+    if (isGuestMode) return true;
+    if (!activeBandId) return !itemBandId;
+    return itemBandId === activeBandId || !itemBandId;
+  };
+
   const folders = allFolders
-    .filter((f) => f.parent_id === folderId && f.kind === kind && !f.name.startsWith('__TRASH__:'))
+    .filter((f) => f.parent_id === folderId && f.kind === kind && !f.name.startsWith('__TRASH__:') && matchesBand(f.band_id))
     .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
-  const items = allItems.filter((c) => c.folder_id === folderId && !c.title.startsWith('__TRASH__:'));
+
+  const items = allItems.filter((c) => c.folder_id === folderId && !c.title.startsWith('__TRASH__:') && matchesBand(c.band_id));
+
   return {
     folders,
-    charts: items.map((c) => ({ id: c.id, title: c.title, updated_at: c.updated_at, is_bookmarked: c.is_bookmarked, created_by: c.created_by, type: kind })),
+    charts: items.map((c) => ({
+      id: c.id,
+      title: c.title,
+      updated_at: c.updated_at,
+      is_bookmarked: c.is_bookmarked,
+      created_by: c.created_by,
+      band_id: c.band_id,
+      type: kind,
+    })),
   };
 }
 
-export async function listFolder(folderId: string | null, kind: 'chart' | 'lyrics' = 'chart') {
+export async function listFolder(
+  folderId: string | null,
+  kind: 'chart' | 'lyrics' = 'chart',
+  bandId?: string | null
+) {
   // Always retrieve local cached items first as baseline
-  const local = await listFolderFromCache(folderId, kind);
+  const local = await listFolderFromCache(folderId, kind, bandId);
   const isGuestMode = typeof window !== 'undefined' && localStorage.getItem('chord-grid-guest-mode') === 'true';
+  const activeBandId = bandId !== undefined ? bandId : (typeof window !== 'undefined' ? localStorage.getItem('chord-grid-band-id') : null);
+
+  // If in guest mode, purely return local cached items (offline-only)
+  if (isGuestMode) {
+    return local;
+  }
+
+  // Users with no band see nothing from bands
+  if (!activeBandId) {
+    return local;
+  }
 
   // Attempt online fetch if online OR if local cache is currently empty
-  const shouldAttemptOnline = !isGuestMode && (isOnline() || (local.folders.length === 0 && local.charts.length === 0));
+  const shouldAttemptOnline = isOnline() || (local.folders.length === 0 && local.charts.length === 0);
 
   if (shouldAttemptOnline) {
     try {
-      let foldersQuery = supabase.from('folders').select('*').eq('kind', kind).order('name', { ascending: true }).not('name', 'like', '__TRASH__:%');
+      let foldersQuery = supabase
+        .from('folders')
+        .select('*')
+        .eq('kind', kind)
+        .eq('band_id', activeBandId)
+        .order('name', { ascending: true })
+        .not('name', 'like', '__TRASH__:%');
+
       if (folderId) {
         foldersQuery = foldersQuery.eq('parent_id', folderId);
       } else {
@@ -215,9 +319,19 @@ export async function listFolder(folderId: string | null, kind: 'chart' | 'lyric
 
       let itemsQuery;
       if (kind === 'chart') {
-        itemsQuery = supabase.from('charts').select('id, title, updated_at, is_bookmarked, created_by').order('updated_at', { ascending: false }).not('title', 'like', '__TRASH__:%');
+        itemsQuery = supabase
+          .from('charts')
+          .select('id, title, updated_at, is_bookmarked, created_by, band_id')
+          .eq('band_id', activeBandId)
+          .order('updated_at', { ascending: false })
+          .not('title', 'like', '__TRASH__:%');
       } else {
-        itemsQuery = supabase.from('lyrics').select('id, title, updated_at, is_bookmarked, created_by').order('updated_at', { ascending: false }).not('title', 'like', '__TRASH__:%');
+        itemsQuery = supabase
+          .from('lyrics')
+          .select('id, title, updated_at, is_bookmarked, created_by, band_id')
+          .eq('band_id', activeBandId)
+          .order('updated_at', { ascending: false })
+          .not('title', 'like', '__TRASH__:%');
       }
       
       if (folderId) {
@@ -300,13 +414,21 @@ export async function listFolder(folderId: string | null, kind: 'chart' | 'lyric
   }
 }
 
-export async function createFolder(parentId: string | null, name: string, kind: 'chart' | 'lyrics' = 'chart') {
+export async function createFolder(
+  parentId: string | null,
+  name: string,
+  kind: 'chart' | 'lyrics' = 'chart',
+  bandId?: string | null
+) {
   const { data: { user } } = await supabase.auth.getUser();
+  const activeBandId = bandId !== undefined ? bandId : (typeof window !== 'undefined' ? localStorage.getItem('chord-grid-band-id') : null);
+
   const folder: Folder = {
     id: crypto.randomUUID(),
     name,
     parent_id: parentId,
     created_by: user?.id || '',
+    band_id: activeBandId || null,
     updated_at: new Date().toISOString(),
     kind,
   };
@@ -320,6 +442,7 @@ export async function createFolder(parentId: string | null, name: string, kind: 
   await cacheFolder(folder);
   return folder;
 }
+
 
 export async function renameEntry(id: string, type: 'folder' | 'chart' | 'lyrics', newName: string) {
   const updated_at = new Date().toISOString();
@@ -663,9 +786,18 @@ export async function restoreFromTrash(id: string, type: 'folder' | 'chart' | 'l
   }
 }
 
-export async function listTrash() {
+export async function listTrash(bandId?: string | null) {
+  const isGuestMode = typeof window !== 'undefined' && localStorage.getItem('chord-grid-guest-mode') === 'true';
+  const activeBandId = bandId !== undefined ? bandId : (typeof window !== 'undefined' ? localStorage.getItem('chord-grid-band-id') : null);
+
   const folderMap = new Map<string, Folder>();
-  const itemMap = new Map<string, { id: string; title: string; updated_at: string; type: 'chart' | 'lyrics'; created_by?: string }>();
+  const itemMap = new Map<string, { id: string; title: string; updated_at: string; type: 'chart' | 'lyrics'; created_by?: string; band_id?: string | null }>();
+
+  const matchesBand = (itemBandId: string | null | undefined) => {
+    if (isGuestMode) return true;
+    if (!activeBandId) return !itemBandId;
+    return itemBandId === activeBandId || !itemBandId;
+  };
 
   // 1. Read from local IndexedDB first
   if (dbPromise) {
@@ -675,31 +807,31 @@ export async function listTrash() {
       const allCharts = await db.getAll('charts');
       const allLyrics = await db.getAll('lyrics');
 
-      allFolders.filter((f) => f.name && f.name.startsWith('__TRASH__:')).forEach(f => folderMap.set(f.id, f));
-      allCharts.filter((c) => c.title && c.title.startsWith('__TRASH__:')).forEach(c => itemMap.set(c.id, { id: c.id, title: c.title, updated_at: c.updated_at, type: 'chart', created_by: c.created_by }));
-      allLyrics.filter((l) => l.title && l.title.startsWith('__TRASH__:')).forEach(l => itemMap.set(l.id, { id: l.id, title: l.title, updated_at: l.updated_at, type: 'lyrics', created_by: l.created_by }));
+      allFolders.filter((f) => f.name && f.name.startsWith('__TRASH__:') && matchesBand(f.band_id)).forEach(f => folderMap.set(f.id, f));
+      allCharts.filter((c) => c.title && c.title.startsWith('__TRASH__:') && matchesBand(c.band_id)).forEach(c => itemMap.set(c.id, { id: c.id, title: c.title, updated_at: c.updated_at, type: 'chart', created_by: c.created_by, band_id: c.band_id }));
+      allLyrics.filter((l) => l.title && l.title.startsWith('__TRASH__:') && matchesBand(l.band_id)).forEach(l => itemMap.set(l.id, { id: l.id, title: l.title, updated_at: l.updated_at, type: 'lyrics', created_by: l.created_by, band_id: l.band_id }));
     } catch (err) {
       console.warn('[Storage] listTrash IndexedDB read error:', err);
     }
   }
 
   // 2. If online, fetch from Supabase and merge
-  if (isOnline()) {
+  if (isOnline() && !isGuestMode && activeBandId) {
     try {
       const [foldersRes, chartsRes, lyricsRes] = await Promise.all([
-        supabase.from('folders').select('*').like('name', '__TRASH__:%').order('updated_at', { ascending: false }),
-        supabase.from('charts').select('id, title, updated_at, created_by').like('title', '__TRASH__:%').order('updated_at', { ascending: false }),
-        supabase.from('lyrics').select('id, title, updated_at, created_by').like('title', '__TRASH__:%').order('updated_at', { ascending: false }),
+        supabase.from('folders').select('*').eq('band_id', activeBandId).like('name', '__TRASH__:%').order('updated_at', { ascending: false }),
+        supabase.from('charts').select('id, title, updated_at, created_by, band_id').eq('band_id', activeBandId).like('title', '__TRASH__:%').order('updated_at', { ascending: false }),
+        supabase.from('lyrics').select('id, title, updated_at, created_by, band_id').eq('band_id', activeBandId).like('title', '__TRASH__:%').order('updated_at', { ascending: false }),
       ]);
 
       if (foldersRes.data) {
         foldersRes.data.forEach((f: Folder) => folderMap.set(f.id, f));
       }
       if (chartsRes.data) {
-        chartsRes.data.forEach((c: any) => itemMap.set(c.id, { id: c.id, title: c.title, updated_at: c.updated_at, type: 'chart', created_by: c.created_by }));
+        chartsRes.data.forEach((c: any) => itemMap.set(c.id, { id: c.id, title: c.title, updated_at: c.updated_at, type: 'chart', created_by: c.created_by, band_id: c.band_id }));
       }
       if (lyricsRes.data) {
-        lyricsRes.data.forEach((l: any) => itemMap.set(l.id, { id: l.id, title: l.title, updated_at: l.updated_at, type: 'lyrics', created_by: l.created_by }));
+        lyricsRes.data.forEach((l: any) => itemMap.set(l.id, { id: l.id, title: l.title, updated_at: l.updated_at, type: 'lyrics', created_by: l.created_by, band_id: l.band_id }));
       }
     } catch (err) {
       console.warn('[Storage] listTrash Supabase read error:', err);
@@ -803,6 +935,12 @@ export async function moveEntry(id: string, type: 'folder' | 'chart' | 'lyrics',
 
 export async function saveChart(chart: Chart) {
   chart.updated_at = new Date().toISOString();
+  if (!chart.band_id && typeof window !== 'undefined') {
+    const activeBandId = localStorage.getItem('chord-grid-band-id');
+    if (activeBandId) {
+      chart.band_id = activeBandId;
+    }
+  }
   try {
     await cacheChart(chart);
   } catch (err) {
@@ -874,30 +1012,45 @@ export async function readChart(id: string, bypassCache = false): Promise<Chart 
   return null;
 }
 
-export async function getRecentCharts(limit: number = 5) {
-  if (isOnline()) {
-    const { data } = await supabase.from('charts').select('id, title, updated_at, is_bookmarked').not('title', 'like', '__TRASH__:%').order('updated_at', { ascending: false }).limit(limit);
+export async function getRecentCharts(limit: number = 5, bandId?: string | null) {
+  const isGuestMode = typeof window !== 'undefined' && localStorage.getItem('chord-grid-guest-mode') === 'true';
+  const activeBandId = bandId !== undefined ? bandId : (typeof window !== 'undefined' ? localStorage.getItem('chord-grid-band-id') : null);
+
+  if (isOnline() && !isGuestMode && activeBandId) {
+    const { data } = await supabase
+      .from('charts')
+      .select('id, title, updated_at, is_bookmarked, band_id')
+      .eq('band_id', activeBandId)
+      .not('title', 'like', '__TRASH__:%')
+      .order('updated_at', { ascending: false })
+      .limit(limit);
     return data || [];
   } else if (dbPromise) {
     const db = await dbPromise;
     const allCharts = await db.getAll('charts');
-    return allCharts.filter(c => !c.title.startsWith('__TRASH__:'))
-      .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()).slice(0, limit);
+    return allCharts
+      .filter(c => !c.title.startsWith('__TRASH__:') && (isGuestMode || !activeBandId || c.band_id === activeBandId || !c.band_id))
+      .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
+      .slice(0, limit);
   }
   return [];
 }
 
-export async function getAllFolders(kind?: 'chart' | 'lyrics'): Promise<Folder[]> {
-  if (isOnline()) {
-    let query = supabase.from('folders').select('*');
+export async function getAllFolders(kind?: 'chart' | 'lyrics', bandId?: string | null): Promise<Folder[]> {
+  const isGuestMode = typeof window !== 'undefined' && localStorage.getItem('chord-grid-guest-mode') === 'true';
+  const activeBandId = bandId !== undefined ? bandId : (typeof window !== 'undefined' ? localStorage.getItem('chord-grid-band-id') : null);
+
+  if (isOnline() && !isGuestMode && activeBandId) {
+    let query = supabase.from('folders').select('*').eq('band_id', activeBandId);
     if (kind) query = query.eq('kind', kind);
     const { data } = await query;
     return data || [];
   } else if (dbPromise) {
     const db = await dbPromise;
     const all = await db.getAll('folders');
-    if (kind) return all.filter(f => f.kind === kind);
-    return all;
+    const filtered = all.filter(f => (isGuestMode || !activeBandId || f.band_id === activeBandId || !f.band_id));
+    if (kind) return filtered.filter(f => f.kind === kind);
+    return filtered;
   }
   return [];
 }
@@ -917,11 +1070,14 @@ export async function getFolder(id: string): Promise<Folder | null> {
   return null;
 }
 
-export async function getBookmarks() {
-  if (isOnline()) {
+export async function getBookmarks(bandId?: string | null) {
+  const isGuestMode = typeof window !== 'undefined' && localStorage.getItem('chord-grid-guest-mode') === 'true';
+  const activeBandId = bandId !== undefined ? bandId : (typeof window !== 'undefined' ? localStorage.getItem('chord-grid-band-id') : null);
+
+  if (isOnline() && !isGuestMode && activeBandId) {
     const [{ data: charts }, { data: lyrics }] = await Promise.all([
-      supabase.from('charts').select('id, title, updated_at, is_bookmarked').eq('is_bookmarked', true).not('title', 'like', '__TRASH__:%').order('updated_at', { ascending: false }),
-      supabase.from('lyrics').select('id, title, updated_at, is_bookmarked').eq('is_bookmarked', true).not('title', 'like', '__TRASH__:%').order('updated_at', { ascending: false })
+      supabase.from('charts').select('id, title, updated_at, is_bookmarked, band_id').eq('band_id', activeBandId).eq('is_bookmarked', true).not('title', 'like', '__TRASH__:%').order('updated_at', { ascending: false }),
+      supabase.from('lyrics').select('id, title, updated_at, is_bookmarked, band_id').eq('band_id', activeBandId).eq('is_bookmarked', true).not('title', 'like', '__TRASH__:%').order('updated_at', { ascending: false })
     ]);
     const all = [
       ...(charts || []).map((c) => ({ ...c, type: 'chart' as const })),
@@ -933,8 +1089,8 @@ export async function getBookmarks() {
     const charts = await db.getAll('charts');
     const lyrics = await db.getAll('lyrics');
     const all = [
-      ...charts.filter(c => c.is_bookmarked && !c.title.startsWith('__TRASH__:')).map((c) => ({ id: c.id, title: c.title, updated_at: c.updated_at, is_bookmarked: c.is_bookmarked, type: 'chart' as const })),
-      ...lyrics.filter(l => l.is_bookmarked && !l.title.startsWith('__TRASH__:')).map((l) => ({ id: l.id, title: l.title, updated_at: l.updated_at, is_bookmarked: l.is_bookmarked, type: 'lyrics' as const }))
+      ...charts.filter(c => c.is_bookmarked && !c.title.startsWith('__TRASH__:') && (isGuestMode || !activeBandId || c.band_id === activeBandId || !c.band_id)).map((c) => ({ id: c.id, title: c.title, updated_at: c.updated_at, is_bookmarked: c.is_bookmarked, type: 'chart' as const })),
+      ...lyrics.filter(l => l.is_bookmarked && !l.title.startsWith('__TRASH__:') && (isGuestMode || !activeBandId || l.band_id === activeBandId || !l.band_id)).map((l) => ({ id: l.id, title: l.title, updated_at: l.updated_at, is_bookmarked: l.is_bookmarked, type: 'lyrics' as const }))
     ];
     return all.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
   }
@@ -945,12 +1101,16 @@ export async function searchAll(
   query: string,
   rootFolderId: string | null = null,
   kind: 'chart' | 'lyrics' = 'chart',
-  includeFolders: boolean = true
+  includeFolders: boolean = true,
+  bandId?: string | null
 ) {
   const cleanQuery = query.trim().toLowerCase();
   if (!cleanQuery) return [];
 
-  const folders = await getAllFolders();
+  const isGuestMode = typeof window !== 'undefined' && localStorage.getItem('chord-grid-guest-mode') === 'true';
+  const activeBandId = bandId !== undefined ? bandId : (typeof window !== 'undefined' ? localStorage.getItem('chord-grid-band-id') : null);
+
+  const folders = await getAllFolders(undefined, activeBandId);
   const folderMap = new Map(folders.map(f => [f.id, f]));
 
   // Helper to build location path
@@ -978,12 +1138,13 @@ export async function searchAll(
   let matchingFolders: any[] = [];
   if (includeFolders) {
     let rawFolders: Folder[] = [];
-    if (isOnline()) {
+    if (isOnline() && !isGuestMode && activeBandId) {
       try {
         const { data } = await supabase
           .from('folders')
           .select('*')
           .eq('kind', kind)
+          .eq('band_id', activeBandId)
           .ilike('name', `%${query.trim()}%`)
           .not('name', 'like', '__TRASH__:%');
         rawFolders = data || [];
@@ -996,7 +1157,7 @@ export async function searchAll(
         const db = await dbPromise;
         const allDbFolders = await db.getAll('folders');
         rawFolders = allDbFolders.filter(
-          f => f.kind === kind && !f.name.startsWith('__TRASH__:') && f.name.toLowerCase().includes(cleanQuery)
+          f => f.kind === kind && !f.name.startsWith('__TRASH__:') && (isGuestMode || !activeBandId || f.band_id === activeBandId || !f.band_id) && f.name.toLowerCase().includes(cleanQuery)
         );
       } catch {}
     }
@@ -1015,12 +1176,13 @@ export async function searchAll(
 
   // 2. Matching Charts & Files (sorted alphabetically A-Z)
   let rawItems: any[] = [];
-  if (isOnline()) {
+  if (isOnline() && !isGuestMode && activeBandId) {
     try {
       const tableName = kind === 'chart' ? 'charts' : 'lyrics';
       const { data } = await supabase
         .from(tableName)
-        .select('id, title, updated_at, folder_id, is_bookmarked, created_by')
+        .select('id, title, updated_at, folder_id, is_bookmarked, created_by, band_id')
+        .eq('band_id', activeBandId)
         .ilike('title', `%${query.trim()}%`)
         .not('title', 'like', '__TRASH__:%');
       rawItems = data || [];
@@ -1033,7 +1195,7 @@ export async function searchAll(
       const db = await dbPromise;
       const allDbItems = await db.getAll(kind === 'chart' ? 'charts' : 'lyrics');
       rawItems = allDbItems.filter(
-        c => !c.title.startsWith('__TRASH__:') && c.title.toLowerCase().includes(cleanQuery)
+        c => !c.title.startsWith('__TRASH__:') && (isGuestMode || !activeBandId || c.band_id === activeBandId || !c.band_id) && c.title.toLowerCase().includes(cleanQuery)
       );
     } catch {}
   }
@@ -1082,11 +1244,13 @@ export async function importChart(file: File, targetFolderId: string | null) {
           return;
         }
         const { data: { user } } = await supabase.auth.getUser();
+        const activeBandId = typeof window !== 'undefined' ? localStorage.getItem('chord-grid-band-id') : null;
         const newChart: Chart = {
           ...chartData,
           id: crypto.randomUUID(), // always assign a new id
           folder_id: targetFolderId,
           created_by: user?.id || '',
+          band_id: activeBandId || null,
           updated_at: new Date().toISOString(),
         };
         await saveChart(newChart);
@@ -1101,6 +1265,12 @@ export async function importChart(file: File, targetFolderId: string | null) {
 
 export async function saveLyrics(lyrics: any) {
   lyrics.updated_at = new Date().toISOString();
+  if (!lyrics.band_id && typeof window !== 'undefined') {
+    const activeBandId = localStorage.getItem('chord-grid-band-id');
+    if (activeBandId) {
+      lyrics.band_id = activeBandId;
+    }
+  }
   if (dbPromise) {
     try {
       const db = await dbPromise;
@@ -1174,12 +1344,14 @@ export async function importLyrics(file: File, targetFolderId: string | null) {
         } catch(e) { }
 
         const { data: { user } } = await supabase.auth.getUser();
+        const activeBandId = typeof window !== 'undefined' ? localStorage.getItem('chord-grid-band-id') : null;
         const newLyrics = {
           id: crypto.randomUUID(),
           title,
           body,
           folder_id: targetFolderId,
           created_by: user?.id || '',
+          band_id: activeBandId || null,
           updated_at: new Date().toISOString(),
         };
         await saveLyrics(newLyrics);
@@ -1192,15 +1364,23 @@ export async function importLyrics(file: File, targetFolderId: string | null) {
   });
 }
 
-export async function syncAllOffline(): Promise<{ chartsCount: number; lyricsCount: number; foldersCount: number }> {
+export async function syncAllOffline(bandId?: string | null): Promise<{ chartsCount: number; lyricsCount: number; foldersCount: number }> {
   if (!isOnline()) {
+    return { chartsCount: 0, lyricsCount: 0, foldersCount: 0 };
+  }
+  const isGuestMode = typeof window !== 'undefined' && localStorage.getItem('chord-grid-guest-mode') === 'true';
+  if (isGuestMode) {
+    return { chartsCount: 0, lyricsCount: 0, foldersCount: 0 };
+  }
+  const activeBandId = bandId !== undefined ? bandId : (typeof window !== 'undefined' ? localStorage.getItem('chord-grid-band-id') : null);
+  if (!activeBandId) {
     return { chartsCount: 0, lyricsCount: 0, foldersCount: 0 };
   }
   try {
     const [{ data: charts }, { data: lyrics }, { data: folders }] = await Promise.all([
-      supabase.from('charts').select('*').not('title', 'like', '__TRASH__:%'),
-      supabase.from('lyrics').select('*').not('title', 'like', '__TRASH__:%'),
-      supabase.from('folders').select('*').not('name', 'like', '__TRASH__:%'),
+      supabase.from('charts').select('*').eq('band_id', activeBandId).not('title', 'like', '__TRASH__:%'),
+      supabase.from('lyrics').select('*').eq('band_id', activeBandId).not('title', 'like', '__TRASH__:%'),
+      supabase.from('folders').select('*').eq('band_id', activeBandId).not('name', 'like', '__TRASH__:%'),
     ]);
 
     if (dbPromise) {

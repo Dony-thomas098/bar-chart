@@ -108,6 +108,9 @@ export function OfflineSyncProvider({ children }: { children: React.ReactNode })
     }
   }, []);
 
+  // Track current band subscription ID
+  const currentBandIdRef = useRef<string | null>(null);
+
   // ── Live realtime subscription ─────────────────────────────────────────
 
   const subscribeToRealtime = useCallback(() => {
@@ -117,11 +120,26 @@ export function OfflineSyncProvider({ children }: { children: React.ReactNode })
       realtimeChannelRef.current = null;
     }
 
+    const isGuest = typeof window !== 'undefined' && localStorage.getItem('chord-grid-guest-mode') === 'true';
+    if (isGuest) {
+      return;
+    }
+
+    const currentBandId = typeof window !== 'undefined' ? localStorage.getItem('chord-grid-band-id') : null;
+    currentBandIdRef.current = currentBandId;
+
+    // If user has no band, do not subscribe to band realtime events
+    if (!currentBandId) {
+      return;
+    }
+
+    const bandFilter = `band_id=eq.${currentBandId}`;
+
     const channel = supabase
-      .channel('offline-sync-realtime')
+      .channel(`offline-sync-realtime-${currentBandId}`)
       .on(
         'postgres_changes' as any,
-        { event: '*', schema: 'public', table: 'charts' },
+        { event: '*', schema: 'public', table: 'charts', filter: bandFilter },
         async (payload: any) => {
           if (autoSyncRef.current) {
             let hasPending = false;
@@ -152,7 +170,7 @@ export function OfflineSyncProvider({ children }: { children: React.ReactNode })
       )
       .on(
         'postgres_changes' as any,
-        { event: '*', schema: 'public', table: 'lyrics' },
+        { event: '*', schema: 'public', table: 'lyrics', filter: bandFilter },
         async (payload: any) => {
           if (autoSyncRef.current) {
             let hasPending = false;
@@ -183,7 +201,7 @@ export function OfflineSyncProvider({ children }: { children: React.ReactNode })
       )
       .on(
         'postgres_changes' as any,
-        { event: '*', schema: 'public', table: 'folders' },
+        { event: '*', schema: 'public', table: 'folders', filter: bandFilter },
         async (payload: any) => {
           if (autoSyncRef.current) {
             let hasPending = false;
@@ -214,7 +232,7 @@ export function OfflineSyncProvider({ children }: { children: React.ReactNode })
       )
       .on(
         'postgres_changes' as any,
-        { event: '*', schema: 'public', table: 'setlists' },
+        { event: '*', schema: 'public', table: 'setlists', filter: bandFilter },
         () => {
           if (typeof window !== 'undefined') {
             window.dispatchEvent(new CustomEvent('refresh-setlists'));
@@ -223,7 +241,7 @@ export function OfflineSyncProvider({ children }: { children: React.ReactNode })
       )
       .on(
         'postgres_changes' as any,
-        { event: '*', schema: 'public', table: 'setlist_items' },
+        { event: '*', schema: 'public', table: 'setlist_items', filter: bandFilter },
         () => {
           if (typeof window !== 'undefined') {
             window.dispatchEvent(new CustomEvent('refresh-setlists'));
@@ -240,6 +258,7 @@ export function OfflineSyncProvider({ children }: { children: React.ReactNode })
       supabase.removeChannel(realtimeChannelRef.current);
       realtimeChannelRef.current = null;
     }
+    currentBandIdRef.current = null;
   }, []);
 
   // ── React to autoSync toggle ───────────────────────────────────────────
@@ -255,6 +274,44 @@ export function OfflineSyncProvider({ children }: { children: React.ReactNode })
       unsubscribeFromRealtime();
     };
   }, [autoSync, subscribeToRealtime, unsubscribeFromRealtime]);
+
+  // ── Resubscribe on Band Changes (join, switch, leave) ───────────────────
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const handleBandJoined = () => {
+      if (autoSyncRef.current) {
+        subscribeToRealtime();
+      }
+    };
+
+    const handleBandLeft = () => {
+      unsubscribeFromRealtime();
+    };
+
+    const handleProfileUpdated = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      const newBandId = customEvent.detail?.band_id || localStorage.getItem('chord-grid-band-id');
+      if (newBandId !== currentBandIdRef.current) {
+        if (newBandId && autoSyncRef.current) {
+          subscribeToRealtime();
+        } else {
+          unsubscribeFromRealtime();
+        }
+      }
+    };
+
+    window.addEventListener('band-joined', handleBandJoined);
+    window.addEventListener('band-left', handleBandLeft);
+    window.addEventListener('profile-updated', handleProfileUpdated);
+
+    return () => {
+      window.removeEventListener('band-joined', handleBandJoined);
+      window.removeEventListener('band-left', handleBandLeft);
+      window.removeEventListener('profile-updated', handleProfileUpdated);
+    };
+  }, [subscribeToRealtime, unsubscribeFromRealtime]);
 
   // ── Initial full sync on mount (when user is logged in) ───────────────
 
