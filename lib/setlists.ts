@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { DEFAULT_CHURCH_BAND_ID } from './storage';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -37,10 +38,14 @@ export async function listSetlists(bandId?: string | null): Promise<Setlist[]> {
     return [];
   }
 
+  const bandFilter = activeBandId === DEFAULT_CHURCH_BAND_ID
+    ? `band_id.eq.${activeBandId},band_id.is.null`
+    : `band_id.eq.${activeBandId}`;
+
   const { data, error } = await supabase
     .from('setlists')
     .select('*')
-    .eq('band_id', activeBandId)
+    .or(bandFilter)
     .order('updated_at', { ascending: false });
   if (error) throw error;
   return data || [];

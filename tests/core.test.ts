@@ -1,7 +1,11 @@
 import { describe, it, expect } from 'vitest';
+import fs from 'fs';
+import path from 'path';
 import { transposeChordString, transposeSingleChord } from '../lib/transpose';
 import { canModifySection } from '../components/AuthProvider';
 import { getEmailBandCacheKey } from '../lib/band';
+
+const rootDir = path.resolve(__dirname, '..');
 
 describe('Transpose Logic', () => {
   it('correctly transposes simple major chords with sharps', () => {
@@ -595,5 +599,24 @@ describe('Print Data Freshness and Realtime Synchronization', () => {
     expect(printerPage).toContain('loadLyrics');
     expect(printerPage).toContain('window.addEventListener(\'beforeprint\'');
     expect(printerPage).toContain('window.addEventListener(\'focus\'');
+  });
+
+  it('guarantees AuthProvider instantly resolves guest mode when offline without hanging or redirecting to /auth', () => {
+    const authProviderContent = fs.readFileSync(path.join(rootDir, 'components', 'AuthProvider.tsx'), 'utf-8');
+
+    // Must check !navigator.onLine to bypass Supabase network calls
+    expect(authProviderContent).toContain('!navigator.onLine');
+    expect(authProviderContent).toContain('getOrCreateOfflineUser');
+    // Must auto-activate guest user offline instead of forcing a redirect to /auth
+    expect(authProviderContent).toContain('setIsGuest(true)');
+  });
+
+  it('guarantees ChordlyLoader provides graceful offline fallback if logo image fails to load', () => {
+    const loaderContent = fs.readFileSync(path.join(rootDir, 'components', 'ChordlyLoader.tsx'), 'utf-8');
+
+    // Must handle img onError to prevent native browser broken-image placeholder
+    expect(loaderContent).toContain('onError');
+    expect(loaderContent).toContain('setBannerError(true)');
+    expect(loaderContent).toContain('Chord<span className="text-orange-500">ly</span>');
   });
 });

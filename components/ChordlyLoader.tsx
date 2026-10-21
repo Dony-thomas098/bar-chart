@@ -35,6 +35,7 @@ export function ChordlyLoader({
 
   const [fading, setFading] = useState(false);
   const [minTimeElapsed, setMinTimeElapsed] = useState(false);
+  const [bannerError, setBannerError] = useState(false);
   const fadeTriggeredRef = useRef(false);
   const onFadeCompleteRef = useRef(onFadeComplete);
   onFadeCompleteRef.current = onFadeComplete;
@@ -244,18 +245,29 @@ export function ChordlyLoader({
           <div className={styles.coreDotGlow} />
         </div>
 
-        {/* Base Logo Banner Image */}
-        <img
-          src="/logo-banner.png"
-          alt="Chordly"
-          className={styles.bannerImg}
-          draggable={false}
-        />
+        {/* Base Logo Banner Image with Offline Graceful Fallback */}
+        {!bannerError ? (
+          <img
+            src="/logo-banner.png"
+            alt="Chordly"
+            className={styles.bannerImg}
+            draggable={false}
+            onError={() => setBannerError(true)}
+          />
+        ) : (
+          <div className="flex items-center justify-center gap-3 py-3 select-none">
+            <span className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white font-sans drop-shadow-lg">
+              Chord<span className="text-orange-500">ly</span>
+            </span>
+          </div>
+        )}
 
         {/* Dynamic Specular Sheen Sweep Masked to the Logo Shape */}
-        <div className={styles.sheenOverlay}>
-          <div className={styles.sheenStreak} />
-        </div>
+        {!bannerError && (
+          <div className={styles.sheenOverlay}>
+            <div className={styles.sheenStreak} />
+          </div>
+        )}
       </div>
 
       {/* Rhythm Equalizer Mini Bars */}

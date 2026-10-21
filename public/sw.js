@@ -1,9 +1,16 @@
 // Chordly Service Worker - Full Offline PWA Cache
-const CACHE_NAME = 'chordly-v9';
+const CACHE_NAME = 'chordly-v11';
 
 const PRECACHE_ASSETS = [
   "/",
   "/index.html",
+  "/manifest.json",
+  "/logo-banner.png",
+  "/favicon.ico",
+  "/favicon-32x32.png",
+  "/icon-192x192.png",
+  "/icon-512x512.png",
+  "/apple-touch-icon.png",
   "/folder",
   "/folder/",
   "/chart",
@@ -46,300 +53,84 @@ const PRECACHE_ASSETS = [
   "/404.html",
   "/apple-icon.jpg",
   "/apple-icon.png",
-  "/apple-touch-icon.png",
   "/auth/index.html",
   "/auth/index.txt",
-  "/auth/__next.auth/__PAGE__.txt",
-  "/auth/__next.auth.txt",
-  "/auth/__next._full.txt",
-  "/auth/__next._head.txt",
-  "/auth/__next._index.txt",
-  "/auth/__next._tree.txt",
   "/bg.png",
-  "/blank.html",
   "/bookmarks/index.html",
   "/bookmarks/index.txt",
-  "/bookmarks/__next.bookmarks/__PAGE__.txt",
-  "/bookmarks/__next.bookmarks.txt",
-  "/bookmarks/__next._full.txt",
-  "/bookmarks/__next._head.txt",
-  "/bookmarks/__next._index.txt",
-  "/bookmarks/__next._tree.txt",
   "/chart/demo/edit/index.html",
   "/chart/demo/edit/index.txt",
-  "/chart/demo/edit/__next.chart/$d$id/edit/__PAGE__.txt",
-  "/chart/demo/edit/__next.chart/$d$id/edit.txt",
-  "/chart/demo/edit/__next.chart/$d$id.txt",
-  "/chart/demo/edit/__next.chart.txt",
-  "/chart/demo/edit/__next._full.txt",
-  "/chart/demo/edit/__next._head.txt",
-  "/chart/demo/edit/__next._index.txt",
-  "/chart/demo/edit/__next._tree.txt",
   "/chart/demo/index.html",
   "/chart/demo/index.txt",
-  "/chart/demo/__next.chart/$d$id/__PAGE__.txt",
-  "/chart/demo/__next.chart/$d$id.txt",
-  "/chart/demo/__next.chart.txt",
-  "/chart/demo/__next._full.txt",
-  "/chart/demo/__next._head.txt",
-  "/chart/demo/__next._index.txt",
-  "/chart/demo/__next._tree.txt",
   "/chart/edit/index.html",
   "/chart/edit/index.txt",
-  "/chart/edit/__next.chart/edit/__PAGE__.txt",
-  "/chart/edit/__next.chart/edit.txt",
-  "/chart/edit/__next.chart.txt",
-  "/chart/edit/__next._full.txt",
-  "/chart/edit/__next._head.txt",
-  "/chart/edit/__next._index.txt",
-  "/chart/edit/__next._tree.txt",
   "/chart/index.html",
   "/chart/index.txt",
-  "/chart/__next.chart/__PAGE__.txt",
-  "/chart/__next.chart.txt",
-  "/chart/__next._full.txt",
-  "/chart/__next._head.txt",
-  "/chart/__next._index.txt",
-  "/chart/__next._tree.txt",
-  "/Chordly Loading Animation.html",
-  "/chordly water-jump navbar.html",
-  "/chordly-loader.html",
   "/chords/index.html",
   "/chords/index.txt",
-  "/chords/__next.chords/__PAGE__.txt",
-  "/chords/__next.chords.txt",
-  "/chords/__next._full.txt",
-  "/chords/__next._head.txt",
-  "/chords/__next._index.txt",
-  "/chords/__next._tree.txt",
-  "/favicon-32x32.png",
-  "/favicon.ico",
   "/file.svg",
   "/folder/demo/index.html",
   "/folder/demo/index.txt",
-  "/folder/demo/__next.folder/$d$id/__PAGE__.txt",
-  "/folder/demo/__next.folder/$d$id.txt",
-  "/folder/demo/__next.folder.txt",
-  "/folder/demo/__next._full.txt",
-  "/folder/demo/__next._head.txt",
-  "/folder/demo/__next._index.txt",
-  "/folder/demo/__next._tree.txt",
   "/folder/index.html",
   "/folder/index.txt",
-  "/folder/__next.folder/__PAGE__.txt",
-  "/folder/__next.folder.txt",
-  "/folder/__next._full.txt",
-  "/folder/__next._head.txt",
-  "/folder/__next._index.txt",
-  "/folder/__next._tree.txt",
   "/globe.svg",
-  "/icon-192x192.png",
-  "/icon-512x512.png",
   "/icon-maskable-512x512.png",
   "/icon.jpg",
   "/icon.png",
   "/index.txt",
-  "/logo-banner.png",
   "/logo-review/index.html",
   "/logo-review/index.txt",
-  "/logo-review/__next.logo-review/__PAGE__.txt",
-  "/logo-review/__next.logo-review.txt",
-  "/logo-review/__next._full.txt",
-  "/logo-review/__next._head.txt",
-  "/logo-review/__next._index.txt",
-  "/logo-review/__next._tree.txt",
   "/lyrics/demo/edit/index.html",
   "/lyrics/demo/edit/index.txt",
-  "/lyrics/demo/edit/__next.lyrics/$d$id/edit/__PAGE__.txt",
-  "/lyrics/demo/edit/__next.lyrics/$d$id/edit.txt",
-  "/lyrics/demo/edit/__next.lyrics/$d$id.txt",
-  "/lyrics/demo/edit/__next.lyrics.txt",
-  "/lyrics/demo/edit/__next._full.txt",
-  "/lyrics/demo/edit/__next._head.txt",
-  "/lyrics/demo/edit/__next._index.txt",
-  "/lyrics/demo/edit/__next._tree.txt",
   "/lyrics/demo/index.html",
   "/lyrics/demo/index.txt",
-  "/lyrics/demo/__next.lyrics/$d$id/__PAGE__.txt",
-  "/lyrics/demo/__next.lyrics/$d$id.txt",
-  "/lyrics/demo/__next.lyrics.txt",
-  "/lyrics/demo/__next._full.txt",
-  "/lyrics/demo/__next._head.txt",
-  "/lyrics/demo/__next._index.txt",
-  "/lyrics/demo/__next._tree.txt",
   "/lyrics/edit/index.html",
   "/lyrics/edit/index.txt",
-  "/lyrics/edit/__next.lyrics/edit/__PAGE__.txt",
-  "/lyrics/edit/__next.lyrics/edit.txt",
-  "/lyrics/edit/__next.lyrics.txt",
-  "/lyrics/edit/__next._full.txt",
-  "/lyrics/edit/__next._head.txt",
-  "/lyrics/edit/__next._index.txt",
-  "/lyrics/edit/__next._tree.txt",
   "/lyrics/folder/demo/index.html",
   "/lyrics/folder/demo/index.txt",
-  "/lyrics/folder/demo/__next.lyrics/folder/$d$id/__PAGE__.txt",
-  "/lyrics/folder/demo/__next.lyrics/folder/$d$id.txt",
-  "/lyrics/folder/demo/__next.lyrics/folder.txt",
-  "/lyrics/folder/demo/__next.lyrics.txt",
-  "/lyrics/folder/demo/__next._full.txt",
-  "/lyrics/folder/demo/__next._head.txt",
-  "/lyrics/folder/demo/__next._index.txt",
-  "/lyrics/folder/demo/__next._tree.txt",
   "/lyrics/folder/index.html",
   "/lyrics/folder/index.txt",
-  "/lyrics/folder/__next.lyrics/folder/__PAGE__.txt",
-  "/lyrics/folder/__next.lyrics/folder.txt",
-  "/lyrics/folder/__next.lyrics.txt",
-  "/lyrics/folder/__next._full.txt",
-  "/lyrics/folder/__next._head.txt",
-  "/lyrics/folder/__next._index.txt",
-  "/lyrics/folder/__next._tree.txt",
   "/lyrics/index.html",
   "/lyrics/index.txt",
   "/lyrics/view/index.html",
   "/lyrics/view/index.txt",
-  "/lyrics/view/__next.lyrics/view/__PAGE__.txt",
-  "/lyrics/view/__next.lyrics/view.txt",
-  "/lyrics/view/__next.lyrics.txt",
-  "/lyrics/view/__next._full.txt",
-  "/lyrics/view/__next._head.txt",
-  "/lyrics/view/__next._index.txt",
-  "/lyrics/view/__next._tree.txt",
-  "/lyrics/__next.lyrics/__PAGE__.txt",
-  "/lyrics/__next.lyrics.txt",
-  "/lyrics/__next._full.txt",
-  "/lyrics/__next._head.txt",
-  "/lyrics/__next._index.txt",
-  "/lyrics/__next._tree.txt",
-  "/manifest.json",
   "/next.svg",
   "/perform/demo/index.html",
   "/perform/demo/index.txt",
-  "/perform/demo/__next.perform/$d$code/__PAGE__.txt",
-  "/perform/demo/__next.perform/$d$code.txt",
-  "/perform/demo/__next.perform.txt",
-  "/perform/demo/__next._full.txt",
-  "/perform/demo/__next._head.txt",
-  "/perform/demo/__next._index.txt",
-  "/perform/demo/__next._tree.txt",
   "/perform/index.html",
   "/perform/index.txt",
   "/perform/stage/index.html",
   "/perform/stage/index.txt",
-  "/perform/stage/__next.perform/stage/__PAGE__.txt",
-  "/perform/stage/__next.perform/stage.txt",
-  "/perform/stage/__next.perform.txt",
-  "/perform/stage/__next._full.txt",
-  "/perform/stage/__next._head.txt",
-  "/perform/stage/__next._index.txt",
-  "/perform/stage/__next._tree.txt",
-  "/perform/__next.perform/__PAGE__.txt",
-  "/perform/__next.perform.txt",
-  "/perform/__next._full.txt",
-  "/perform/__next._head.txt",
-  "/perform/__next._index.txt",
-  "/perform/__next._tree.txt",
   "/printer/index.html",
   "/printer/index.txt",
-  "/printer/__next.printer/__PAGE__.txt",
-  "/printer/__next.printer.txt",
-  "/printer/__next._full.txt",
-  "/printer/__next._head.txt",
-  "/printer/__next._index.txt",
-  "/printer/__next._tree.txt",
   "/profile/index.html",
   "/profile/index.txt",
-  "/profile/__next.profile/__PAGE__.txt",
-  "/profile/__next.profile.txt",
-  "/profile/__next._full.txt",
-  "/profile/__next._head.txt",
-  "/profile/__next._index.txt",
-  "/profile/__next._tree.txt",
   "/serve.json",
   "/setlists/demo/index.html",
   "/setlists/demo/index.txt",
   "/setlists/demo/perform/index.html",
   "/setlists/demo/perform/index.txt",
-  "/setlists/demo/perform/__next.setlists/$d$id/perform/__PAGE__.txt",
-  "/setlists/demo/perform/__next.setlists/$d$id/perform.txt",
-  "/setlists/demo/perform/__next.setlists/$d$id.txt",
-  "/setlists/demo/perform/__next.setlists.txt",
-  "/setlists/demo/perform/__next._full.txt",
-  "/setlists/demo/perform/__next._head.txt",
-  "/setlists/demo/perform/__next._index.txt",
-  "/setlists/demo/perform/__next._tree.txt",
-  "/setlists/demo/__next.setlists/$d$id/__PAGE__.txt",
-  "/setlists/demo/__next.setlists/$d$id.txt",
-  "/setlists/demo/__next.setlists.txt",
-  "/setlists/demo/__next._full.txt",
-  "/setlists/demo/__next._head.txt",
-  "/setlists/demo/__next._index.txt",
-  "/setlists/demo/__next._tree.txt",
   "/setlists/index.html",
   "/setlists/index.txt",
   "/setlists/perform/index.html",
   "/setlists/perform/index.txt",
-  "/setlists/perform/__next.setlists/perform/__PAGE__.txt",
-  "/setlists/perform/__next.setlists/perform.txt",
-  "/setlists/perform/__next.setlists.txt",
-  "/setlists/perform/__next._full.txt",
-  "/setlists/perform/__next._head.txt",
-  "/setlists/perform/__next._index.txt",
-  "/setlists/perform/__next._tree.txt",
   "/setlists/view/index.html",
   "/setlists/view/index.txt",
-  "/setlists/view/__next.setlists/view/__PAGE__.txt",
-  "/setlists/view/__next.setlists/view.txt",
-  "/setlists/view/__next.setlists.txt",
-  "/setlists/view/__next._full.txt",
-  "/setlists/view/__next._head.txt",
-  "/setlists/view/__next._index.txt",
-  "/setlists/view/__next._tree.txt",
-  "/setlists/__next.setlists/__PAGE__.txt",
-  "/setlists/__next.setlists.txt",
-  "/setlists/__next._full.txt",
-  "/setlists/__next._head.txt",
-  "/setlists/__next._index.txt",
-  "/setlists/__next._tree.txt",
   "/settings/index.html",
   "/settings/index.txt",
-  "/settings/__next.settings/__PAGE__.txt",
-  "/settings/__next.settings.txt",
-  "/settings/__next._full.txt",
-  "/settings/__next._head.txt",
-  "/settings/__next._index.txt",
-  "/settings/__next._tree.txt",
   "/trash/index.html",
   "/trash/index.txt",
-  "/trash/__next.trash/__PAGE__.txt",
-  "/trash/__next.trash.txt",
-  "/trash/__next._full.txt",
-  "/trash/__next._head.txt",
-  "/trash/__next._index.txt",
-  "/trash/__next._tree.txt",
   "/update.json",
   "/vercel.svg",
   "/window.svg",
   "/_not-found/index.html",
   "/_not-found/index.txt",
-  "/_not-found/__next._full.txt",
-  "/_not-found/__next._head.txt",
-  "/_not-found/__next._index.txt",
-  "/_not-found/__next._not-found/__PAGE__.txt",
-  "/_not-found/__next._not-found.txt",
-  "/_not-found/__next._tree.txt",
-  "/__next._full.txt",
-  "/__next._head.txt",
-  "/__next._index.txt",
-  "/__next._tree.txt",
-  "/__next.__PAGE__.txt",
   "/_next/static/chunks/1643-c5ec9103c3f03f45.js",
-  "/_next/static/chunks/1867-92af7297d6728f00.js",
+  "/_next/static/chunks/1867-60d4fc8e4c3608ca.js",
   "/_next/static/chunks/1966.d10b448f42cccd98.js",
   "/_next/static/chunks/2180-33277038fbce0dbf.js",
   "/_next/static/chunks/2502-2b636d2e017d8079.js",
-  "/_next/static/chunks/2657-745796226bee092d.js",
+  "/_next/static/chunks/2657-955d743cb5637139.js",
   "/_next/static/chunks/2721-f5bcc39d2f07899b.js",
   "/_next/static/chunks/2864-edf5516b5cb3264b.js",
   "/_next/static/chunks/3133-745e36a5cc5f4854.js",
@@ -347,14 +138,14 @@ const PRECACHE_ASSETS = [
   "/_next/static/chunks/3794-d3ad547af5369260.js",
   "/_next/static/chunks/3899.cf10152d8085e352.js",
   "/_next/static/chunks/44530001-78d9977d0e16ef0a.js",
-  "/_next/static/chunks/4548-129f22b69f14e634.js",
+  "/_next/static/chunks/4548-ae62379dbb5985b5.js",
   "/_next/static/chunks/4bd1b696-c2f6e0877b6c10aa.js",
   "/_next/static/chunks/5334-4c687c69621663e1.js",
   "/_next/static/chunks/5339-48217cd7f1f0a02a.js",
   "/_next/static/chunks/5549-e5cae4215a51c818.js",
   "/_next/static/chunks/561-309cb23a3e82978a.js",
   "/_next/static/chunks/6250-aedcb7b22a3ceb4b.js",
-  "/_next/static/chunks/6308-2c901089d1bf8b63.js",
+  "/_next/static/chunks/6308-1556cfa3a12d0bac.js",
   "/_next/static/chunks/6736-a56012626fe75d00.js",
   "/_next/static/chunks/7365-332c90a412a672b6.js",
   "/_next/static/chunks/8351-2ed0aee60593d1c2.js",
@@ -374,9 +165,9 @@ const PRECACHE_ASSETS = [
   "/_next/static/chunks/app/folder/page-b542c4e323cbf91a.js",
   "/_next/static/chunks/app/folder/[id]/layout-31e8e7f3cec06d1e.js",
   "/_next/static/chunks/app/folder/[id]/page-2480d789feba0eff.js",
-  "/_next/static/chunks/app/layout-d643dd88ab474f0c.js",
-  "/_next/static/chunks/app/loading-2b5485e0ca876619.js",
-  "/_next/static/chunks/app/logo-review/page-5585976affa5af13.js",
+  "/_next/static/chunks/app/layout-eb6ea03bff329f43.js",
+  "/_next/static/chunks/app/loading-6cb8f82618a9084e.js",
+  "/_next/static/chunks/app/logo-review/page-f7abbcfaa9ef2f76.js",
   "/_next/static/chunks/app/lyrics/edit/page-8140ac081cb771ad.js",
   "/_next/static/chunks/app/lyrics/folder/page-62ce1e8e0821a8fa.js",
   "/_next/static/chunks/app/lyrics/folder/[id]/layout-31e8e7f3cec06d1e.js",
@@ -388,13 +179,13 @@ const PRECACHE_ASSETS = [
   "/_next/static/chunks/app/lyrics/[id]/page-b665f2b2517ff572.js",
   "/_next/static/chunks/app/not-found-f73a068cc30cd1f0.js",
   "/_next/static/chunks/app/page-bec5b05de78f453f.js",
-  "/_next/static/chunks/app/perform/page-4152312ae8221383.js",
+  "/_next/static/chunks/app/perform/page-28a4cbbc1e8a126d.js",
   "/_next/static/chunks/app/perform/stage/page-f94a95dc5a15fd3b.js",
   "/_next/static/chunks/app/perform/[code]/layout-31e8e7f3cec06d1e.js",
   "/_next/static/chunks/app/perform/[code]/page-5eee78dfff3aa8f5.js",
   "/_next/static/chunks/app/printer/page-bcd8df5d327dd131.js",
   "/_next/static/chunks/app/profile/page-99861f694820e5d8.js",
-  "/_next/static/chunks/app/setlists/page-2e8ed15ee3edff37.js",
+  "/_next/static/chunks/app/setlists/page-1f137c8919fbfba5.js",
   "/_next/static/chunks/app/setlists/perform/page-b27e8ae040f8a9b3.js",
   "/_next/static/chunks/app/setlists/view/page-78e23a54b1669436.js",
   "/_next/static/chunks/app/setlists/[id]/layout-31e8e7f3cec06d1e.js",
@@ -412,12 +203,14 @@ const PRECACHE_ASSETS = [
   "/_next/static/chunks/next/dist/client/components/builtin/global-error-6e67d4acd566df69.js",
   "/_next/static/chunks/next/dist/client/components/builtin/unauthorized-31e8e7f3cec06d1e.js",
   "/_next/static/chunks/polyfills-42372ed130431b0a.js",
-  "/_next/static/chunks/webpack-29618ad1ddc71881.js",
-  "/_next/static/css/0425d4fe2442af46.css",
+  "/_next/static/chunks/webpack-49686ef50733dc2a.js",
   "/_next/static/css/1de9b0b9de0c038b.css",
   "/_next/static/css/604775b3a74dc580.css",
   "/_next/static/css/676caacb685ce77a.css",
   "/_next/static/css/9cdd061e9fa6d1a6.css",
+  "/_next/static/css/f9c23d92a88dae17.css",
+  "/_next/static/jq0OwV-GVJS5Gk2B50ITH/_buildManifest.js",
+  "/_next/static/jq0OwV-GVJS5Gk2B50ITH/_ssgManifest.js",
   "/_next/static/media/558ca1a6aa3cb55e-s.p.woff2",
   "/_next/static/media/636a5ac981f94f8b-s.p.woff2",
   "/_next/static/media/64d784ea54a4acde-s.woff2",
@@ -427,54 +220,94 @@ const PRECACHE_ASSETS = [
   "/_next/static/media/9e7b0a821b9dfcb4-s.woff2",
   "/_next/static/media/ac0e76ddaeeb7981-s.woff2",
   "/_next/static/media/edc640959b0c7826-s.woff2",
-  "/_next/static/media/ff71da380fbe67dd-s.woff2",
-  "/_next/static/NOqKtRD1V1gQ-0vNES201/_buildManifest.js",
-  "/_next/static/NOqKtRD1V1gQ-0vNES201/_ssgManifest.js"
+  "/_next/static/media/ff71da380fbe67dd-s.woff2"
 ];
 
-// Install: precache ALL routes, HTML files, and static JS/CSS chunks safely
+// Install: precache critical assets safely without blocking activation
 self.addEventListener('install', (event) => {
+  // Activate worker immediately so it never hangs in 'trying to install'
+  self.skipWaiting();
+
   event.waitUntil(
     caches.open(CACHE_NAME).then(async (cache) => {
-      // Chunk precache into batches of 25 for optimal mobile memory & concurrency
-      const batchSize = 25;
-      for (let i = 0; i < PRECACHE_ASSETS.length; i += batchSize) {
-        const batch = PRECACHE_ASSETS.slice(i, i + batchSize);
+      // 1. High-priority batch: precache critical app shell, manifest, and branding icons FIRST
+      const priorityAssets = [
+        '/',
+        '/index.html',
+        '/manifest.json',
+        '/logo-banner.png',
+        '/favicon.ico',
+        '/favicon-32x32.png',
+        '/icon-192x192.png',
+        '/icon-512x512.png',
+        '/apple-touch-icon.png'
+      ];
+
+      await Promise.allSettled(
+        priorityAssets.map(async (asset) => {
+          try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 2000);
+            const response = await fetch(asset, { 
+              cache: 'no-cache',
+              signal: controller.signal 
+            });
+            clearTimeout(timeoutId);
+
+            if (response && response.ok) {
+              await cache.put(asset, response.clone());
+              try {
+                await cache.put(new URL(asset, self.location.origin).href, response);
+              } catch (e) {}
+            }
+          } catch (e) {}
+        })
+      );
+
+      // 2. Precache remaining assets in batches of 30
+      const remaining = PRECACHE_ASSETS.filter((a) => !priorityAssets.includes(a));
+      const batchSize = 30;
+      for (let i = 0; i < remaining.length; i += batchSize) {
+        const batch = remaining.slice(i, i + batchSize);
         await Promise.allSettled(
           batch.map(async (asset) => {
             try {
-              const response = await fetch(asset, { cache: 'no-cache' });
+              const controller = new AbortController();
+              const timeoutId = setTimeout(() => controller.abort(), 2000);
+              const response = await fetch(asset, { 
+                cache: 'no-cache',
+                signal: controller.signal 
+              });
+              clearTimeout(timeoutId);
+
               if (response && response.ok) {
                 await cache.put(asset, response.clone());
+                try {
+                  await cache.put(new URL(asset, self.location.origin).href, response.clone());
+                } catch (e) {}
 
-                // Dynamically harvest and precache referenced script chunks & CSS
+                // Non-blocking chunk harvesting for HTML pages
                 const contentType = response.headers.get('content-type') || '';
-                if (contentType.includes('text/html') || asset.endsWith('.html') || !asset.includes('.')) {
-                  try {
-                    const text = await response.text();
-                    const scriptRegex = /src="(\/_next\/static\/chunks\/[^"]+\.js)"/g;
+                if (asset === '/' || asset === '/index.html' || contentType.includes('text/html')) {
+                  response.text().then((text) => {
+                    const chunksToFetch = new Set();
+                    const scriptRegex = /(?:src|href)="(\/_next\/static\/chunks\/[^"]+\.js)"/g;
                     let m;
                     while ((m = scriptRegex.exec(text)) !== null) {
-                      const chunkUrl = m[1];
-                      try {
-                        const chunkRes = await fetch(chunkUrl);
-                        if (chunkRes && chunkRes.ok) {
-                          await cache.put(chunkUrl, chunkRes);
-                        }
-                      } catch (err) {}
+                      chunksToFetch.add(m[1]);
                     }
-
                     const cssRegex = /href="(\/_next\/static\/css\/[^"]+\.css)"/g;
                     while ((m = cssRegex.exec(text)) !== null) {
-                      const cssUrl = m[1];
-                      try {
-                        const cssRes = await fetch(cssUrl);
-                        if (cssRes && cssRes.ok) {
-                          await cache.put(cssUrl, cssRes);
-                        }
-                      } catch (err) {}
+                      chunksToFetch.add(m[1]);
                     }
-                  } catch (parseErr) {}
+                    chunksToFetch.forEach((chunkUrl) => {
+                      fetch(chunkUrl)
+                        .then((cRes) => {
+                          if (cRes && cRes.ok) cache.put(chunkUrl, cRes);
+                        })
+                        .catch(() => {});
+                    });
+                  }).catch(() => {});
                 }
               }
             } catch (e) {
@@ -483,7 +316,7 @@ self.addEventListener('install', (event) => {
           })
         );
       }
-    }).then(() => self.skipWaiting())
+    })
   );
 });
 
@@ -559,12 +392,27 @@ self.addEventListener('fetch', (event) => {
           }
 
           if (url.pathname.startsWith('/chart')) {
+            if (url.pathname.startsWith('/chart/edit')) {
+              const editCached = await caches.match('/chart/edit/index.html', { ignoreSearch: true }) ||
+                                 await caches.match('/chart/edit/', { ignoreSearch: true });
+              if (editCached) return editCached;
+            }
             const chartCached = await caches.match('/chart/index.html', { ignoreSearch: true }) ||
                                 await caches.match('/chart/', { ignoreSearch: true });
             if (chartCached) return chartCached;
           }
 
           if (url.pathname.startsWith('/lyrics')) {
+            if (url.pathname.startsWith('/lyrics/edit')) {
+              const editCached = await caches.match('/lyrics/edit/index.html', { ignoreSearch: true }) ||
+                                 await caches.match('/lyrics/edit/', { ignoreSearch: true });
+              if (editCached) return editCached;
+            }
+            if (url.pathname.startsWith('/lyrics/folder')) {
+              const folderCached = await caches.match('/lyrics/folder/index.html', { ignoreSearch: true }) ||
+                                   await caches.match('/lyrics/folder/', { ignoreSearch: true });
+              if (folderCached) return folderCached;
+            }
             const lyricsCached = await caches.match('/lyrics/view/index.html', { ignoreSearch: true }) ||
                                  await caches.match('/lyrics/view/', { ignoreSearch: true }) ||
                                  await caches.match('/lyrics/index.html', { ignoreSearch: true }) ||
@@ -597,6 +445,16 @@ self.addEventListener('fetch', (event) => {
           }
 
           if (url.pathname.startsWith('/setlists')) {
+            if (url.pathname.startsWith('/setlists/perform')) {
+              const performCached = await caches.match('/setlists/perform/index.html', { ignoreSearch: true }) ||
+                                    await caches.match('/setlists/perform/', { ignoreSearch: true });
+              if (performCached) return performCached;
+            }
+            if (url.pathname.startsWith('/setlists/view')) {
+              const viewCached = await caches.match('/setlists/view/index.html', { ignoreSearch: true }) ||
+                                 await caches.match('/setlists/view/', { ignoreSearch: true });
+              if (viewCached) return viewCached;
+            }
             const setlistsCached = await caches.match('/setlists/index.html', { ignoreSearch: true }) ||
                                    await caches.match('/setlists/', { ignoreSearch: true });
             if (setlistsCached) return setlistsCached;
@@ -657,10 +515,22 @@ self.addEventListener('fetch', (event) => {
           if (fallback) return fallback;
         }
         if (url.pathname.startsWith('/chart')) {
+          if (url.pathname.startsWith('/chart/edit')) {
+            const fallback = await caches.match('/chart/edit/index.txt', { ignoreSearch: true });
+            if (fallback) return fallback;
+          }
           const fallback = await caches.match('/chart/index.txt', { ignoreSearch: true });
           if (fallback) return fallback;
         }
         if (url.pathname.startsWith('/lyrics')) {
+          if (url.pathname.startsWith('/lyrics/edit')) {
+            const fallback = await caches.match('/lyrics/edit/index.txt', { ignoreSearch: true });
+            if (fallback) return fallback;
+          }
+          if (url.pathname.startsWith('/lyrics/folder')) {
+            const fallback = await caches.match('/lyrics/folder/index.txt', { ignoreSearch: true });
+            if (fallback) return fallback;
+          }
           const fallback = await caches.match('/lyrics/view/index.txt', { ignoreSearch: true }) ||
                            await caches.match('/lyrics/index.txt', { ignoreSearch: true });
           if (fallback) return fallback;
@@ -682,6 +552,14 @@ self.addEventListener('fetch', (event) => {
           if (fallback) return fallback;
         }
         if (url.pathname.startsWith('/setlists')) {
+          if (url.pathname.startsWith('/setlists/perform')) {
+            const fallback = await caches.match('/setlists/perform/index.txt', { ignoreSearch: true });
+            if (fallback) return fallback;
+          }
+          if (url.pathname.startsWith('/setlists/view')) {
+            const fallback = await caches.match('/setlists/view/index.txt', { ignoreSearch: true });
+            if (fallback) return fallback;
+          }
           const fallback = await caches.match('/setlists/index.txt', { ignoreSearch: true });
           if (fallback) return fallback;
         }
@@ -712,7 +590,9 @@ self.addEventListener('fetch', (event) => {
 
   // 3. Handle static assets (_next, images, css, js, fonts)
   event.respondWith(
-    caches.match(request, { ignoreSearch: true }).then(async (cachedResponse) => {
+    (async () => {
+      // Try exact request match first
+      const cachedResponse = await caches.match(request, { ignoreSearch: true });
       if (cachedResponse) {
         if (navigator.onLine) {
           fetch(request)
@@ -734,60 +614,87 @@ self.addEventListener('fetch', (event) => {
       const pathMatch = await caches.match(url.pathname, { ignoreSearch: true });
       if (pathMatch) return pathMatch;
 
+      // Try matching by full URL string
+      const fullUrlMatch = await caches.match(url.href, { ignoreSearch: true });
+      if (fullUrlMatch) return fullUrlMatch;
+
       // If online, fetch from network with cache update
-      return fetch(request)
-        .then((networkResponse) => {
-          if (networkResponse && networkResponse.status === 200) {
-            const responseClone = networkResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(request, responseClone);
-              cache.put(url.pathname, networkResponse.clone());
-            });
-          }
-          return networkResponse;
-        })
-        .catch(async () => {
-          // OFFLINE FALLBACK FOR JS CHUNKS:
-          // If a requested chunk has a hash mismatch (e.g. page-hash1.js vs page-hash2.js),
-          // search the cache for any chunk matching the same component path prefix
-          if (url.pathname.startsWith('/_next/static/chunks/') && url.pathname.endsWith('.js')) {
-            try {
-              const cache = await caches.open(CACHE_NAME);
-              const keys = await cache.keys();
-              // Strip trailing hash from chunk filename: e.g. "page-e4806be85e52a4ad.js" -> "page-"
-              const prefix = url.pathname.replace(/-[a-f0-9]+\.js$/, '-');
-              if (prefix !== url.pathname) {
-                const matchingKey = keys.find((k) => {
-                  try {
-                    const kUrl = new URL(k.url);
-                    return kUrl.pathname.startsWith(prefix) && kUrl.pathname.endsWith('.js');
-                  } catch (e) {
-                    return false;
-                  }
-                });
-                if (matchingKey) {
-                  const fallbackChunk = await cache.match(matchingKey);
-                  if (fallbackChunk) return fallbackChunk;
+      try {
+        const networkResponse = await fetch(request);
+        if (networkResponse && networkResponse.status === 200) {
+          const responseClone = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(request, responseClone);
+            cache.put(url.pathname, networkResponse.clone());
+          });
+        }
+        return networkResponse;
+      } catch (err) {
+        // OFFLINE FALLBACK FOR JS CHUNKS:
+        // If a requested chunk has a hash mismatch (e.g. page-hash1.js vs page-hash2.js),
+        // search the cache for any chunk matching the same component path prefix
+        if (url.pathname.startsWith('/_next/static/chunks/') && url.pathname.endsWith('.js')) {
+          try {
+            const cache = await caches.open(CACHE_NAME);
+            const keys = await cache.keys();
+            // Strip trailing hash from chunk filename: e.g. "page-e4806be85e52a4ad.js" -> "page-"
+            const prefix = url.pathname.replace(/-[a-f0-9]+\.js$/, '-');
+            if (prefix !== url.pathname) {
+              const matchingKey = keys.find((k) => {
+                try {
+                  const kUrl = new URL(k.url);
+                  return kUrl.pathname.startsWith(prefix) && kUrl.pathname.endsWith('.js');
+                } catch (e) {
+                  return false;
                 }
+              });
+              if (matchingKey) {
+                const fallbackChunk = await cache.match(matchingKey);
+                if (fallbackChunk) return fallbackChunk;
               }
-            } catch (e) {}
+            }
+          } catch (e) {}
 
-            // Return a safe empty JS script instead of 404 text so webpack doesn't crash fatally
-            return new Response('/* offline chunk placeholder */', {
-              status: 200,
-              headers: { 'Content-Type': 'application/javascript' },
-            });
-          }
+          // Return a safe empty JS script instead of 404 text so webpack doesn't crash fatally
+          return new Response('/* offline chunk placeholder */', {
+            status: 200,
+            headers: { 'Content-Type': 'application/javascript' },
+          });
+        }
 
-          if (url.pathname.endsWith('.css')) {
-            return new Response('', {
-              status: 200,
-              headers: { 'Content-Type': 'text/css' },
-            });
-          }
+        if (url.pathname.endsWith('.css')) {
+          return new Response('', {
+            status: 200,
+            headers: { 'Content-Type': 'text/css' },
+          });
+        }
 
-          return new Response('', { status: 404, statusText: 'Offline Resource Not Found' });
-        });
-    })
+        if (url.pathname === '/manifest.json') {
+          const fallbackManifest = {
+            id: '/',
+            name: 'Chordly',
+            short_name: 'Chordly',
+            start_url: '/',
+            display: 'standalone',
+            background_color: '#0B0B0E',
+            theme_color: '#0B0B0E'
+          };
+          return new Response(JSON.stringify(fallbackManifest), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          });
+        }
+
+        if (url.pathname === '/logo-banner.png') {
+          const transparentPng = Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII='), function(c) { return c.charCodeAt(0); });
+          return new Response(transparentPng, {
+            status: 200,
+            headers: { 'Content-Type': 'image/png' },
+          });
+        }
+
+        return new Response('', { status: 404, statusText: 'Offline Resource Not Found' });
+      }
+    })()
   );
 });

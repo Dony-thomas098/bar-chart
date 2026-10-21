@@ -6,6 +6,8 @@ import {
   saveLyrics, 
   createFolder, 
   getDBPromise, 
+  DEFAULT_CHURCH_BAND_ID,
+  getBandFilter,
   Chart, 
   Folder 
 } from '../lib/storage';
@@ -284,5 +286,54 @@ describe('Band Data Isolation & Scoped Storage', () => {
     // Cached items should be removed from IndexedDB
     const remainingCharts = await db.getAll('charts');
     expect(remainingCharts.map((c) => c.id)).not.toContain('band-1-song');
+  });
+
+  it('Default church band gracefully accesses legacy unassigned items, while other bands do not', async () => {
+    const db = await getDBPromise();
+    if (!db) return;
+
+    // Seed a legacy unassigned church chart (band_id: null)
+    await db.put('charts', {
+      id: 'church-legacy-chart',
+      title: 'Divyakaarunyame Daivame (Legacy)',
+      tempo: 80,
+      time_sig: '4/4',
+      lines: [],
+      semitone_offset: 0,
+      prefer_flats: false,
+      folder_id: null,
+      created_by: 'church-admin',
+      updated_at: new Date().toISOString(),
+      band_id: null,
+    } as Chart);
+
+    // Seed a Band 1 chart
+    await db.put('charts', {
+      id: 'band-1-isolated-chart',
+      title: 'Band 1 Exclusive',
+      tempo: 90,
+      time_sig: '4/4',
+      lines: [],
+      semitone_offset: 0,
+      prefer_flats: false,
+      folder_id: null,
+      created_by: 'user-a',
+      updated_at: new Date().toISOString(),
+      band_id: BAND_1.id,
+    } as Chart);
+
+    // Infant Jesus Church should see the legacy chart
+    const churchResults = await listFolderFromCache(null, 'chart', DEFAULT_CHURCH_BAND_ID);
+    expect(churchResults.charts.map((c) => c.id)).toContain('church-legacy-chart');
+    expect(churchResults.charts.map((c) => c.id)).not.toContain('band-1-isolated-chart');
+
+    // Band 1 must NEVER see the legacy unassigned church chart
+    const band1Results = await listFolderFromCache(null, 'chart', BAND_1.id);
+    expect(band1Results.charts.map((c) => c.id)).toContain('band-1-isolated-chart');
+    expect(band1Results.charts.map((c) => c.id)).not.toContain('church-legacy-chart');
+
+    // Verify filter queries
+    expect(getBandFilter(DEFAULT_CHURCH_BAND_ID)).toBe(`band_id.eq.${DEFAULT_CHURCH_BAND_ID},band_id.is.null`);
+    expect(getBandFilter(BAND_1.id)).toBe(`band_id.eq.${BAND_1.id}`);
   });
 });

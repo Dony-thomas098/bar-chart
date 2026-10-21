@@ -378,6 +378,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return;
         }
 
+        const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+
+        // If offline, bypass network call entirely: check cached session or auto-activate offline guest
+        if (isOffline) {
+          let cachedUser: User | null = null;
+          if (typeof window !== 'undefined') {
+            try {
+              for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && key.startsWith('sb-') && key.endsWith('-auth-token')) {
+                  const raw = localStorage.getItem(key);
+                  if (raw) {
+                    const parsed = JSON.parse(raw);
+                    if (parsed?.user) {
+                      cachedUser = parsed.user as User;
+                      break;
+                    }
+                  }
+                }
+              }
+            } catch (e) {}
+          }
+
+          if (cachedUser) {
+            setUser(cachedUser);
+            setIsGuest(false);
+          } else {
+            setIsGuest(true);
+            setUser(getOrCreateOfflineUser());
+          }
+          setLoading(false);
+          return;
+        }
+
         const isOAuthRedirect = typeof window !== 'undefined' && (
           window.location.search.includes('code=') || 
           window.location.hash.includes('access_token=')
@@ -421,6 +455,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (cachedUser) {
             setUser(cachedUser);
             setIsGuest(false);
+          } else if (typeof navigator !== 'undefined' && !navigator.onLine) {
+            setIsGuest(true);
+            setUser(getOrCreateOfflineUser());
           } else {
             setUser(null);
           }
@@ -448,6 +485,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (cachedUser) {
           setUser(cachedUser);
           setIsGuest(false);
+        } else if (typeof navigator !== 'undefined' && !navigator.onLine) {
+          setIsGuest(true);
+          setUser(getOrCreateOfflineUser());
         } else {
           setUser(null);
         }
@@ -487,7 +527,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const isAuthPath = !pathname || pathname === '/auth' || pathname === '/auth/' || pathname.startsWith('/auth');
     if (!loading && !user && !isAuthPath) {
-      router.replace('/auth');
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        setIsGuest(true);
+        setUser(getOrCreateOfflineUser());
+      } else {
+        router.replace('/auth');
+      }
     }
   }, [user, loading, pathname, router]);
 

@@ -26,6 +26,17 @@ export type Folder = {
   band_id?: string | null;
 };
 
+export const DEFAULT_CHURCH_BAND_ID = '9ca7fef8-a0e0-4587-a329-0444c4b27f70';
+
+/** Resolve PostgREST filter string for scoping queries to a band */
+export function getBandFilter(activeBandId: string | null | undefined): string | null {
+  if (!activeBandId) return null;
+  if (activeBandId === DEFAULT_CHURCH_BAND_ID) {
+    return `band_id.eq.${activeBandId},band_id.is.null`;
+  }
+  return `band_id.eq.${activeBandId}`;
+}
+
 interface BarChartDB extends DBSchema {
   charts: {
     key: string;
@@ -194,9 +205,16 @@ export async function clearBandCache(bandId?: string | null) {
       db.getAll('folders'),
     ]);
 
+    const isTargetBand = (itemBandId?: string | null) => {
+      if (!bandId) return true;
+      if (itemBandId === bandId) return true;
+      if (bandId === DEFAULT_CHURCH_BAND_ID && !itemBandId) return true;
+      return false;
+    };
+
     const chartTx = db.transaction('charts', 'readwrite');
     for (const c of allCharts) {
-      if (!bandId || c.band_id === bandId || !c.band_id) {
+      if (isTargetBand(c.band_id)) {
         await chartTx.store.delete(c.id);
       }
     }
@@ -204,7 +222,7 @@ export async function clearBandCache(bandId?: string | null) {
 
     const lyricTx = db.transaction('lyrics', 'readwrite');
     for (const l of allLyrics) {
-      if (!bandId || l.band_id === bandId || !l.band_id) {
+      if (isTargetBand(l.band_id)) {
         await lyricTx.store.delete(l.id);
       }
     }
@@ -212,7 +230,7 @@ export async function clearBandCache(bandId?: string | null) {
 
     const folderTx = db.transaction('folders', 'readwrite');
     for (const f of allFolders) {
-      if (!bandId || f.band_id === bandId || !f.band_id) {
+      if (isTargetBand(f.band_id)) {
         await folderTx.store.delete(f.id);
       }
     }
@@ -224,7 +242,7 @@ export async function clearBandCache(bandId?: string | null) {
       const allPending = await db.getAll('pending_saves');
       const pendingTx = db.transaction('pending_saves', 'readwrite');
       for (const p of allPending) {
-        if (p.data && (!bandId || p.data.band_id === bandId)) {
+        if (p.data && (!bandId || isTargetBand(p.data.band_id))) {
           await pendingTx.store.delete(p.id);
         }
       }
@@ -254,8 +272,9 @@ export async function listFolderFromCache(
 
   const matchesBand = (itemBandId: string | null | undefined) => {
     if (isGuestMode) return true;
-    if (!activeBandId) return !itemBandId;
-    return itemBandId === activeBandId || !itemBandId;
+    if (!activeBandId) return false;
+    if (activeBandId === DEFAULT_CHURCH_BAND_ID) return itemBandId === activeBandId || !itemBandId;
+    return itemBandId === activeBandId;
   };
 
   const folders = allFolders
@@ -303,13 +322,18 @@ export async function listFolder(
 
   if (shouldAttemptOnline) {
     try {
+      const bandFilter = getBandFilter(activeBandId);
+
       let foldersQuery = supabase
         .from('folders')
         .select('*')
         .eq('kind', kind)
-        .eq('band_id', activeBandId)
         .order('name', { ascending: true })
         .not('name', 'like', '__TRASH__:%');
+
+      if (bandFilter) {
+        foldersQuery = foldersQuery.or(bandFilter);
+      }
 
       if (folderId) {
         foldersQuery = foldersQuery.eq('parent_id', folderId);
@@ -322,18 +346,20 @@ export async function listFolder(
         itemsQuery = supabase
           .from('charts')
           .select('id, title, updated_at, is_bookmarked, created_by, band_id')
-          .eq('band_id', activeBandId)
           .order('updated_at', { ascending: false })
           .not('title', 'like', '__TRASH__:%');
       } else {
         itemsQuery = supabase
           .from('lyrics')
           .select('id, title, updated_at, is_bookmarked, created_by, band_id')
-          .eq('band_id', activeBandId)
           .order('updated_at', { ascending: false })
           .not('title', 'like', '__TRASH__:%');
       }
       
+      if (bandFilter) {
+        itemsQuery = itemsQuery.or(bandFilter);
+      }
+
       if (folderId) {
         itemsQuery = itemsQuery.eq('folder_id', folderId);
       } else {
@@ -795,8 +821,9 @@ export async function listTrash(bandId?: string | null) {
 
   const matchesBand = (itemBandId: string | null | undefined) => {
     if (isGuestMode) return true;
-    if (!activeBandId) return !itemBandId;
-    return itemBandId === activeBandId || !itemBandId;
+    if (!activeBandId) return false;
+    if (activeBandId === DEFAULT_CHURCH_BAND_ID) return itemBandId === activeBandId || !itemBandId;
+    return itemBandId === activeBandId;
   };
 
   // 1. Read from local IndexedDB first
@@ -818,11 +845,16 @@ export async function listTrash(bandId?: string | null) {
   // 2. If online, fetch from Supabase and merge
   if (isOnline() && !isGuestMode && activeBandId) {
     try {
-      const [foldersRes, chartsRes, lyricsRes] = await Promise.all([
-        supabase.from('folders').select('*').eq('band_id', activeBandId).like('name', '__TRASH__:%').order('updated_at', { ascending: false }),
-        supabase.from('charts').select('id, title, updated_at, created_by, band_id').eq('band_id', activeBandId).like('title', '__TRASH__:%').order('updated_at', { ascending: false }),
-        supabase.from('lyrics').select('id, title, updated_at, created_by, band_id').eq('band_id', activeBandId).like('title', '__TRASH__:%').order('updated_at', { ascending: false }),
-      ]);
+      const bandFilter = getBandFilter(activeBandId);
+      let fQ = supabase.from('folders').select('*').like('name', '__TRASH__:%').order('updated_at', { ascending: false });
+      let cQ = supabase.from('charts').select('id, title, updated_at, created_by, band_id').like('title', '__TRASH__:%').order('updated_at', { ascending: false });
+      let lQ = supabase.from('lyrics').select('id, title, updated_at, created_by, band_id').like('title', '__TRASH__:%').order('updated_at', { ascending: false });
+      if (bandFilter) {
+        fQ = fQ.or(bandFilter);
+        cQ = cQ.or(bandFilter);
+        lQ = lQ.or(bandFilter);
+      }
+      const [foldersRes, chartsRes, lyricsRes] = await Promise.all([fQ, cQ, lQ]);
 
       if (foldersRes.data) {
         foldersRes.data.forEach((f: Folder) => folderMap.set(f.id, f));
@@ -1017,19 +1049,21 @@ export async function getRecentCharts(limit: number = 5, bandId?: string | null)
   const activeBandId = bandId !== undefined ? bandId : (typeof window !== 'undefined' ? localStorage.getItem('chord-grid-band-id') : null);
 
   if (isOnline() && !isGuestMode && activeBandId) {
-    const { data } = await supabase
+    const bandFilter = getBandFilter(activeBandId);
+    let cQ = supabase
       .from('charts')
       .select('id, title, updated_at, is_bookmarked, band_id')
-      .eq('band_id', activeBandId)
       .not('title', 'like', '__TRASH__:%')
       .order('updated_at', { ascending: false })
       .limit(limit);
+    if (bandFilter) cQ = cQ.or(bandFilter);
+    const { data } = await cQ;
     return data || [];
   } else if (dbPromise) {
     const db = await dbPromise;
     const allCharts = await db.getAll('charts');
     return allCharts
-      .filter(c => !c.title.startsWith('__TRASH__:') && (isGuestMode || !activeBandId || c.band_id === activeBandId || !c.band_id))
+      .filter(c => !c.title.startsWith('__TRASH__:') && (isGuestMode || (activeBandId && (activeBandId === DEFAULT_CHURCH_BAND_ID ? (c.band_id === activeBandId || !c.band_id) : c.band_id === activeBandId))))
       .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
       .slice(0, limit);
   }
@@ -1041,14 +1075,16 @@ export async function getAllFolders(kind?: 'chart' | 'lyrics', bandId?: string |
   const activeBandId = bandId !== undefined ? bandId : (typeof window !== 'undefined' ? localStorage.getItem('chord-grid-band-id') : null);
 
   if (isOnline() && !isGuestMode && activeBandId) {
-    let query = supabase.from('folders').select('*').eq('band_id', activeBandId);
+    const bandFilter = getBandFilter(activeBandId);
+    let query = supabase.from('folders').select('*');
+    if (bandFilter) query = query.or(bandFilter);
     if (kind) query = query.eq('kind', kind);
     const { data } = await query;
     return data || [];
   } else if (dbPromise) {
     const db = await dbPromise;
     const all = await db.getAll('folders');
-    const filtered = all.filter(f => (isGuestMode || !activeBandId || f.band_id === activeBandId || !f.band_id));
+    const filtered = all.filter(f => (isGuestMode || (activeBandId && (activeBandId === DEFAULT_CHURCH_BAND_ID ? (f.band_id === activeBandId || !f.band_id) : f.band_id === activeBandId))));
     if (kind) return filtered.filter(f => f.kind === kind);
     return filtered;
   }
@@ -1075,10 +1111,14 @@ export async function getBookmarks(bandId?: string | null) {
   const activeBandId = bandId !== undefined ? bandId : (typeof window !== 'undefined' ? localStorage.getItem('chord-grid-band-id') : null);
 
   if (isOnline() && !isGuestMode && activeBandId) {
-    const [{ data: charts }, { data: lyrics }] = await Promise.all([
-      supabase.from('charts').select('id, title, updated_at, is_bookmarked, band_id').eq('band_id', activeBandId).eq('is_bookmarked', true).not('title', 'like', '__TRASH__:%').order('updated_at', { ascending: false }),
-      supabase.from('lyrics').select('id, title, updated_at, is_bookmarked, band_id').eq('band_id', activeBandId).eq('is_bookmarked', true).not('title', 'like', '__TRASH__:%').order('updated_at', { ascending: false })
-    ]);
+    const bandFilter = getBandFilter(activeBandId);
+    let cQ = supabase.from('charts').select('id, title, updated_at, is_bookmarked, band_id').eq('is_bookmarked', true).not('title', 'like', '__TRASH__:%').order('updated_at', { ascending: false });
+    let lQ = supabase.from('lyrics').select('id, title, updated_at, is_bookmarked, band_id').eq('is_bookmarked', true).not('title', 'like', '__TRASH__:%').order('updated_at', { ascending: false });
+    if (bandFilter) {
+      cQ = cQ.or(bandFilter);
+      lQ = lQ.or(bandFilter);
+    }
+    const [{ data: charts }, { data: lyrics }] = await Promise.all([cQ, lQ]);
     const all = [
       ...(charts || []).map((c) => ({ ...c, type: 'chart' as const })),
       ...(lyrics || []).map((l) => ({ ...l, type: 'lyrics' as const }))
@@ -1089,8 +1129,8 @@ export async function getBookmarks(bandId?: string | null) {
     const charts = await db.getAll('charts');
     const lyrics = await db.getAll('lyrics');
     const all = [
-      ...charts.filter(c => c.is_bookmarked && !c.title.startsWith('__TRASH__:') && (isGuestMode || !activeBandId || c.band_id === activeBandId || !c.band_id)).map((c) => ({ id: c.id, title: c.title, updated_at: c.updated_at, is_bookmarked: c.is_bookmarked, type: 'chart' as const })),
-      ...lyrics.filter(l => l.is_bookmarked && !l.title.startsWith('__TRASH__:') && (isGuestMode || !activeBandId || l.band_id === activeBandId || !l.band_id)).map((l) => ({ id: l.id, title: l.title, updated_at: l.updated_at, is_bookmarked: l.is_bookmarked, type: 'lyrics' as const }))
+      ...charts.filter(c => c.is_bookmarked && !c.title.startsWith('__TRASH__:') && (isGuestMode || (activeBandId && (activeBandId === DEFAULT_CHURCH_BAND_ID ? (c.band_id === activeBandId || !c.band_id) : c.band_id === activeBandId)))).map((c) => ({ id: c.id, title: c.title, updated_at: c.updated_at, is_bookmarked: c.is_bookmarked, type: 'chart' as const })),
+      ...lyrics.filter(l => l.is_bookmarked && !l.title.startsWith('__TRASH__:') && (isGuestMode || (activeBandId && (activeBandId === DEFAULT_CHURCH_BAND_ID ? (l.band_id === activeBandId || !l.band_id) : l.band_id === activeBandId)))).map((l) => ({ id: l.id, title: l.title, updated_at: l.updated_at, is_bookmarked: l.is_bookmarked, type: 'lyrics' as const }))
     ];
     return all.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
   }
@@ -1140,13 +1180,15 @@ export async function searchAll(
     let rawFolders: Folder[] = [];
     if (isOnline() && !isGuestMode && activeBandId) {
       try {
-        const { data } = await supabase
+        const bandFilter = getBandFilter(activeBandId);
+        let fQ = supabase
           .from('folders')
           .select('*')
           .eq('kind', kind)
-          .eq('band_id', activeBandId)
           .ilike('name', `%${query.trim()}%`)
           .not('name', 'like', '__TRASH__:%');
+        if (bandFilter) fQ = fQ.or(bandFilter);
+        const { data } = await fQ;
         rawFolders = data || [];
       } catch (err) {
         console.warn('[Storage] Search folders online failed:', err);
@@ -1157,7 +1199,7 @@ export async function searchAll(
         const db = await dbPromise;
         const allDbFolders = await db.getAll('folders');
         rawFolders = allDbFolders.filter(
-          f => f.kind === kind && !f.name.startsWith('__TRASH__:') && (isGuestMode || !activeBandId || f.band_id === activeBandId || !f.band_id) && f.name.toLowerCase().includes(cleanQuery)
+          f => f.kind === kind && !f.name.startsWith('__TRASH__:') && (isGuestMode || (activeBandId && (activeBandId === DEFAULT_CHURCH_BAND_ID ? (f.band_id === activeBandId || !f.band_id) : f.band_id === activeBandId))) && f.name.toLowerCase().includes(cleanQuery)
         );
       } catch {}
     }
@@ -1179,12 +1221,14 @@ export async function searchAll(
   if (isOnline() && !isGuestMode && activeBandId) {
     try {
       const tableName = kind === 'chart' ? 'charts' : 'lyrics';
-      const { data } = await supabase
+      const bandFilter = getBandFilter(activeBandId);
+      let iQ = supabase
         .from(tableName)
         .select('id, title, updated_at, folder_id, is_bookmarked, created_by, band_id')
-        .eq('band_id', activeBandId)
         .ilike('title', `%${query.trim()}%`)
         .not('title', 'like', '__TRASH__:%');
+      if (bandFilter) iQ = iQ.or(bandFilter);
+      const { data } = await iQ;
       rawItems = data || [];
     } catch (err) {
       console.warn('[Storage] Search items online failed:', err);
@@ -1195,7 +1239,7 @@ export async function searchAll(
       const db = await dbPromise;
       const allDbItems = await db.getAll(kind === 'chart' ? 'charts' : 'lyrics');
       rawItems = allDbItems.filter(
-        c => !c.title.startsWith('__TRASH__:') && (isGuestMode || !activeBandId || c.band_id === activeBandId || !c.band_id) && c.title.toLowerCase().includes(cleanQuery)
+        c => !c.title.startsWith('__TRASH__:') && (isGuestMode || (activeBandId && (activeBandId === DEFAULT_CHURCH_BAND_ID ? (c.band_id === activeBandId || !c.band_id) : c.band_id === activeBandId))) && c.title.toLowerCase().includes(cleanQuery)
       );
     } catch {}
   }
@@ -1376,11 +1420,15 @@ export async function syncAllOffline(bandId?: string | null): Promise<{ chartsCo
   if (!activeBandId) {
     return { chartsCount: 0, lyricsCount: 0, foldersCount: 0 };
   }
+  const bandFilter = getBandFilter(activeBandId);
+  if (!bandFilter) {
+    return { chartsCount: 0, lyricsCount: 0, foldersCount: 0 };
+  }
   try {
     const [{ data: charts }, { data: lyrics }, { data: folders }] = await Promise.all([
-      supabase.from('charts').select('*').eq('band_id', activeBandId).not('title', 'like', '__TRASH__:%'),
-      supabase.from('lyrics').select('*').eq('band_id', activeBandId).not('title', 'like', '__TRASH__:%'),
-      supabase.from('folders').select('*').eq('band_id', activeBandId).not('name', 'like', '__TRASH__:%'),
+      supabase.from('charts').select('*').or(bandFilter).not('title', 'like', '__TRASH__:%'),
+      supabase.from('lyrics').select('*').or(bandFilter).not('title', 'like', '__TRASH__:%'),
+      supabase.from('folders').select('*').or(bandFilter).not('name', 'like', '__TRASH__:%'),
     ]);
 
     if (dbPromise) {
