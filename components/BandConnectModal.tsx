@@ -14,7 +14,7 @@ interface Props {
 export function BandConnectModal({ isOpen, onClose, onSuccess }: Props) {
   const { user, profile, updateProfile } = useAuth();
   const [activeTab, setActiveTab] = useState<'join' | 'create'>('join');
-  const [currentBand, setCurrentBand] = useState<ReturnType<typeof getStoredBand>>(getStoredBand());
+  const [currentBand, setCurrentBand] = useState<ReturnType<typeof getStoredBand>>({ id: null, name: null, code: null });
 
   // Form states
   const [joinCodeInput, setJoinCodeInput] = useState('');
@@ -183,7 +183,7 @@ export function BandConnectModal({ isOpen, onClose, onSuccess }: Props) {
             </div>
 
             <p className="text-xs text-text-secondary leading-relaxed">
-              All folders, charts, and lyrics created by you or your band members are synced live across Vercel, Android APK, and iOS devices.
+              All folders, charts, and lyrics created by you or your band members are synced live across all your devices.
             </p>
 
             {profile?.profession === 'admin' && (

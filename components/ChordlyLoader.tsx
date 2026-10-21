@@ -36,6 +36,9 @@ export function ChordlyLoader({
   const [fading, setFading] = useState(false);
   const [minTimeElapsed, setMinTimeElapsed] = useState(false);
   const fadeTriggeredRef = useRef(false);
+  const onFadeCompleteRef = useRef(onFadeComplete);
+  onFadeCompleteRef.current = onFadeComplete;
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // 1. Min display timer to prevent visual flicker
   useEffect(() => {
@@ -46,17 +49,22 @@ export function ChordlyLoader({
     return () => clearTimeout(timer);
   }, [minDisplayMs]);
 
-  // 2. Handle completion and smooth fade-out
+  // 2. Handle completion and smooth fade-out (resilient against parent re-renders)
   useEffect(() => {
     if (isDone === true && minTimeElapsed && !fadeTriggeredRef.current) {
       fadeTriggeredRef.current = true;
       setFading(true);
-      const timer = setTimeout(() => {
-        onFadeComplete?.();
+      timerRef.current = setTimeout(() => {
+        onFadeCompleteRef.current?.();
       }, fadeDurationMs);
-      return () => clearTimeout(timer);
     }
-  }, [isDone, minTimeElapsed, fadeDurationMs, onFadeComplete]);
+  }, [isDone, minTimeElapsed, fadeDurationMs]);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, []);
 
   // 3. 60fps Particle Canvas System (warm musical embers & harmonic floating dust)
   useEffect(() => {

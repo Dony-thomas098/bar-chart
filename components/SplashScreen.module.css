@@ -1,3 +1,9 @@
+:global(.no-splash) .root {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
 .root {
   position: fixed;
   inset: 0;
@@ -13,5 +19,6 @@
 
 .fading {
   opacity: 0 !important;
+  visibility: hidden !important;
   pointer-events: none !important;
 }

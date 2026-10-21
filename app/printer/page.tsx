@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { readChart, searchAll, Chart } from '@/lib/storage';
 import { readLyrics, Lyric } from '@/lib/lyrics';
 import { ChartRenderer } from '@/components/ChartRenderer';
+import { PrintChart } from '@/components/PrintChart';
 import { Header } from '@/components/Header';
 import { Printer, Search, Plus, Trash2, FileText, GripVertical, X, Music, AlignLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -99,6 +100,8 @@ export default function PrinterPage() {
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [font, setFont] = useState('system');
+  const [paperSize, setPaperSize] = useState<'a4' | 'letter'>('a4');
+  const [lineSpacing, setLineSpacing] = useState<'tight' | 'normal' | 'relaxed'>('normal');
   const [setlistName, setSetlistName] = useState('My Setlist');
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   const [watermark, setWatermark] = useState('');
@@ -132,45 +135,80 @@ export default function PrinterPage() {
     const savedFont = localStorage.getItem('chord-grid-font');
     if (savedFont) setFont(savedFont);
 
+    const savedPaperSize = localStorage.getItem('chord-grid-paper-size');
+    if (savedPaperSize === 'letter' || savedPaperSize === 'a4') {
+      setPaperSize(savedPaperSize);
+    }
+
+    const savedLineSpacing = localStorage.getItem('chord-grid-line-spacing');
+    if (savedLineSpacing === 'tight' || savedLineSpacing === 'normal' || savedLineSpacing === 'relaxed') {
+      setLineSpacing(savedLineSpacing);
+    }
+
     const savedWatermark = localStorage.getItem('chord-grid-watermark');
     if (savedWatermark) setWatermark(savedWatermark);
   }, []);
 
+  // Update dynamic @page style for A4 / Letter matching demo spec
   useEffect(() => {
-    const loadCharts = async () => {
-      const newCharts = { ...charts };
-      let changed = false;
-      for (const id of chartQueue) {
-        if (!newCharts[id]) {
-          const c = await readChart(id);
-          if (c) {
-            newCharts[id] = c as Chart;
-            changed = true;
-          }
-        }
+    if (typeof document === 'undefined') return;
+    let styleEl = document.getElementById('print-page-style') as HTMLStyleElement | null;
+    if (!styleEl) {
+      styleEl = document.createElement('style');
+      styleEl.id = 'print-page-style';
+      document.head.appendChild(styleEl);
+    }
+    const isLetter = paperSize === 'letter';
+    styleEl.textContent = `@page { size: ${isLetter ? 'Letter' : 'A4'} portrait; margin: 12mm; } @media print { .paper, .print-page { height: calc(${isLetter ? '279.4mm' : '297mm'} - 24mm) !important; } }`;
+  }, [paperSize]);
+
+  const loadCharts = React.useCallback(async () => {
+    const newCharts: Record<string, Chart> = {};
+    for (const id of chartQueue) {
+      try {
+        const c = await readChart(id);
+        if (c) newCharts[id] = c as Chart;
+      } catch (err) {
+        console.warn('[Printer] Error loading chart:', err);
       }
-      if (changed) setCharts(newCharts);
-    };
-    loadCharts();
+    }
+    setCharts(newCharts);
   }, [chartQueue]);
 
-  useEffect(() => {
-    const loadLyrics = async () => {
-      const newLyrics = { ...lyrics };
-      let changed = false;
-      for (const id of lyricsQueue) {
-        if (!newLyrics[id]) {
-          const l = await readLyrics(id);
-          if (l) {
-            newLyrics[id] = l as Lyric;
-            changed = true;
-          }
-        }
+  const loadLyrics = React.useCallback(async () => {
+    const newLyrics: Record<string, Lyric> = {};
+    for (const id of lyricsQueue) {
+      try {
+        const l = await readLyrics(id);
+        if (l) newLyrics[id] = l as Lyric;
+      } catch (err) {
+        console.warn('[Printer] Error loading lyrics:', err);
       }
-      if (changed) setLyrics(newLyrics);
-    };
-    loadLyrics();
+    }
+    setLyrics(newLyrics);
   }, [lyricsQueue]);
+
+  useEffect(() => {
+    loadCharts().catch(() => {});
+  }, [loadCharts]);
+
+  useEffect(() => {
+    loadLyrics().catch(() => {});
+  }, [loadLyrics]);
+
+  // Always refresh items on page focus or beforeprint
+  useEffect(() => {
+    const handleRefresh = () => {
+      loadCharts().catch(() => {});
+      loadLyrics().catch(() => {});
+    };
+    window.addEventListener('focus', handleRefresh);
+    window.addEventListener('beforeprint', handleRefresh);
+    return () => {
+      window.removeEventListener('focus', handleRefresh);
+      window.removeEventListener('beforeprint', handleRefresh);
+    };
+  }, [loadCharts, loadLyrics]);
 
   useEffect(() => {
     const doSearch = async () => {
@@ -239,7 +277,18 @@ export default function PrinterPage() {
     setIsSearchFocused(false);
   };
 
-  const handlePrint = () => {
+  const handlePrint = async () => {
+    if (mode === 'chart') {
+      await loadCharts();
+    } else {
+      await loadLyrics();
+    }
+    if (typeof document !== 'undefined' && document.fonts && document.fonts.ready) {
+      try {
+        await document.fonts.ready;
+      } catch {}
+    }
+    await new Promise((resolve) => setTimeout(resolve, 60));
     const originalTitle = document.title;
     document.title = setlistName || (mode === 'chart' ? 'Charts Setlist' : 'Lyrics Setlist');
     window.print();
@@ -413,8 +462,86 @@ export default function PrinterPage() {
               <input 
                 value={setlistName}
                 onChange={(e) => setSetlistName(e.target.value)}
-                className="w-full mb-6 p-3 bg-surface-raised border border-border rounded-xl outline-none focus:border-accent-solid"
+                className="w-full mb-4 p-3 bg-surface-raised border border-border rounded-xl outline-none focus:border-accent-solid text-sm"
               />
+
+              <label className="block text-xs font-bold text-text-secondary mb-2 uppercase tracking-wider">Line Spacing</label>
+              <div className="flex bg-surface-raised border border-border p-1 rounded-xl mb-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLineSpacing('tight');
+                    localStorage.setItem('chord-grid-line-spacing', 'tight');
+                  }}
+                  className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                    lineSpacing === 'tight'
+                      ? 'bg-accent-gradient text-white shadow-sm'
+                      : 'text-text-secondary hover:text-white'
+                  }`}
+                >
+                  Tight
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLineSpacing('normal');
+                    localStorage.setItem('chord-grid-line-spacing', 'normal');
+                  }}
+                  className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                    lineSpacing === 'normal'
+                      ? 'bg-accent-gradient text-white shadow-sm'
+                      : 'text-text-secondary hover:text-white'
+                  }`}
+                >
+                  Normal
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLineSpacing('relaxed');
+                    localStorage.setItem('chord-grid-line-spacing', 'relaxed');
+                  }}
+                  className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                    lineSpacing === 'relaxed'
+                      ? 'bg-accent-gradient text-white shadow-sm'
+                      : 'text-text-secondary hover:text-white'
+                  }`}
+                >
+                  Relaxed
+                </button>
+              </div>
+
+              <label className="block text-xs font-bold text-text-secondary mb-2 uppercase tracking-wider">Paper Size</label>
+              <div className="flex bg-surface-raised border border-border p-1 rounded-xl mb-6">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPaperSize('a4');
+                    localStorage.setItem('chord-grid-paper-size', 'a4');
+                  }}
+                  className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
+                    paperSize === 'a4'
+                      ? 'bg-accent-gradient text-white shadow-sm'
+                      : 'text-text-secondary hover:text-white'
+                  }`}
+                >
+                  A4 (Standard)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPaperSize('letter');
+                    localStorage.setItem('chord-grid-paper-size', 'letter');
+                  }}
+                  className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
+                    paperSize === 'letter'
+                      ? 'bg-accent-gradient text-white shadow-sm'
+                      : 'text-text-secondary hover:text-white'
+                  }`}
+                >
+                  US Letter
+                </button>
+              </div>
               <button 
                 onClick={handlePrint}
                 className="w-full py-3 bg-accent-gradient rounded-xl text-white font-bold hover:brightness-110 transition-all"
@@ -428,8 +555,11 @@ export default function PrinterPage() {
       </main>
 
       {/* Hidden Print Container - outside scrollable main wrapper to prevent clipping */}
-      <div className="hidden print:block w-full max-w-none m-0 p-0 overflow-visible text-black">
-        {activeQueue.length > 0 && (
+      <div
+        className="print-screen-container print:static print:block w-full max-w-none m-0 p-0 overflow-visible text-black"
+        data-paper-size={paperSize}
+      >
+        {activeQueue.length > 1 && (
           <div className="page-break-after w-[min(100%,60rem)] mx-auto px-12 pt-20 pb-16 text-black block">
             <h1 className="text-4xl sm:text-5xl font-extrabold print:!font-bold tracking-normal text-black mb-3">
               {setlistName || (mode === 'chart' ? 'Charts Print Queue' : 'Lyrics Print Queue')}
@@ -475,9 +605,14 @@ export default function PrinterPage() {
           const chart = charts[id];
           if (!chart) return null;
           return (
-            <div key={id} className="page-break print:break-before-page w-full max-w-none overflow-visible pt-4">
-              <ChartRenderer chart={chart as any} selectedFont={font} watermark={watermark} />
-            </div>
+            <PrintChart
+              key={id}
+              chart={chart as any}
+              selectedFont={font}
+              watermark={watermark}
+              paperSize={paperSize}
+              lineSpacing={lineSpacing}
+            />
           );
         })}
 

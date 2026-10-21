@@ -31,11 +31,22 @@ function generateSW() {
     .map(p => '/' + path.relative(outDir, p).replace(/\\/g, '/'))
     .filter(p => !p.endsWith('.map'));
 
-  // Collect HTML pages and RSC txt payloads
+  // Collect HTML pages, RSC txt payloads, and all static assets
   const pageFiles = walk(outDir)
     .map(p => '/' + path.relative(outDir, p).replace(/\\/g, '/'))
     .filter(p => 
-      (p.endsWith('.html') || p.endsWith('.txt') || p.endsWith('.json') || p.endsWith('.png') || p.endsWith('.ico')) &&
+      (
+        p.endsWith('.html') ||
+        p.endsWith('.txt') ||
+        p.endsWith('.json') ||
+        p.endsWith('.png') ||
+        p.endsWith('.jpg') ||
+        p.endsWith('.jpeg') ||
+        p.endsWith('.ico') ||
+        p.endsWith('.svg') ||
+        p.endsWith('.webp') ||
+        p.endsWith('.woff2')
+      ) &&
       !p.startsWith('/_next') &&
       !p.endsWith('sw.js') &&
       !p.endsWith('.map')
@@ -43,6 +54,7 @@ function generateSW() {
 
   const baseRoutes = [
     '/',
+    '/index.html',
     '/folder',
     '/folder/',
     '/chart',
@@ -57,13 +69,28 @@ function generateSW() {
     '/lyrics/view/',
     '/lyrics/edit',
     '/lyrics/edit/',
+    '/lyrics/folder',
+    '/lyrics/folder/',
     '/setlists',
     '/setlists/',
+    '/setlists/perform',
+    '/setlists/perform/',
+    '/setlists/view',
+    '/setlists/view/',
     '/perform',
     '/perform/',
+    '/perform/stage',
+    '/perform/stage/',
     '/printer',
+    '/printer/',
     '/profile',
+    '/profile/',
     '/settings',
+    '/settings/',
+    '/trash',
+    '/trash/',
+    '/bookmarks',
+    '/bookmarks/',
     '/auth',
     '/auth/'
   ];
@@ -72,7 +99,7 @@ function generateSW() {
   console.log(`[SW Gen] Collected ${allAssets.length} total precache assets (including ${staticFiles.length} static JS/CSS chunks).`);
 
   const swTemplate = `// Chordly Service Worker - Full Offline PWA Cache
-const CACHE_NAME = 'chordly-v8';
+const CACHE_NAME = 'chordly-v9';
 
 const PRECACHE_ASSETS = ${JSON.stringify(allAssets, null, 2)};
 
@@ -89,7 +116,37 @@ self.addEventListener('install', (event) => {
             try {
               const response = await fetch(asset, { cache: 'no-cache' });
               if (response && response.ok) {
-                await cache.put(asset, response);
+                await cache.put(asset, response.clone());
+
+                // Dynamically harvest and precache referenced script chunks & CSS
+                const contentType = response.headers.get('content-type') || '';
+                if (contentType.includes('text/html') || asset.endsWith('.html') || !asset.includes('.')) {
+                  try {
+                    const text = await response.text();
+                    const scriptRegex = /src="(\\/_next\\/static\\/chunks\\/[^"]+\\.js)"/g;
+                    let m;
+                    while ((m = scriptRegex.exec(text)) !== null) {
+                      const chunkUrl = m[1];
+                      try {
+                        const chunkRes = await fetch(chunkUrl);
+                        if (chunkRes && chunkRes.ok) {
+                          await cache.put(chunkUrl, chunkRes);
+                        }
+                      } catch (err) {}
+                    }
+
+                    const cssRegex = /href="(\\/_next\\/static\\/css\\/[^"]+\\.css)"/g;
+                    while ((m = cssRegex.exec(text)) !== null) {
+                      const cssUrl = m[1];
+                      try {
+                        const cssRes = await fetch(cssUrl);
+                        if (cssRes && cssRes.ok) {
+                          await cache.put(cssUrl, cssRes);
+                        }
+                      } catch (err) {}
+                    }
+                  } catch (parseErr) {}
+                }
               }
             } catch (e) {
               // Silently ignore individual asset precache failures
@@ -114,14 +171,17 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Fetch: Stale-While-Revalidate for static assets, Network-First with multi-level offline fallback for HTML/RSC
+// Fetch: Multi-strategy caching with robust offline fallbacks
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Bypass dev mode HMR, chrome extensions, Supabase API calls, and OTA update manifest
+  // Bypass dev mode HMR, chrome extensions, Supabase API calls, OTA update manifest, and localhost
   if (
     request.method !== 'GET' ||
+    url.hostname === 'localhost' ||
+    url.hostname === '127.0.0.1' ||
+    url.hostname === '[::1]' ||
     url.pathname.startsWith('/_next/webpack-hmr') ||
     url.hostname.includes('supabase.co') ||
     url.protocol.startsWith('chrome-extension') ||
@@ -131,7 +191,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Handle HTML page navigation with multi-level offline fallback
+  // 1. Handle HTML page navigation with multi-level offline fallback
   if (request.mode === 'navigate') {
     event.respondWith(
       fetch(request)
@@ -163,23 +223,57 @@ self.addEventListener('fetch', (event) => {
           const indexHtmlMatch = await caches.match(indexHtmlPath, { ignoreSearch: true });
           if (indexHtmlMatch) return indexHtmlMatch;
 
-          // 4. Dynamic route fallbacks for stage room codes, charts, and lyrics
-          if (url.pathname.startsWith('/perform/')) {
+          // 4. Dynamic route fallbacks for stage room codes, charts, lyrics, trash, settings, profile
+          if (url.pathname.startsWith('/perform')) {
             const stageCached = await caches.match('/perform/stage/index.html', { ignoreSearch: true }) ||
-                                 await caches.match('/perform/stage/', { ignoreSearch: true });
+                                 await caches.match('/perform/stage/', { ignoreSearch: true }) ||
+                                 await caches.match('/perform/index.html', { ignoreSearch: true }) ||
+                                 await caches.match('/perform/', { ignoreSearch: true });
             if (stageCached) return stageCached;
           }
 
-          if (url.pathname.startsWith('/chart/')) {
+          if (url.pathname.startsWith('/chart')) {
             const chartCached = await caches.match('/chart/index.html', { ignoreSearch: true }) ||
                                 await caches.match('/chart/', { ignoreSearch: true });
             if (chartCached) return chartCached;
           }
 
-          if (url.pathname.startsWith('/lyrics/')) {
+          if (url.pathname.startsWith('/lyrics')) {
             const lyricsCached = await caches.match('/lyrics/view/index.html', { ignoreSearch: true }) ||
-                                 await caches.match('/lyrics/view/', { ignoreSearch: true });
+                                 await caches.match('/lyrics/view/', { ignoreSearch: true }) ||
+                                 await caches.match('/lyrics/index.html', { ignoreSearch: true }) ||
+                                 await caches.match('/lyrics/', { ignoreSearch: true });
             if (lyricsCached) return lyricsCached;
+          }
+
+          if (url.pathname.startsWith('/trash')) {
+            const trashCached = await caches.match('/trash/index.html', { ignoreSearch: true }) ||
+                                await caches.match('/trash/', { ignoreSearch: true });
+            if (trashCached) return trashCached;
+          }
+
+          if (url.pathname.startsWith('/settings')) {
+            const settingsCached = await caches.match('/settings/index.html', { ignoreSearch: true }) ||
+                                   await caches.match('/settings/', { ignoreSearch: true });
+            if (settingsCached) return settingsCached;
+          }
+
+          if (url.pathname.startsWith('/profile')) {
+            const profileCached = await caches.match('/profile/index.html', { ignoreSearch: true }) ||
+                                  await caches.match('/profile/', { ignoreSearch: true });
+            if (profileCached) return profileCached;
+          }
+
+          if (url.pathname.startsWith('/bookmarks')) {
+            const bookmarksCached = await caches.match('/bookmarks/index.html', { ignoreSearch: true }) ||
+                                    await caches.match('/bookmarks/', { ignoreSearch: true });
+            if (bookmarksCached) return bookmarksCached;
+          }
+
+          if (url.pathname.startsWith('/setlists')) {
+            const setlistsCached = await caches.match('/setlists/index.html', { ignoreSearch: true }) ||
+                                   await caches.match('/setlists/', { ignoreSearch: true });
+            if (setlistsCached) return setlistsCached;
           }
 
           // 5. Fallback to folder or root app shell
@@ -188,7 +282,8 @@ self.addEventListener('fetch', (event) => {
                                await caches.match('/folder/index.html', { ignoreSearch: true });
           if (folderCached) return folderCached;
 
-          const rootCached = await caches.match('/', { ignoreSearch: true });
+          const rootCached = await caches.match('/', { ignoreSearch: true }) ||
+                             await caches.match('/index.html', { ignoreSearch: true });
           if (rootCached) return rootCached;
 
           return new Response('Offline - Chordly is ready when reconnected', {
@@ -201,17 +296,107 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Handle static assets (_next, images, css, js, fonts) and Next.js RSC payloads (.txt)
+  // 2. Handle Next.js RSC Flight Payloads (Soft Client-Side Navigations)
+  const isRsc = request.headers.get('RSC') === '1' ||
+                url.searchParams.has('_rsc') ||
+                url.pathname.endsWith('.txt');
+
+  if (isRsc) {
+    event.respondWith(
+      (async () => {
+        // Try exact cache match first
+        const cached = await caches.match(request, { ignoreSearch: true });
+        if (cached) return cached;
+
+        const trimmed = url.pathname.replace(/\\/$/, '');
+
+        // Try candidate RSC paths
+        const candidates = [
+          trimmed + '/index.txt',
+          trimmed + '.txt',
+          trimmed + '/__next._full.txt',
+          url.pathname,
+          url.pathname + '/index.txt'
+        ];
+
+        for (const candidate of candidates) {
+          const match = await caches.match(candidate, { ignoreSearch: true });
+          if (match) return match;
+        }
+
+        // Prefix fallbacks for dynamic and parameterized routes
+        if (url.pathname.startsWith('/perform')) {
+          const fallback = await caches.match('/perform/stage/index.txt', { ignoreSearch: true }) ||
+                           await caches.match('/perform/index.txt', { ignoreSearch: true });
+          if (fallback) return fallback;
+        }
+        if (url.pathname.startsWith('/chart')) {
+          const fallback = await caches.match('/chart/index.txt', { ignoreSearch: true });
+          if (fallback) return fallback;
+        }
+        if (url.pathname.startsWith('/lyrics')) {
+          const fallback = await caches.match('/lyrics/view/index.txt', { ignoreSearch: true }) ||
+                           await caches.match('/lyrics/index.txt', { ignoreSearch: true });
+          if (fallback) return fallback;
+        }
+        if (url.pathname.startsWith('/trash')) {
+          const fallback = await caches.match('/trash/index.txt', { ignoreSearch: true });
+          if (fallback) return fallback;
+        }
+        if (url.pathname.startsWith('/settings')) {
+          const fallback = await caches.match('/settings/index.txt', { ignoreSearch: true });
+          if (fallback) return fallback;
+        }
+        if (url.pathname.startsWith('/profile')) {
+          const fallback = await caches.match('/profile/index.txt', { ignoreSearch: true });
+          if (fallback) return fallback;
+        }
+        if (url.pathname.startsWith('/bookmarks')) {
+          const fallback = await caches.match('/bookmarks/index.txt', { ignoreSearch: true });
+          if (fallback) return fallback;
+        }
+        if (url.pathname.startsWith('/setlists')) {
+          const fallback = await caches.match('/setlists/index.txt', { ignoreSearch: true });
+          if (fallback) return fallback;
+        }
+
+        // If online, fetch from network and update cache
+        try {
+          const networkRes = await fetch(request);
+          if (networkRes && networkRes.status === 200) {
+            const clone = networkRes.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(request, clone);
+              cache.put(trimmed + '/index.txt', networkRes.clone());
+            });
+          }
+          return networkRes;
+        } catch (e) {
+          // Fallback to root index.txt
+          const rootTxt = await caches.match('/index.txt', { ignoreSearch: true }) ||
+                          await caches.match('/__next._full.txt', { ignoreSearch: true });
+          if (rootTxt) return rootTxt;
+
+          return new Response('', { status: 404, statusText: 'Offline Resource Not Found' });
+        }
+      })()
+    );
+    return;
+  }
+
+  // 3. Handle static assets (_next, images, css, js, fonts)
   event.respondWith(
     caches.match(request, { ignoreSearch: true }).then(async (cachedResponse) => {
       if (cachedResponse) {
-        // Return cached immediately; optionally revalidate in background if online
         if (navigator.onLine) {
           fetch(request)
             .then((networkResponse) => {
               if (networkResponse && networkResponse.status === 200) {
                 const responseClone = networkResponse.clone();
-                caches.open(CACHE_NAME).then((cache) => cache.put(request, responseClone));
+                caches.open(CACHE_NAME).then((cache) => {
+                  cache.put(request, responseClone);
+                  cache.put(url.pathname, networkResponse.clone());
+                });
               }
             })
             .catch(() => {});
@@ -223,25 +408,58 @@ self.addEventListener('fetch', (event) => {
       const pathMatch = await caches.match(url.pathname, { ignoreSearch: true });
       if (pathMatch) return pathMatch;
 
-      // Fetch from network with cache update
+      // If online, fetch from network with cache update
       return fetch(request)
         .then((networkResponse) => {
           if (networkResponse && networkResponse.status === 200) {
             const responseClone = networkResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(request, responseClone));
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(request, responseClone);
+              cache.put(url.pathname, networkResponse.clone());
+            });
           }
           return networkResponse;
         })
         .catch(async () => {
-          // If offline and requesting an RSC payload (.txt), try fallback paths
-          if (url.pathname.endsWith('.txt')) {
-            const fallbackTxt = await caches.match(url.pathname, { ignoreSearch: true });
-            if (fallbackTxt) return fallbackTxt;
+          // OFFLINE FALLBACK FOR JS CHUNKS:
+          // If a requested chunk has a hash mismatch (e.g. page-hash1.js vs page-hash2.js),
+          // search the cache for any chunk matching the same component path prefix
+          if (url.pathname.startsWith('/_next/static/chunks/') && url.pathname.endsWith('.js')) {
+            try {
+              const cache = await caches.open(CACHE_NAME);
+              const keys = await cache.keys();
+              // Strip trailing hash from chunk filename: e.g. "page-e4806be85e52a4ad.js" -> "page-"
+              const prefix = url.pathname.replace(/-[a-f0-9]+\\.js$/, '-');
+              if (prefix !== url.pathname) {
+                const matchingKey = keys.find((k) => {
+                  try {
+                    const kUrl = new URL(k.url);
+                    return kUrl.pathname.startsWith(prefix) && kUrl.pathname.endsWith('.js');
+                  } catch (e) {
+                    return false;
+                  }
+                });
+                if (matchingKey) {
+                  const fallbackChunk = await cache.match(matchingKey);
+                  if (fallbackChunk) return fallbackChunk;
+                }
+              }
+            } catch (e) {}
 
-            const trimmedTxt = url.pathname.replace(/\\/index\\.txt$/, '') + '/index.txt';
-            const trimmedMatch = await caches.match(trimmedTxt, { ignoreSearch: true });
-            if (trimmedMatch) return trimmedMatch;
+            // Return a safe empty JS script instead of 404 text so webpack doesn't crash fatally
+            return new Response('/* offline chunk placeholder */', {
+              status: 200,
+              headers: { 'Content-Type': 'application/javascript' },
+            });
           }
+
+          if (url.pathname.endsWith('.css')) {
+            return new Response('', {
+              status: 200,
+              headers: { 'Content-Type': 'text/css' },
+            });
+          }
+
           return new Response('', { status: 404, statusText: 'Offline Resource Not Found' });
         });
     })

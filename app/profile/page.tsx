@@ -112,7 +112,7 @@ export default function ProfilePage() {
 
   // Band Workspace Modal state
   const [bandModalOpen, setBandModalOpen] = useState(false);
-  const [bandInfo, setBandInfo] = useState(getStoredBand());
+  const [bandInfo, setBandInfo] = useState<{ id: string | null; name: string | null; code: string | null }>({ id: null, name: null, code: null });
   const effectiveBandName = profile?.band_name || bandInfo.name;
   const effectiveBandCode = profile?.band_code || bandInfo.code;
 

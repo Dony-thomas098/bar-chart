@@ -28,7 +28,7 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
   const [selectedFont, setSelectedFont] = useState('system');
   const [createFolderModal, setCreateFolderModal] = useState(false);
   const [folderKind, setFolderKind] = useState<'chart' | 'lyrics'>('chart');
-  const [bandInfo, setBandInfo] = useState(getStoredBand());
+  const [bandInfo, setBandInfo] = useState<{ id: string | null; name: string | null; code: string | null }>({ id: null, name: null, code: null });
   const [joinCode, setJoinCode] = useState('');
 
   const effectiveBandName = profile?.band_name || bandInfo.name;
@@ -208,7 +208,7 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
                   <span className="text-[10px] font-bold uppercase tracking-wider text-orange-600 dark:text-orange-400 block">
                     Band Workspace
                   </span>
-                  <span className="text-xs font-bold text-text-primary truncate block">
+                  <span className="text-xs font-bold text-text-primary truncate block" suppressHydrationWarning>
                     {effectiveBandName ? `${effectiveBandName} (${effectiveBandCode || ''})` : 'Join / Create Band'}
                   </span>
                 </div>

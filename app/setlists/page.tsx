@@ -9,7 +9,7 @@ import { listSetlists, createSetlist, deleteSetlist, duplicateSetlist, updateSet
 import { GlassCard, PillButton, IconButton } from '@/components/ui/primitives';
 import {
   ListMusic, Plus, MoreVertical, Trash2, Copy, Pencil, Calendar,
-  Music2, CornerLeftUp, X, Check, Play, Radio, ChevronRight,
+  Music2, CornerLeftUp, X, Check, Play, Radio, ChevronRight, Eye,
 } from 'lucide-react';
 
 // ─── New Setlist Modal ────────────────────────────────────────────────────────
@@ -263,6 +263,12 @@ function SetlistCard({
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
                   <div className={`absolute right-0 ${dropUp ? 'bottom-full mb-2' : 'top-full mt-2'} z-50 min-w-[210px] bg-white/95 dark:bg-[#1e1e24]/95 backdrop-blur-2xl saturate-[180%] border border-slate-200/80 dark:border-white/15 rounded-2xl shadow-[0_12px_40px_rgba(0,0,0,0.18),0_4px_12px_rgba(0,0,0,0.08)] overflow-hidden animate-fade-in p-1.5`}>
+                    <button 
+                      onClick={e => { e.stopPropagation(); setMenuOpen(false); onOpen(); }} 
+                      className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs font-bold text-text-primary hover:bg-black/5 dark:hover:bg-white/5 rounded-xl transition-all"
+                    >
+                      <Eye size={14} className="text-orange-500" /> View Setlist
+                    </button>
                     <button 
                       onClick={e => { e.stopPropagation(); setMenuOpen(false); onStartPerform(); }} 
                       className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs font-bold text-orange-600 dark:text-orange-400 hover:bg-orange-500/10 rounded-xl transition-all"

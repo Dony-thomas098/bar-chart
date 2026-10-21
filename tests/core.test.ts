@@ -391,13 +391,14 @@ describe('Multi-Device Band Synchronization & Profile Field Preservation', () =>
     expect(capConfig).not.toContain('CapacitorHttp');
   });
 
-  it('verifies AndroidManifest.xml includes both INTERNET and ACCESS_NETWORK_STATE permissions', async () => {
+  it('guarantees native Android and iOS folders are not present in repository', async () => {
     const fs = await import('fs');
     const path = await import('path');
-    const manifest = fs.readFileSync(path.resolve(__dirname, '../android/app/src/main/AndroidManifest.xml'), 'utf-8');
+    const androidExists = fs.existsSync(path.resolve(__dirname, '../android'));
+    const iosExists = fs.existsSync(path.resolve(__dirname, '../ios'));
 
-    expect(manifest).toContain('android.permission.INTERNET');
-    expect(manifest).toContain('android.permission.ACCESS_NETWORK_STATE');
+    expect(androidExists).toBe(false);
+    expect(iosExists).toBe(false);
   });
 
   it('guarantees calculateScoreFit provides strictly symmetric horizontal centering across all device sizes', async () => {
@@ -486,3 +487,114 @@ describe('Multi-Device Band Synchronization & Profile Field Preservation', () =>
 });
 
 
+
+describe('Setlist Routing and 404 Fallback Logic', () => {
+  it('correctly matches setlist perform and setlist view dynamic paths in not-found fallback regex', () => {
+    const performRegex = /^\/setlists\/([A-Za-z0-9_-]{4,})\/perform/i;
+    const testPerformPath = '/setlists/a1b2-c3d4/perform';
+    const performMatch = testPerformPath.match(performRegex);
+    expect(performMatch).not.toBeNull();
+    expect(performMatch?.[1]).toBe('a1b2-c3d4');
+
+    const viewRegex = /^\/setlists\/([A-Za-z0-9_-]{4,})/i;
+    const testViewPath = '/setlists/a1b2-c3d4';
+    const viewMatch = testViewPath.match(viewRegex);
+    expect(viewMatch).not.toBeNull();
+    expect(viewMatch?.[1]).toBe('a1b2-c3d4');
+  });
+
+  it('guarantees setlist pages route to static export exportable query targets', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+
+    const detailPage = fs.readFileSync(path.resolve(__dirname, '../app/setlists/[id]/page.tsx'), 'utf-8');
+    const performPage = fs.readFileSync(path.resolve(__dirname, '../app/setlists/[id]/perform/page.tsx'), 'utf-8');
+    const notFoundPage = fs.readFileSync(path.resolve(__dirname, '../app/not-found.tsx'), 'utf-8');
+
+    // Detail page routes Play / View Set to /setlists/perform?id=
+    expect(detailPage).toContain('/setlists/perform?id=');
+    expect(detailPage).not.toContain('router.push(/setlists//perform)');
+
+    // Perform page back buttons route to /setlists/view?id=
+    expect(performPage).toContain('/setlists/view?id=');
+    expect(performPage).not.toContain('router.push(/setlists/)');
+
+    // not-found.tsx handles setlist fallback redirects
+    expect(notFoundPage).toContain('Setlist Performance');
+    expect(notFoundPage).toContain('/setlists/perform?id=');
+    expect(notFoundPage).toContain('/setlists/view?id=');
+  });
+});
+
+describe('SplashScreen Safety and Localhost Service Worker Invariants', () => {
+  it('guarantees splash screen enforces hard safety fallback timeout', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+
+    const splashFile = fs.readFileSync(path.resolve(__dirname, '../components/SplashScreen.tsx'), 'utf-8');
+    const splashCss = fs.readFileSync(path.resolve(__dirname, '../components/SplashScreen.module.css'), 'utf-8');
+
+    expect(splashFile).toContain('safetyTimer');
+    expect(splashFile).toContain('2500');
+    expect(splashCss).toContain(':global(.no-splash) .root');
+    expect(splashCss).toContain('visibility: hidden !important;');
+  });
+
+  it('guarantees service worker is unregistered on localhost and bypassed in development', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+
+    const layoutFile = fs.readFileSync(path.resolve(__dirname, '../app/layout.tsx'), 'utf-8');
+    const swRegisterFile = fs.readFileSync(path.resolve(__dirname, '../components/SWRegister.tsx'), 'utf-8');
+    const swFile = fs.readFileSync(path.resolve(__dirname, '../public/sw.js'), 'utf-8');
+    const genSwFile = fs.readFileSync(path.resolve(__dirname, '../scripts/generate-sw.js'), 'utf-8');
+
+    expect(layoutFile).toContain('window.location.hostname === \'localhost\'');
+    expect(layoutFile).toContain('regs[i].unregister()');
+    expect(swRegisterFile).toContain('window.location.hostname === \'localhost\'');
+    expect(swRegisterFile).toContain('reg.unregister()');
+    expect(swFile).toContain('url.hostname === \'localhost\'');
+    expect(genSwFile).toContain('url.hostname === \'localhost\'');
+  });
+});
+
+describe('Hydration Invariants and SSR Consistency', () => {
+  it('ensures Sidebar, Profile, and BandConnectModal avoid synchronous localStorage reads during useState initial render', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+
+    const sidebar = fs.readFileSync(path.resolve(__dirname, '../components/Sidebar.tsx'), 'utf-8');
+    const profile = fs.readFileSync(path.resolve(__dirname, '../app/profile/page.tsx'), 'utf-8');
+    const modal = fs.readFileSync(path.resolve(__dirname, '../components/BandConnectModal.tsx'), 'utf-8');
+
+    // None of these should call useState(getStoredBand()) directly as that causes SSR hydration mismatch
+    expect(sidebar).not.toContain('useState(getStoredBand())');
+    expect(profile).not.toContain('useState(getStoredBand())');
+    expect(modal).not.toContain('useState<ReturnType<typeof getStoredBand>>(getStoredBand())');
+
+    // Sidebar must have suppressHydrationWarning on the Band Workspace title block
+    expect(sidebar).toContain('suppressHydrationWarning');
+  });
+});
+
+describe('Print Data Freshness and Realtime Synchronization', () => {
+  it('guarantees setlist and printer pages auto-refresh latest chart data before printing', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+
+    const setlistPage = fs.readFileSync(path.resolve(__dirname, '../app/setlists/[id]/page.tsx'), 'utf-8');
+    const printerPage = fs.readFileSync(path.resolve(__dirname, '../app/printer/page.tsx'), 'utf-8');
+
+    // Setlist page must have refreshPrintData and beforeprint / focus hooks
+    expect(setlistPage).toContain('refreshPrintData');
+    expect(setlistPage).toContain('handlePrintSetlist');
+    expect(setlistPage).toContain('window.addEventListener(\'beforeprint\'');
+    expect(setlistPage).toContain('window.addEventListener(\'focus\'');
+
+    // Printer page must re-fetch latest items before window.print and listen to beforeprint
+    expect(printerPage).toContain('loadCharts');
+    expect(printerPage).toContain('loadLyrics');
+    expect(printerPage).toContain('window.addEventListener(\'beforeprint\'');
+    expect(printerPage).toContain('window.addEventListener(\'focus\'');
+  });
+});

@@ -24,7 +24,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import {
   GripVertical, Plus, Printer, Play, MoreVertical, Trash2, Pencil,
-  FileText, Music, Music2, CornerLeftUp, X, Minus,
+  FileText, Music, Music2, CornerLeftUp, X, Minus, Eye,
 } from 'lucide-react';
 
 // ─── Transpose Stepper Modal ──────────────────────────────────────────────────
@@ -134,9 +134,18 @@ function SortableItemRow({
   onRemove: (item: SetlistItem) => void;
 }) {
   const { profile } = useAuth();
+  const router = useRouter();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
   const [menuOpen, setMenuOpen] = useState(false);
   const [dropUp, setDropUp] = useState(false);
+
+  const handleOpenItem = () => {
+    if (item.item_type === 'chart') {
+      router.push(`/chart?id=${item.item_id}`);
+    } else {
+      router.push(`/lyrics/view?id=${item.item_id}`);
+    }
+  };
 
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
@@ -157,16 +166,26 @@ function SortableItemRow({
       )}
 
       {/* Album / Item Cover Thumb */}
-      <div className="w-10 h-10 rounded-xl overflow-hidden bg-gradient-to-br from-indigo-600 via-purple-600 to-orange-500 shadow-sm border border-black/5 dark:border-white/10 flex items-center justify-center shrink-0">
+      <button
+        type="button"
+        onClick={handleOpenItem}
+        className="w-10 h-10 rounded-xl overflow-hidden bg-gradient-to-br from-indigo-600 via-purple-600 to-orange-500 shadow-sm border border-black/5 dark:border-white/10 flex items-center justify-center shrink-0 cursor-pointer hover:scale-105 active:scale-95 transition-transform"
+        title={item.item_type === 'chart' ? 'View Chord Chart' : 'View Lyrics Sheet'}
+      >
         {item.item_type === 'chart'
           ? <FileText size={18} className="text-white" />
           : <Music size={18} className="text-white" />
         }
-      </div>
+      </button>
 
       {/* Content */}
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-bold text-text-primary truncate">{item.title || 'Untitled'}</p>
+      <div 
+        className="flex-1 min-w-0 cursor-pointer"
+        onClick={handleOpenItem}
+      >
+        <p className="text-sm font-bold text-text-primary truncate hover:text-orange-600 dark:hover:text-orange-400 transition-colors">
+          {item.title || 'Untitled'}
+        </p>
         <div className="flex items-center gap-2 flex-wrap mt-0.5">
           <span className="text-[10px] text-text-muted font-medium">
             {item.item_type === 'chart' ? 'Chord Chart' : 'Lyrics Sheet'}
@@ -183,6 +202,16 @@ function SortableItemRow({
           )}
         </div>
       </div>
+
+      {/* View Quick Action Button */}
+      <button
+        type="button"
+        onClick={handleOpenItem}
+        className="p-1.5 text-text-muted hover:text-orange-600 dark:hover:text-orange-400 rounded-full hover:bg-orange-500/10 transition-all shrink-0 cursor-pointer"
+        title={item.item_type === 'chart' ? 'View Chord Chart' : 'View Lyrics Sheet'}
+      >
+        <Eye size={16} />
+      </button>
 
       {/* Menu - Only visible to admin users */}
       {profile?.profession === 'admin' && (
@@ -203,6 +232,12 @@ function SortableItemRow({
           <>
             <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
             <div className={`absolute right-0 ${dropUp ? 'bottom-full mb-1' : 'top-full mt-1'} z-50 min-w-[180px] bg-white/95 dark:bg-[#1c1c22]/95 backdrop-blur-2xl saturate-[180%] border border-slate-200/80 dark:border-white/15 rounded-2xl shadow-[0_12px_40px_rgba(0,0,0,0.18),0_4px_12px_rgba(0,0,0,0.08)] py-1.5 animate-in fade-in zoom-in-95 duration-150`}>
+              <button
+                onClick={() => { setMenuOpen(false); handleOpenItem(); }}
+                className="w-full flex items-center gap-2 px-3.5 py-2 text-xs font-bold text-text-primary hover:bg-orange-500/10 hover:text-orange-600 dark:hover:text-orange-400 transition-colors"
+              >
+                <Eye size={13} className="text-orange-500" /> View {item.item_type === 'chart' ? 'chart' : 'lyrics'}
+              </button>
               {item.item_type === 'chart' && (
                 <button
                   onClick={() => { setMenuOpen(false); onSetTranspose(item); }}
@@ -354,13 +389,20 @@ export default function SetlistDetailPage() {
     setLoading(true);
     try {
       const { supabase } = await import('@/lib/supabase');
-      const { data: sl } = await supabase.from('setlists').select('*').eq('id', setlistId).single();
-      if (!sl) { router.push('/setlists'); return; }
+      const { data: sl, error } = await supabase.from('setlists').select('*').eq('id', setlistId).single();
+      if (error || !sl) {
+        console.warn('[Setlist] Error loading setlist:', error);
+        router.push('/setlists');
+        return;
+      }
       setSetlist(sl);
       setNameVal(sl.name);
       setDateVal(sl.date || '');
       const loaded = await listSetlistItems(setlistId);
       setItems(loaded);
+    } catch (err) {
+      console.error('[Setlist] Load error:', err);
+      router.push('/setlists');
     } finally {
       setLoading(false);
     }
@@ -378,19 +420,52 @@ export default function SetlistDetailPage() {
     return () => window.removeEventListener('refresh-setlists', handleRefresh);
   }, [load]);
 
-  // Pre-load print data whenever items change
-  useEffect(() => {
+  // Reusable function to refresh print data with latest saved charts & lyrics
+  const refreshPrintData = useCallback(async () => {
     const chartItems = items.filter(i => i.item_type === 'chart');
     const lyricsItems = items.filter(i => i.item_type === 'lyrics');
-    chartItems.forEach(async item => {
-      const chart = await readChart(item.item_id);
-      if (chart) setPrintCharts(prev => ({ ...prev, [item.item_id]: chart as ChartData }));
-    });
-    lyricsItems.forEach(async item => {
-      const lyr = await readLyrics(item.item_id);
-      if (lyr) setPrintLyricsMap(prev => ({ ...prev, [item.item_id]: lyr }));
-    });
+    await Promise.all([
+      ...chartItems.map(async item => {
+        try {
+          const chart = await readChart(item.item_id);
+          if (chart) setPrintCharts(prev => ({ ...prev, [item.item_id]: chart as ChartData }));
+        } catch (err) {
+          console.warn('[Setlist] Error loading print chart:', err);
+        }
+      }),
+      ...lyricsItems.map(async item => {
+        try {
+          const lyr = await readLyrics(item.item_id);
+          if (lyr) setPrintLyricsMap(prev => ({ ...prev, [item.item_id]: lyr }));
+        } catch (err) {
+          console.warn('[Setlist] Error loading print lyrics:', err);
+        }
+      })
+    ]);
   }, [items]);
+
+  // Pre-load print data whenever items change
+  useEffect(() => {
+    refreshPrintData().catch(() => {});
+  }, [refreshPrintData]);
+
+  // Auto-refresh print data on window focus and beforeprint (e.g. after returning from editing a chart)
+  useEffect(() => {
+    const handleFocusOrBeforePrint = () => {
+      refreshPrintData().catch(() => {});
+    };
+    window.addEventListener('beforeprint', handleFocusOrBeforePrint);
+    window.addEventListener('focus', handleFocusOrBeforePrint);
+    return () => {
+      window.removeEventListener('beforeprint', handleFocusOrBeforePrint);
+      window.removeEventListener('focus', handleFocusOrBeforePrint);
+    };
+  }, [refreshPrintData]);
+
+  const handlePrintSetlist = async () => {
+    await refreshPrintData();
+    window.print();
+  };
 
 
   // Drag and drop - Admin only
@@ -562,7 +637,7 @@ export default function SetlistDetailPage() {
                 disabled={items.length === 0}
                 onClick={() => {
                   sessionStorage.setItem(`setlist-leader-${setlistId}`, '1');
-                  router.push(`/setlists/${setlistId}/perform`);
+                  router.push(`/setlists/perform?id=${setlistId}`);
                 }}
                 className="flex-1 py-2.5 px-5 btn-dark-pill flex items-center justify-center gap-2 text-sm disabled:opacity-40 cursor-pointer"
               >
@@ -628,7 +703,7 @@ export default function SetlistDetailPage() {
           {items.length > 0 && (
             <div className="flex items-center justify-center gap-3 mt-6">
               <button
-                onClick={() => window.print()}
+                onClick={handlePrintSetlist}
                 className="py-2 px-4 glass-pill text-xs font-bold text-text-secondary hover:text-text-primary flex items-center gap-1.5 cursor-pointer"
               >
                 <Printer size={14} /> Print Setlist
@@ -643,7 +718,7 @@ export default function SetlistDetailPage() {
             <button
               onClick={() => {
                 sessionStorage.setItem(`setlist-leader-${setlistId}`, '1');
-                router.push(`/setlists/${setlistId}/perform`);
+                router.push(`/setlists/perform?id=${setlistId}`);
               }}
               className="pointer-events-auto px-8 py-3 btn-dark-pill shadow-2xl flex items-center gap-2 text-sm font-extrabold cursor-pointer animate-in fade-in slide-in-from-bottom-2 duration-200"
             >

@@ -414,7 +414,7 @@ export default function SetlistPerformPage() {
   const handleEndSession = () => {
     endSession();
     sessionStorage.removeItem(`setlist-leader-${setlistId}`);
-    router.push(`/setlists/${setlistId}`);
+    router.push(`/setlists/view?id=${setlistId}`);
   };
 
   const currentItem = items[songPosition];
@@ -426,7 +426,7 @@ export default function SetlistPerformPage() {
       <div className="min-h-screen bg-bg flex flex-col items-center justify-center text-text-primary gap-4">
         <Radio size={40} className="text-accent-start opacity-50" />
         <h2 className="text-2xl font-bold">Session ended</h2>
-        <button onClick={() => router.push(`/setlists/${setlistId}`)} className="px-6 py-3 bg-accent-gradient text-white font-bold rounded-xl shadow-md hover:brightness-110 transition-all">
+        <button onClick={() => router.push(`/setlists/view?id=${setlistId}`)} className="px-6 py-3 bg-accent-gradient text-white font-bold rounded-xl shadow-md hover:brightness-110 transition-all">
           Back to Setlist
         </button>
       </div>
@@ -440,7 +440,7 @@ export default function SetlistPerformPage() {
         <p className="text-sm text-text-secondary">
           {mode === 'loading' && !isLeaderDevice ? 'Waiting for leader to join…' : 'Loading…'}
         </p>
-        <button onClick={() => router.push(`/setlists/${setlistId}`)} className="text-xs text-text-secondary underline mt-2">Cancel</button>
+        <button onClick={() => router.push(`/setlists/view?id=${setlistId}`)} className="text-xs text-text-secondary underline mt-2">Cancel</button>
       </div>
     );
   }
@@ -461,7 +461,7 @@ export default function SetlistPerformPage() {
         {/* Row 1: setlist name + controls */}
         <div className="flex items-center gap-3 px-3 py-2.5">
           <button
-            onClick={() => isLeader ? setShowEndConfirmModal(true) : router.push(`/setlists/${setlistId}`)}
+            onClick={() => isLeader ? setShowEndConfirmModal(true) : router.push(`/setlists/view?id=${setlistId}`)}
             className="p-2 text-text-secondary hover:text-white bg-surface-raised border border-border rounded-lg transition-all shrink-0"
             title="Close setlist performance"
           >

@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/AuthProvider';
-import { isRunningNatively } from '@/lib/platform';
 import { 
   User, 
   Mail,
@@ -49,9 +48,6 @@ export default function AuthPage() {
   // Rate limiting & lockout
   const [failedAttempts, setFailedAttempts] = useState(0);
   const [lockoutTimer, setLockoutTimer] = useState(0);
-
-  // Deep-link redirection to native app when authenticated in mobile browser
-  const [appRedirectUrl, setAppRedirectUrl] = useState<string | null>(null);
 
   // Platform detection
   const [isApplePlatform, setIsApplePlatform] = useState(false);
@@ -152,27 +148,7 @@ export default function AuthPage() {
           console.warn('[Auth] Error safely syncing profile on sign in:', e);
         }
 
-        // Check if user is in an external mobile browser (e.g. Chrome/Safari) and needs redirect back to native app
-        const isNative = isRunningNatively();
-        const isExternalMobileBrowser = typeof window !== 'undefined' && 
-          /android|iphone|ipad|ipod/i.test(navigator.userAgent) && 
-          !isNative;
-
-        if (isExternalMobileBrowser) {
-          const tokens = session ? `#access_token=${session.access_token}&refresh_token=${session.refresh_token}` : '';
-          const deepLink = `com.chordly.app://auth${tokens}`;
-          const isAndroid = /android/i.test(navigator.userAgent);
-          const targetUrl = isAndroid
-            ? `intent://auth${tokens}#Intent;scheme=com.chordly.app;package=com.chordly.app;end;`
-            : deepLink;
-
-          setAppRedirectUrl(targetUrl);
-          try {
-            window.location.href = targetUrl;
-          } catch {}
-        } else {
-          router.replace('/');
-        }
+        router.replace('/');
       }
     });
 
@@ -207,26 +183,7 @@ export default function AuthPage() {
             console.error('[Auth] OAuth exchange error:', error);
             setGeneralError(error.message || 'Failed to complete sign-in from redirect.');
           } else if (data?.session) {
-            const isNative = isRunningNatively();
-            const isExternalMobileBrowser = typeof window !== 'undefined' && 
-              /android|iphone|ipad|ipod/i.test(navigator.userAgent) && 
-              !isNative;
-
-            if (isExternalMobileBrowser) {
-              const tokens = `#access_token=${data.session.access_token}&refresh_token=${data.session.refresh_token}`;
-              const isAndroid = /android/i.test(navigator.userAgent);
-              const deepLink = `com.chordly.app://auth${tokens}`;
-              const targetUrl = isAndroid
-                ? `intent://auth${tokens}#Intent;scheme=com.chordly.app;package=com.chordly.app;end;`
-                : deepLink;
-
-              setAppRedirectUrl(targetUrl);
-              try {
-                window.location.href = targetUrl;
-              } catch {}
-            } else {
-              router.replace('/');
-            }
+            router.replace('/');
           }
         }).catch((err) => {
           setIsSubmitting(false);
@@ -308,33 +265,16 @@ export default function AuthPage() {
     setSuccessMessage(null);
     setIsSubmitting(true);
     try {
-      const isNative = isRunningNatively();
+      const redirectUrl = typeof window !== 'undefined' ? `${window.location.origin}/auth` : undefined;
 
-      const redirectUrl = isNative
-        ? 'com.chordly.app://auth'
-        : (typeof window !== 'undefined' ? `${window.location.origin}/auth` : undefined);
-
-      const { data, error } = await supabase.auth.signInWithOAuth({
+      const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo: redirectUrl,
-          skipBrowserRedirect: isNative,
         },
       });
 
       if (error) throw error;
-
-      if (isNative && data?.url) {
-        try {
-          const { Browser } = await import('@capacitor/browser');
-          await Browser.open({
-            url: data.url,
-            windowName: '_self',
-          });
-        } catch {
-          window.open(data.url, '_system');
-        }
-      }
     } catch (err: any) {
       setGeneralError(err.message || 'Google sign-in failed. Please try again.');
       setIsSubmitting(false);
@@ -347,33 +287,16 @@ export default function AuthPage() {
     setSuccessMessage(null);
     setIsSubmitting(true);
     try {
-      const isNative = isRunningNatively();
+      const redirectUrl = typeof window !== 'undefined' ? `${window.location.origin}/auth` : undefined;
 
-      const redirectUrl = isNative
-        ? 'com.chordly.app://auth'
-        : (typeof window !== 'undefined' ? `${window.location.origin}/auth` : undefined);
-
-      const { data, error } = await supabase.auth.signInWithOAuth({
+      const { error } = await supabase.auth.signInWithOAuth({
         provider: 'apple',
         options: {
           redirectTo: redirectUrl,
-          skipBrowserRedirect: isNative,
         },
       });
 
       if (error) throw error;
-
-      if (isNative && data?.url) {
-        try {
-          const { Browser } = await import('@capacitor/browser');
-          await Browser.open({
-            url: data.url,
-            windowName: '_self',
-          });
-        } catch {
-          window.open(data.url, '_system');
-        }
-      }
     } catch (err: any) {
       setGeneralError(err.message || 'Apple sign-in failed. Please try again.');
       setIsSubmitting(false);
@@ -661,7 +584,7 @@ export default function AuthPage() {
     }
   };
 
-  if (loading || (user && modalView !== 'recovery' && !appRedirectUrl)) return null;
+  if (loading || (user && modalView !== 'recovery')) return null;
 
   const identifierError = getIdentifierError();
   const signupUsernameError = getSignupUsernameError();
@@ -678,35 +601,7 @@ export default function AuthPage() {
     >
       {/* Centered Main Card */}
       <div className="w-full max-w-[440px] my-auto rounded-[32px] bg-[#17171C] border border-[#2C2C34] p-6 sm:p-8 shadow-[0_24px_64px_rgba(0,0,0,0.65),0_1px_0_rgba(255,255,255,0.05)_inset] select-auto transition-all">
-        {appRedirectUrl ? (
-          <div className="flex flex-col items-center text-center py-6 space-y-4 animate-in fade-in zoom-in-95 duration-200">
-            <div className="w-16 h-16 rounded-2xl bg-orange-500/20 border border-orange-500/40 flex items-center justify-center text-orange-400 shadow-xl shadow-orange-500/10 mb-2">
-              <Zap className="w-8 h-8 animate-pulse text-[#FF5A00]" />
-            </div>
-            <h2 className="text-2xl font-extrabold text-white">Signed In Successfully!</h2>
-            <p className="text-sm text-[#8C8A93] max-w-xs">
-              Opening the Chordly app on your device...
-            </p>
-            <a
-              href={appRedirectUrl}
-              className="w-full h-12 mt-2 rounded-2xl bg-gradient-to-r from-[#FF5A00] to-[#FF5C7A] text-white font-bold text-base shadow-lg shadow-orange-500/25 flex items-center justify-center gap-2 active:scale-98 transition-transform cursor-pointer"
-            >
-              Open Chordly App
-            </a>
-            <button
-              type="button"
-              onClick={() => {
-                setAppRedirectUrl(null);
-                router.replace('/');
-              }}
-              className="text-xs text-[#8C8A93] hover:text-white underline pt-2 cursor-pointer"
-            >
-              Or continue in this browser
-            </button>
-          </div>
-        ) : (
-          <>
-            {/* 1. App Logo, Title, Subtitle */}
+        {/* 1. App Logo, Title, Subtitle */}
             <div className="flex flex-col items-center text-center mb-6">
           <div className="w-14 h-14 rounded-2xl bg-[#231816] border border-[#3E2319] flex items-center justify-center shadow-lg shadow-[#FF5A00]/10 mb-4 transition-transform hover:scale-105">
             <img 
@@ -1074,8 +969,6 @@ export default function AuthPage() {
             Charts stay on this device. Sign in anytime to sync.
           </span>
         </button>
-          </>
-        )}
       </div>
 
       {/* 10. Footer: Terms & Privacy Policy */}
@@ -1266,7 +1159,7 @@ export default function AuthPage() {
             </div>
             
             <div className="overflow-y-auto text-xs text-[#8C8A93] space-y-3.5 pr-2 leading-relaxed">
-              <p>Welcome to <strong className="text-white">Chordly</strong>. By accessing or using our application, whether via web, mobile (APK/iOS), or desktop, you agree to comply with and be bound by these terms.</p>
+              <p>Welcome to <strong className="text-white">Chordly</strong>. By accessing or using our application, whether via web or desktop, you agree to comply with and be bound by these terms.</p>
               <h3 className="text-sm font-semibold text-white pt-1">1. User Account & Offline Local Data</h3>
               <p>You can use Chordly in offline Guest Mode without an account. All your musical charts and setlists are preserved locally on your device via IndexedDB. When signing in or syncing, your charts are protected by Supabase security policies.</p>
               <h3 className="text-sm font-semibold text-white pt-1">2. Music Notation & Content Ownership</h3>
