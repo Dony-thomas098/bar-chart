@@ -1,5 +1,5 @@
 'use client';
 
-export function LiveUpdateNotification() {
+export function LiveUpdateNotification(): null {
   return null;
 }

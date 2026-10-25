@@ -321,13 +321,7 @@ export async function seedSampleData(overrideUserId?: string) {
   }
 
   // ─── 3. SAMPLE LYRICS ────────────────────────────────────────────────────
-  const sampleLyrics = {
-    id: crypto.randomUUID(),
-    title: 'Amazing Grace (Complete Lyrics)',
-    folder_id: lyricsFolder.id,
-    created_by: userId,
-    updated_at: now,
-    content: `[Verse 1]
+  const lyricsBody = `[Verse 1]
 Amazing grace! How sweet the sound
 That saved a wretch like me!
 I once was lost, but now am found;
@@ -349,7 +343,16 @@ And grace will lead me home.
 When we've been there ten thousand years,
 Bright shining as the sun,
 We've no less days to sing God's praise
-Than when we'd first begun.`
+Than when we'd first begun.`;
+
+  const sampleLyrics = {
+    id: crypto.randomUUID(),
+    title: 'Amazing Grace (Complete Lyrics)',
+    folder_id: lyricsFolder.id,
+    created_by: userId,
+    updated_at: now,
+    body: lyricsBody,
+    content: lyricsBody,
   };
 
   if (typeof window !== 'undefined') {

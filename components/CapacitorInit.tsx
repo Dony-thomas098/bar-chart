@@ -1,5 +1,5 @@
 'use client';
 
-export function CapacitorInit() {
+export function CapacitorInit(): null {
   return null;
 }

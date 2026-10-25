@@ -3,8 +3,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth, canModifySection } from './AuthProvider';
-import { saveChart } from '@/lib/storage';
-import { saveLyrics } from '@/lib/lyrics';
+import { saveChart, type Chart } from '@/lib/storage';
+import { saveLyrics, type Lyric } from '@/lib/lyrics';
 import { createDefaultLine } from '@/lib/chart-types';
 import { Music, Type, X } from 'lucide-react';
 import styles from './WaterJumpNavbar.module.css';
@@ -370,7 +370,7 @@ export function Navigation() {
   const handleCreateNewChart = async () => {
     setCreateModalOpen(false);
     const currentUserId = user?.id || (typeof window !== 'undefined' ? localStorage.getItem('chord-grid-offline-user-id') : null) || 'guest-user';
-    const chart = {
+    const chart: Chart = {
       id: crypto.randomUUID(),
       title: 'Untitled Chart',
       tempo: 120,
@@ -389,7 +389,7 @@ export function Navigation() {
   const handleCreateNewLyrics = async () => {
     setCreateModalOpen(false);
     const currentUserId = user?.id || (typeof window !== 'undefined' ? localStorage.getItem('chord-grid-offline-user-id') : null) || 'guest-user';
-    const lyrics = {
+    const lyrics: Lyric = {
       id: crypto.randomUUID(),
       title: 'Untitled Lyrics',
       body: '',

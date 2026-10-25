@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 
-export function SWRegister() {
+export function SWRegister(): null {
   useEffect(() => {
     if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
 

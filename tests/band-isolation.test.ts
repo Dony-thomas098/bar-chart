@@ -9,7 +9,8 @@ import {
   DEFAULT_CHURCH_BAND_ID,
   getBandFilter,
   Chart, 
-  Folder 
+  Folder,
+  Lyric 
 } from '../lib/storage';
 import { 
   saveBandLocally, 
@@ -240,7 +241,7 @@ describe('Band Data Isolation & Scoped Storage', () => {
     expect(cachedChart?.band_id).toBe(BAND_1.id);
 
     // saveLyrics
-    const newLyric = {
+    const newLyric: Lyric = {
       id: 'new-lyric-auto-band',
       title: 'Auto Band Lyric',
       body: 'Lyrics line 1',

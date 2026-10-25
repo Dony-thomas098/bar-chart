@@ -7,11 +7,7 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     globals: true,
-    pool: 'forks',
-    forks: {
-      singleFork: true,
-    },
-  },
+  } as any,
   resolve: {
     alias: {
       '@': path.resolve(import.meta.dirname, './'),

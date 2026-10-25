@@ -66,7 +66,7 @@ interface BarChartDB extends DBSchema {
   };
 }
 
-let dbPromise: Promise<IDBPDatabase<BarChartDB> | null> | null = null;
+let dbPromise: Promise<IDBPDatabase<BarChartDB>> | null = null;
 if (typeof window !== 'undefined' && typeof indexedDB !== 'undefined') {
   dbPromise = openDB<BarChartDB>('bar-chart-db', 3, {
     upgrade(db, oldVersion) {
@@ -98,7 +98,7 @@ if (typeof window !== 'undefined' && typeof indexedDB !== 'undefined') {
     },
   }).catch((err) => {
     console.warn('[Storage] IndexedDB initialization failed:', err);
-    return null;
+    throw err;
   });
 }
 

@@ -5,6 +5,7 @@ export type Lyric = {
   id: string;
   title: string;
   body: string;
+  content?: string;
   folder_id: string | null;
   created_by: string;
   updated_at: string;
