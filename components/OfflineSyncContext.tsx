@@ -116,7 +116,7 @@ export function OfflineSyncProvider({ children }: { children: React.ReactNode })
   const subscribeToRealtime = useCallback(() => {
     // Clean up any existing subscription
     if (realtimeChannelRef.current) {
-      supabase.removeChannel(realtimeChannelRef.current);
+      supabase.removeChannel(realtimeChannelRef.current).catch((err: unknown) => console.warn('[OfflineSync] removeChannel error:', err));
       realtimeChannelRef.current = null;
     }
 
@@ -255,7 +255,7 @@ export function OfflineSyncProvider({ children }: { children: React.ReactNode })
 
   const unsubscribeFromRealtime = useCallback(() => {
     if (realtimeChannelRef.current) {
-      supabase.removeChannel(realtimeChannelRef.current);
+      supabase.removeChannel(realtimeChannelRef.current).catch((err: unknown) => console.warn('[OfflineSync] removeChannel error:', err));
       realtimeChannelRef.current = null;
     }
     currentBandIdRef.current = null;

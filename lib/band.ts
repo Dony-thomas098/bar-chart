@@ -324,14 +324,27 @@ export async function createBand(name: string, code: string): Promise<{ success:
     const { data: { user } } = await supabase.auth.getUser();
     const userId = user?.id || crypto.randomUUID();
 
-    // Check if code is already in use
-    const { data: existing } = await supabase
-      .from('bands')
-      .select('id')
-      .ilike('code', trimmedCode)
-      .maybeSingle();
+    // Check if code is already in use (try Migration 009 RPC first, fallback to table query)
+    let isTaken = false;
+    try {
+      const { data: rpcTaken, error: rpcErr } = await supabase.rpc('is_band_code_taken', {
+        p_code: trimmedCode,
+      });
+      if (!rpcErr && typeof rpcTaken === 'boolean') {
+        isTaken = rpcTaken;
+      }
+    } catch {}
 
-    if (existing) {
+    if (!isTaken) {
+      const { data: existing } = await supabase
+        .from('bands')
+        .select('id')
+        .ilike('code', trimmedCode)
+        .maybeSingle();
+      if (existing) isTaken = true;
+    }
+
+    if (isTaken) {
       return { success: false, error: `The code "${trimmedCode}" is already taken. Please choose another code.` };
     }
 
@@ -411,20 +424,38 @@ export async function joinBand(code: string): Promise<{ success: boolean; band?:
   }
 
   try {
-    const { data, error } = await supabase
-      .from('bands')
-      .select('*')
-      .ilike('code', trimmedCode)
-      .maybeSingle();
+    // Try Migration 009 RPC get_band_by_code first, fallback to direct query
+    let band: Band | null = null;
+    try {
+      const { data: rpcData, error: rpcErr } = await supabase.rpc('get_band_by_code', {
+        p_code: trimmedCode,
+      });
+      if (!rpcErr && rpcData) {
+        const row = Array.isArray(rpcData) ? rpcData[0] : rpcData;
+        if (row && row.id) {
+          band = row as Band;
+        }
+      }
+    } catch {}
 
-    if (error || !data) {
+    if (!band) {
+      const { data, error } = await supabase
+        .from('bands')
+        .select('*')
+        .ilike('code', trimmedCode)
+        .maybeSingle();
+
+      if (!error && data) {
+        band = data as Band;
+      }
+    }
+
+    if (!band) {
       return {
         success: false,
         error: `No band found with code "${trimmedCode}". Please verify the code with your band leader.`,
       };
     }
-
-    const band: Band = data;
     const { data: { user } } = await supabase.auth.getUser();
 
     // If switching from another band, clear previous band's cached data from IndexedDB

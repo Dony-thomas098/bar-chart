@@ -347,6 +347,20 @@ export default function AuthPage() {
               console.debug('[Auth] RPC lookup skipped:', rpcEx);
             }
 
+            // 2b. Try Migration 009 RPC get_email_for_username
+            if (!foundEmail) {
+              try {
+                const { data: rpcEmail, error: rpcErr } = await supabase.rpc('get_email_for_username', {
+                  p_username: cleanIdentifier,
+                });
+                if (!rpcErr && rpcEmail && typeof rpcEmail === 'string' && rpcEmail.includes('@')) {
+                  foundEmail = rpcEmail.trim().toLowerCase();
+                }
+              } catch (rpcEx2) {
+                console.debug('[Auth] RPC get_email_for_username skipped:', rpcEx2);
+              }
+            }
+
             // 3. Fallback: Query public.profiles directly by username
             if (!foundEmail) {
               try {

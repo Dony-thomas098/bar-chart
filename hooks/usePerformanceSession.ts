@@ -54,6 +54,9 @@ export function usePerformanceSession(
   const isFollowingRef = useRef(true);
   const isMountedRef = useRef(true);
   const modeRef = useRef<PerformRole>(mode);
+  const instanceIdRef = useRef<string>('');
+  const leaderInstanceIdRef = useRef<string | null>(null);
+  const leaderDisconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => { modeRef.current = mode; }, [mode]);
   useEffect(() => { currentIndexRef.current = currentIndex; }, [currentIndex]);
@@ -62,6 +65,7 @@ export function usePerformanceSession(
   useEffect(() => {
     isMountedRef.current = true;
     const instanceId = Math.random().toString(36).slice(2, 8);
+    instanceIdRef.current = instanceId;
     let requestInterval: NodeJS.Timeout | null = null;
     
     const init = async () => {
@@ -97,7 +101,7 @@ export function usePerformanceSession(
 
       // Clean up any existing channel before subscribing
       if (channelRef.current) {
-        supabase.removeChannel(channelRef.current);
+        supabase.removeChannel(channelRef.current).catch((err: unknown) => console.warn('[PerformSession] removeChannel cleanup error:', err));
       }
 
       // Shared channel name for everyone joining this session code
@@ -112,12 +116,13 @@ export function usePerformanceSession(
       channel
         .on('broadcast', { event: 'request-state' }, () => {
           if (!isMountedRef.current || !isLeader) return;
-          // Leader replies with current state
+          // Leader replies with current state and sender authentication ID
           channel.send({
             type: 'broadcast',
             event: 'sync-state',
             payload: {
               role: 'leader',
+              senderId: instanceId,
               name: myNameRef.current,
               currentIndex: currentIndexRef.current,
               chartIds: initialPayload?.chartIds || [],
@@ -148,6 +153,11 @@ export function usePerformanceSession(
         })
         .on('broadcast', { event: 'chart-change' }, ({ payload }) => {
           if (!isMountedRef.current) return;
+          // Guard against spoofed chart-change from non-leader participants
+          if (!isLeader && leaderInstanceIdRef.current && payload?.senderId && payload.senderId !== leaderInstanceIdRef.current) {
+            console.warn('[PerformSession] Discarded unauthorized chart-change broadcast from:', payload.senderId);
+            return;
+          }
           const idx = payload?.index ?? 0;
           setCurrentIndex(idx);
           currentIndexRef.current = idx;
@@ -155,8 +165,13 @@ export function usePerformanceSession(
             window.dispatchEvent(new CustomEvent('perform-navigate', { detail: { index: idx } }));
           }
         })
-        .on('broadcast', { event: 'session-end' }, () => {
+        .on('broadcast', { event: 'session-end' }, ({ payload }) => {
           if (!isMountedRef.current) return;
+          // Guard against spoofed session-end from non-leader participants
+          if (!isLeader && leaderInstanceIdRef.current && payload?.senderId && payload.senderId !== leaderInstanceIdRef.current) {
+            console.warn('[PerformSession] Discarded unauthorized session-end broadcast from:', payload?.senderId);
+            return;
+          }
           setMode('loading');
           modeRef.current = 'loading';
           window.dispatchEvent(new CustomEvent('perform-session-end'));
@@ -168,6 +183,15 @@ export function usePerformanceSession(
 
           const leader = presences.find(p => p.role === 'leader');
           if (leader) {
+            // Track leader instance ID for broadcast authentication
+            const matchedKey = Object.entries(state).find(([, arr]) => arr.some(p => (p as PerformancePresence).role === 'leader'))?.[0] || null;
+            leaderInstanceIdRef.current = matchedKey;
+
+            if (leaderDisconnectTimeoutRef.current) {
+              clearTimeout(leaderDisconnectTimeoutRef.current);
+              leaderDisconnectTimeoutRef.current = null;
+            }
+
             setLeaderName(leader.name ?? 'Leader');
             if (!isLeader) {
               if (leader.chartIds && leader.chartIds.length > 0) {
@@ -186,7 +210,15 @@ export function usePerformanceSession(
               }
             }
           } else if (!isLeader && modeRef.current === 'follower') {
-            window.dispatchEvent(new CustomEvent('perform-leader-left', { detail: { message: 'Leader has disconnected from the session.' } }));
+            // 6-second grace period / debounce for transient Wi-Fi drops before firing leader left
+            if (!leaderDisconnectTimeoutRef.current) {
+              leaderDisconnectTimeoutRef.current = setTimeout(() => {
+                if (isMountedRef.current && !isLeader && modeRef.current === 'follower') {
+                  window.dispatchEvent(new CustomEvent('perform-leader-left', { detail: { message: 'Leader has disconnected from the session.' } }));
+                }
+                leaderDisconnectTimeoutRef.current = null;
+              }, 6000);
+            }
           }
 
           const followers = presences.filter(p => p.role === 'follower');
@@ -233,9 +265,13 @@ export function usePerformanceSession(
     return () => {
       isMountedRef.current = false;
       if (requestInterval) clearInterval(requestInterval);
+      if (leaderDisconnectTimeoutRef.current) {
+        clearTimeout(leaderDisconnectTimeoutRef.current);
+        leaderDisconnectTimeoutRef.current = null;
+      }
       const ch = channelRef.current;
       if (ch) {
-        supabase.removeChannel(ch);
+        supabase.removeChannel(ch).catch((err: unknown) => console.warn('[PerformSession] removeChannel cleanup error:', err));
         channelRef.current = null;
       }
     };
@@ -255,15 +291,23 @@ export function usePerformanceSession(
       currentIndex: index,
       chartIds: initialPayload?.chartIds,
       sessionName: initialPayload?.sessionName,
+    }).catch((err: unknown) => console.warn('[PerformSession] track error:', err));
+    ch.send({
+      type: 'broadcast',
+      event: 'chart-change',
+      payload: { index, senderId: instanceIdRef.current },
     });
-    ch.send({ type: 'broadcast', event: 'chart-change', payload: { index } });
   }, [initialPayload]);
 
   const endSession = useCallback(() => {
     const ch = channelRef.current;
     if (!ch) return;
-    ch.send({ type: 'broadcast', event: 'session-end', payload: {} });
-    supabase.removeChannel(ch);
+    ch.send({
+      type: 'broadcast',
+      event: 'session-end',
+      payload: { senderId: instanceIdRef.current },
+    });
+    supabase.removeChannel(ch).catch((err: unknown) => console.warn('[PerformSession] removeChannel error:', err));
     channelRef.current = null;
   }, []);
 
