@@ -9,6 +9,8 @@ export type Lyric = {
   created_by: string;
   updated_at: string;
   is_bookmarked?: boolean;
+  type?: string;
+  band_id?: string | null;
 };
 
 const isOnline = () => {
@@ -30,7 +32,7 @@ export async function saveLyrics(lyric: Lyric) {
   let savedOnline = false;
   if (isOnline()) {
     try {
-      const { type, ...dbPayload } = lyric as any;
+      const { type, ...dbPayload } = lyric;
       const { error } = await supabase.from('lyrics').upsert(dbPayload);
       if (!error) {
         savedOnline = true;
@@ -129,15 +131,17 @@ export async function importLyrics(file: File, targetFolderId: string | null) {
           reject(new Error('File is empty'));
           return;
         }
-        let lyricsData: any;
+        let lyricsData: Partial<Lyric>;
         try {
-          lyricsData = JSON.parse(content);
+          lyricsData = JSON.parse(content) as Partial<Lyric>;
         } catch (parseErr) {
           reject(new Error('Invalid JSON format in imported lyrics'));
           return;
         }
         const { data: { user } } = await supabase.auth.getUser();
         const newLyric: Lyric = {
+          title: 'Untitled Lyric',
+          body: '',
           ...lyricsData,
           id: crypto.randomUUID(),
           folder_id: targetFolderId,

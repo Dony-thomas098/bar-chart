@@ -4,7 +4,7 @@ import { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { User } from '@supabase/supabase-js';
 import { useRouter, usePathname } from 'next/navigation';
-import { flushPendingSaves } from '@/lib/storage';
+import { flushPendingSaves, clearBandCache, getPendingSavesCount } from '@/lib/storage';
 import { getStoredBand, restoreBandForEmail, syncBandForUser, clearActiveBandSession } from '@/lib/band';
 
 export type UserProfession = 'singing' | 'instrument' | 'admin' | null;
@@ -337,6 +337,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (e) {
       console.warn('[Auth] Error flushing pending saves during signout:', e);
     }
+    // Warn if logging out offline with pending saves
+    try {
+      const pendingCount = await getPendingSavesCount();
+      if (pendingCount > 0 && typeof navigator !== 'undefined' && !navigator.onLine) {
+        console.warn(`[Auth] Warning: signing out while offline with ${pendingCount} un-synced save(s).`);
+      }
+    } catch {}
+
+    // Purge cached band items from IndexedDB so another user doesn't inherit prior band state
+    try {
+      await clearBandCache(profile.band_id || undefined);
+    } catch (e) {
+      console.warn('[Auth] Error clearing band cache on signOut:', e);
+    }
+
     // Clear active session keys so another user logging in on the device doesn't inherit prior state
     if (typeof window !== 'undefined') {
       localStorage.removeItem(GUEST_KEY);

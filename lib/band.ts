@@ -80,7 +80,7 @@ export function clearActiveBandSession(): void {
 }
 
 /** Check if current device or user has already joined a band */
-export function hasJoinedBand(user?: { email?: string | null; user_metadata?: any } | null): boolean {
+export function hasJoinedBand(user?: { email?: string | null; user_metadata?: Record<string, unknown> } | null): boolean {
   if (typeof window === 'undefined') return false;
 
   // If a specific user is provided with an email, verify their email-specific membership or metadata

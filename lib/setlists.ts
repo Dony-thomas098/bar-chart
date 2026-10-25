@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { DEFAULT_CHURCH_BAND_ID } from './storage';
+import { DEFAULT_CHURCH_BAND_ID, type Line } from './storage';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -21,7 +21,7 @@ export type SetlistItem = {
   position: number;
   transpose_override: number | null;
   notes: string | null;
-  lines_override?: any;
+  lines_override?: Line[] | null;
   band_id?: string | null;
   // display fields populated by join
   title?: string;
@@ -236,12 +236,19 @@ export async function removeSetlistItem(id: string, setlistId: string): Promise<
 export async function reorderSetlistItems(
   items: Array<{ id: string; position: number }>,
 ): Promise<void> {
-  // Supabase doesn't support bulk update in one shot cleanly, so we use upsert
+  // Supabase doesn't support bulk update in one shot cleanly, so we use individual updates
   const rows = items.map(({ id, position }) => ({ id, position }));
-  // Fire individual updates in parallel
-  await Promise.all(
+  // Fire individual updates in parallel and inspect results
+  const results = await Promise.all(
     rows.map(({ id, position }) =>
       supabase.from('setlist_items').update({ position }).eq('id', id),
     ),
   );
+
+  for (const { error } of results) {
+    if (error) {
+      console.error('[Setlists] Failed to reorder setlist items:', error);
+      throw new Error(`Failed to update item position: ${error.message}`);
+    }
+  }
 }
