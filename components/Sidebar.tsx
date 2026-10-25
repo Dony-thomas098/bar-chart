@@ -111,7 +111,14 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
       updated_at: new Date().toISOString(),
     };
     await saveChart(chart);
-    router.push(`/chart/edit/?id=${chart.id}`);
+    const chartUrl = `/chart/edit/?id=${chart.id}`;
+    try {
+      router.push(chartUrl);
+    } catch {
+      if (typeof window !== 'undefined') {
+        window.location.href = chartUrl;
+      }
+    }
     onClose();
   };
 
@@ -126,7 +133,14 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
       updated_at: new Date().toISOString(),
     };
     await saveLyrics(lyric);
-    router.push(`/lyrics/edit/?id=${lyric.id}`);
+    const lyricsUrl = `/lyrics/edit/?id=${lyric.id}`;
+    try {
+      router.push(lyricsUrl);
+    } catch {
+      if (typeof window !== 'undefined') {
+        window.location.href = lyricsUrl;
+      }
+    }
     onClose();
   };
 

@@ -16,7 +16,18 @@ function ChartViewerContent() {
   const router = useRouter();
   const chartId = (params?.id as string) || searchParams?.get('id') || '';
 
-  const { chart, loading: chartLoading } = useChartSync(chartId);
+  React.useEffect(() => {
+    if (chartId === 'edit') {
+      const search = typeof window !== 'undefined' ? window.location.search : '';
+      router.replace(`/chart/edit/${search}`);
+    }
+  }, [chartId, router]);
+
+  const { chart, loading: chartLoading } = useChartSync(chartId === 'edit' ? '' : chartId);
+
+  if (chartId === 'edit') {
+    return null;
+  }
 
   if (authLoading || chartLoading) {
     return (

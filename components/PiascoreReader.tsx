@@ -1012,7 +1012,21 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
         {/* Button 5: Writing */}
         {canEditChart && currentChart && (
           <button
-            onClick={() => router.push(`/chart/edit?id=${currentChart.id}`)}
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (currentChart?.id) {
+                const targetUrl = `/chart/edit/?id=${encodeURIComponent(currentChart.id)}`;
+                try {
+                  router.push(targetUrl);
+                } catch {
+                  if (typeof window !== 'undefined') {
+                    window.location.href = targetUrl;
+                  }
+                }
+              }
+            }}
             className="flex flex-col items-center gap-1 text-[10px] font-semibold text-[#8C8A93] hover:text-[#FF6A1F] transition-all active:scale-95 cursor-pointer"
           >
             <Edit3 size={20} />

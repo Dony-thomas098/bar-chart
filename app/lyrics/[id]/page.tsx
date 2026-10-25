@@ -26,9 +26,20 @@ export default function LyricsViewer() {
   const { user, loading: authLoading } = useAuth();
   const params = useParams();
   const router = useRouter();
-  const lyricId = params.id as string;
+  const lyricId = params?.id as string;
 
-  const { lyric, loading: lyricLoading } = useLyricsSync(lyricId);
+  React.useEffect(() => {
+    if (lyricId === 'edit') {
+      const search = typeof window !== 'undefined' ? window.location.search : '';
+      router.replace(`/lyrics/edit/${search}`);
+    }
+  }, [lyricId, router]);
+
+  const { lyric, loading: lyricLoading } = useLyricsSync(lyricId === 'edit' ? '' : lyricId);
+
+  if (lyricId === 'edit') {
+    return null;
+  }
 
   if (authLoading || lyricLoading) {
     return (

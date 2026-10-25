@@ -16,7 +16,18 @@ function LyricsViewerContent() {
   const router = useRouter();
   const lyricId = (params?.id as string) || searchParams?.get('id') || '';
 
-  const { lyric, loading: lyricLoading } = useLyricsSync(lyricId);
+  React.useEffect(() => {
+    if (lyricId === 'edit') {
+      const search = typeof window !== 'undefined' ? window.location.search : '';
+      router.replace(`/lyrics/edit/${search}`);
+    }
+  }, [lyricId, router]);
+
+  const { lyric, loading: lyricLoading } = useLyricsSync(lyricId === 'edit' ? '' : lyricId);
+
+  if (lyricId === 'edit') {
+    return null;
+  }
 
   if (authLoading || lyricLoading) {
     return (

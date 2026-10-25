@@ -899,7 +899,21 @@ export function PiascoreLyricsReader({ initialLyric, folderId }: Props) {
         {/* Button 5: Writing */}
         {canEditLyrics && (
           <button
-            onClick={() => router.push(`/lyrics/edit?id=${currentLyric.id}`)}
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (currentLyric?.id) {
+                const targetUrl = `/lyrics/edit/?id=${encodeURIComponent(currentLyric.id)}`;
+                try {
+                  router.push(targetUrl);
+                } catch {
+                  if (typeof window !== 'undefined') {
+                    window.location.href = targetUrl;
+                  }
+                }
+              }
+            }}
             className="flex flex-col items-center gap-0.5 text-[10px] font-semibold text-slate-600 dark:text-slate-400 hover:text-accent-start transition-all active:scale-95"
           >
             <Edit3 size={20} />

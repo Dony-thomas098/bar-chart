@@ -15,7 +15,7 @@ import { BandConnectModal } from './BandConnectModal';
 import { hasJoinedBand, syncBandForUser } from '@/lib/band';
 import {
   Folder as FolderIcon, FileText, MoreVertical, Search,
-  Plus, CornerLeftUp, Trash2, Edit2, CornerRightDown, Download, X,
+  Plus, CornerLeftUp, Trash2, Edit2, Edit3, CornerRightDown, Download, X,
   FolderPlus, FilePlus, Printer, Star, LayoutGrid, List, Sparkles, Check, Music
 } from 'lucide-react';
 import './ios-tiles.css';
@@ -379,7 +379,14 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
       };
       const { saveLyrics } = await import('@/lib/lyrics');
       await saveLyrics(lyrics);
-      router.push(`/lyrics/edit/?id=${lyrics.id}`);
+      const lyricsUrl = `/lyrics/edit/?id=${lyrics.id}`;
+      try {
+        router.push(lyricsUrl);
+      } catch {
+        if (typeof window !== 'undefined') {
+          window.location.href = lyricsUrl;
+        }
+      }
     } else {
       const chart = {
         id: crypto.randomUUID(),
@@ -394,7 +401,14 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
         updated_at: new Date().toISOString(),
       };
       await saveChart(chart);
-      router.push(`/chart/edit/?id=${chart.id}`);
+      const chartUrl = `/chart/edit/?id=${chart.id}`;
+      try {
+        router.push(chartUrl);
+      } catch {
+        if (typeof window !== 'undefined') {
+          window.location.href = chartUrl;
+        }
+      }
     }
   };
 
@@ -600,6 +614,17 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
               }}
             />
             <div className={`absolute right-0 ${dropdownDirection === 'up' ? 'bottom-full mb-2' : 'top-full mt-2'} w-48 bg-white/95 dark:bg-[#1c1c22]/95 backdrop-blur-2xl saturate-[180%] rounded-2xl shadow-[0_12px_40px_rgba(0,0,0,0.18),0_4px_12px_rgba(0,0,0,0.08)] z-50 border border-slate-200/80 dark:border-white/15 py-1.5 animate-in fade-in zoom-in-95 duration-150`}>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveDropdown(null);
+                  const targetUrl = type === 'lyrics' ? `/lyrics/edit/?id=${id}` : `/chart/edit/?id=${id}`;
+                  router.push(targetUrl);
+                }}
+                className="flex items-center w-full px-4 py-2 text-xs font-semibold text-slate-800 dark:text-slate-100 hover:bg-orange-500/10 hover:text-orange-600 dark:hover:text-orange-400 transition-colors cursor-pointer"
+              >
+                <Edit3 size={14} className="mr-2.5 text-orange-500" /> {type === 'lyrics' ? 'Edit Lyrics' : 'Edit Chart'}
+              </button>
               <button
                 onClick={(e) => { e.stopPropagation(); setActiveDropdown(null); setRenameItem({ id, type, currentName: name }); }}
                 className="flex items-center w-full px-4 py-2 text-xs font-semibold text-slate-800 dark:text-slate-100 hover:bg-orange-500/10 hover:text-orange-600 dark:hover:text-orange-400 transition-colors cursor-pointer"

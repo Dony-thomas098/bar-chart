@@ -26,9 +26,20 @@ export default function ChartViewer() {
   const { user, loading: authLoading } = useAuth();
   const params = useParams();
   const router = useRouter();
-  const chartId = params.id as string;
+  const chartId = params?.id as string;
 
-  const { chart, loading: chartLoading } = useChartSync(chartId);
+  React.useEffect(() => {
+    if (chartId === 'edit') {
+      const search = typeof window !== 'undefined' ? window.location.search : '';
+      router.replace(`/chart/edit/${search}`);
+    }
+  }, [chartId, router]);
+
+  const { chart, loading: chartLoading } = useChartSync(chartId === 'edit' ? '' : chartId);
+
+  if (chartId === 'edit') {
+    return null;
+  }
 
   if (authLoading || chartLoading) {
     return (
