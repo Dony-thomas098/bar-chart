@@ -268,14 +268,15 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Bypass dev mode HMR, chrome extensions, Supabase API calls, OTA update manifest
+  // Bypass dev mode HMR, chrome extensions, Supabase API calls, OTA update manifest, authorization headers
   if (
     request.method !== 'GET' ||
     url.pathname.startsWith('/_next/webpack-hmr') ||
     url.hostname.includes('supabase.co') ||
     url.protocol.startsWith('chrome-extension') ||
     url.pathname.endsWith('/update.json') ||
-    url.pathname === '/update.json'
+    url.pathname === '/update.json' ||
+    request.headers.has('Authorization')
   ) {
     return;
   }
@@ -286,8 +287,11 @@ self.addEventListener('fetch', (event) => {
       fetch(request)
         .then((response) => {
           if (response && response.status === 200) {
-            const responseClone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(request, responseClone));
+            const cc = response.headers.get('Cache-Control') || '';
+            if (!cc.includes('no-store') && !cc.includes('private')) {
+              const responseClone = response.clone();
+              caches.open(CACHE_NAME).then((cache) => cache.put(request, responseClone));
+            }
           }
           return response;
         })
@@ -528,11 +532,14 @@ self.addEventListener('fetch', (event) => {
           fetch(request)
             .then((networkResponse) => {
               if (networkResponse && networkResponse.status === 200) {
-                const responseClone = networkResponse.clone();
-                caches.open(CACHE_NAME).then((cache) => {
-                  cache.put(request, responseClone);
-                  cache.put(url.pathname, networkResponse.clone());
-                });
+                const cc = networkResponse.headers.get('Cache-Control') || '';
+                if (!cc.includes('no-store') && !cc.includes('private')) {
+                  const responseClone = networkResponse.clone();
+                  caches.open(CACHE_NAME).then((cache) => {
+                    cache.put(request, responseClone);
+                    cache.put(url.pathname, networkResponse.clone());
+                  });
+                }
               }
             })
             .catch(() => {});
@@ -552,11 +559,14 @@ self.addEventListener('fetch', (event) => {
       try {
         const networkResponse = await fetch(request);
         if (networkResponse && networkResponse.status === 200) {
-          const responseClone = networkResponse.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(request, responseClone);
-            cache.put(url.pathname, networkResponse.clone());
-          });
+          const cc = networkResponse.headers.get('Cache-Control') || '';
+          if (!cc.includes('no-store') && !cc.includes('private')) {
+            const responseClone = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(request, responseClone);
+              cache.put(url.pathname, networkResponse.clone());
+            });
+          }
         }
         return networkResponse;
       } catch (err) {

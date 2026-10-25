@@ -34,17 +34,29 @@ export function transposeSingleChord(raw: string, semitones: number, preferFlats
 }
 
 export function transposeChordString(raw: string, semitones: number, preferFlats: boolean): string {
-  if (!raw || raw.trim() === '') return raw;
+  if (!raw || raw.trim() === '' || semitones === 0) return raw;
 
   // Split by whitespace tokens while preserving spacing delimiters
   const tokens = raw.split(/(\s+)/);
   return tokens.map(token => {
     if (/^\s*$/.test(token)) return token;
-    if (!/^[A-G]/.test(token)) return token;
 
-    const parts = token.split('/');
-    const newParts = parts.map(p => transposeSingleChord(p, semitones, preferFlats));
-    return newParts.join('/');
+    // Check for wrapping delimiters like (C), [Am7], {G/B}, etc.
+    const match = token.match(/^([([{<]*)(.+?)([)\]}>]*)$/);
+    if (!match) return token;
+
+    const [, prefix, core, suffix] = match;
+    // Core token must start with a musical note letter A-G (case-insensitive)
+    if (!/^[a-gA-G]/.test(core)) return token;
+
+    const parts = core.split('/');
+    const newParts = parts.map(p => {
+      if (!p) return p;
+      // Capitalize note root if lowercase (e.g. 'am' -> 'Am')
+      const formatted = p.charAt(0).toUpperCase() + p.slice(1);
+      return transposeSingleChord(formatted, semitones, preferFlats);
+    });
+    return `${prefix}${newParts.join('/')}${suffix}`;
   }).join('');
 }
 

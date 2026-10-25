@@ -857,7 +857,16 @@ export default function ChartEditor() {
                       }
                     }}
                     onBlur={() => {
-                      if (!/^\d{1,2}\/\d{1,2}$/.test(chart.time_sig || '')) {
+                      const match = (chart.time_sig || '').match(/^(\d{1,2})\/(\d{1,2})$/);
+                      if (!match) {
+                        updateTimeSig('4/4');
+                        return;
+                      }
+                      const num = parseInt(match[1], 10);
+                      const den = parseInt(match[2], 10);
+                      // Numerator must be positive and denominator must be a power of two
+                      const validDenominators = [1, 2, 4, 8, 16, 32];
+                      if (num < 1 || !validDenominators.includes(den)) {
                         updateTimeSig('4/4');
                       }
                     }}

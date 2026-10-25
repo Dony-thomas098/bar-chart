@@ -14,7 +14,7 @@ import { TransformWrapper, TransformComponent, useControls } from 'react-zoom-pa
 import { calculateScoreFit } from '@/lib/score-fit';
 import {
   X, ChevronLeft, ChevronRight, Users, Radio, RefreshCw, FileText, Music,
-  Pencil, Plus, Trash2, RotateCcw, Check, Zap, Save
+  Pencil, Plus, Trash2, RotateCcw, Check, Zap, Save, AlertCircle
 } from 'lucide-react';
 
 // ─── Setlist Session Hook ─────────────────────────────────────────────────────
@@ -646,6 +646,28 @@ export default function SetlistPerformPage() {
                 style={selectedFont !== 'system' ? { fontFamily: selectedFont } : {}}
               >{currentLyrics.body}</pre>
             </div>
+          </div>
+        )}
+
+        {/* Fallback card if the referenced song was deleted or could not be loaded */}
+        {!contentLoading && currentItem && !currentChart && !currentLyrics && (
+          <div className="w-full h-[60vh] flex flex-col items-center justify-center text-center p-6 text-slate-400 select-none">
+            <div className="w-16 h-16 rounded-full bg-amber-500/10 flex items-center justify-center mb-4 border border-amber-500/20 text-amber-500">
+              <AlertCircle size={32} strokeWidth={2} />
+            </div>
+            <h2 className="text-xl font-bold text-slate-100 mb-2">Item Unavailable</h2>
+            <p className="text-sm max-w-sm mb-6 text-slate-400">
+              This song ({currentItem.item_type}) could not be loaded or may have been removed from the catalog.
+            </p>
+            {songPosition < totalSongs - 1 && (
+              <button
+                type="button"
+                onClick={() => goTo(songPosition + 1)}
+                className="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-xl text-xs uppercase tracking-wider transition-all shadow-lg active:scale-95"
+              >
+                Skip to Next Song →
+              </button>
+            )}
           </div>
         )}
       </div>
