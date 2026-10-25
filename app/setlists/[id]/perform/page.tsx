@@ -659,7 +659,7 @@ export default function SetlistPerformPage() {
             <p className="text-sm max-w-sm mb-6 text-slate-400">
               This song ({currentItem.item_type}) could not be loaded or may have been removed from the catalog.
             </p>
-            {songPosition < totalSongs - 1 && (
+            {songPosition < items.length - 1 && (
               <button
                 type="button"
                 onClick={() => goTo(songPosition + 1)}

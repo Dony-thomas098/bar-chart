@@ -479,11 +479,32 @@ export function PiascoreLyricsReader({ initialLyric, folderId }: Props) {
     stateKey: 'chordly_lyrics_modal',
   });
 
+  // ── Block going back to menu screen when screen lock is enabled ───────────
+  useEffect(() => {
+    if (!isStageLocked || typeof window === 'undefined') return;
+
+    window.history.pushState({ chordly_lyrics_lock_prevent_exit: true }, '', window.location.href);
+
+    const handlePopState = () => {
+      window.history.pushState({ chordly_lyrics_lock_prevent_exit: true }, '', window.location.href);
+      showLockNotification('Screen is locked · Tap lock icon to unlock');
+    };
+
+    window.addEventListener('popstate', handlePopState);
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+      if (window.history.state?.chordly_lyrics_lock_prevent_exit) {
+        window.history.back();
+      }
+    };
+  }, [isStageLocked, showLockNotification]);
+
   return (
     <div className="fixed inset-0 w-screen h-screen bg-[#e8e8ec] dark:bg-[#121214] text-slate-800 dark:text-slate-100 flex flex-col overflow-hidden select-none font-sans">
       {/* ── FLOATING TOP-RIGHT STAGE CONTROLS (Always accessible even when UI is hidden) ── */}
       <div className="fixed top-[calc(0.65rem+env(safe-area-inset-top,0px))] right-3 sm:right-5 z-[60] flex items-center gap-2 select-none no-print">
-        {/* Lock Screen Toggle Button */}
+        {/* Lock Screen Toggle Button: compact small circular button on mobile/rotate mode */}
         <button
           type="button"
           onClick={(e) => {
@@ -493,34 +514,34 @@ export function PiascoreLyricsReader({ initialLyric, folderId }: Props) {
               if (next) {
                 setShowUI(false);
                 closeAllPopups();
-                showLockNotification('Stage Lock ON · Accidental taps disabled');
+                showLockNotification('Stage Lock ON · Back & accidental taps blocked');
               } else {
-                showLockNotification('Stage Lock OFF · Tap screen to show options');
+                showLockNotification('Stage Lock OFF · Screen unlocked');
               }
               return next;
             });
           }}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full font-bold text-xs shadow-[0_4px_16px_rgba(0,0,0,0.6)] backdrop-blur-md transition-all active:scale-95 cursor-pointer border ${
+          className={`phone-rotate-compact-lock flex items-center justify-center gap-1.5 p-1.5 sm:px-3 sm:py-1.5 rounded-full font-bold text-xs shadow-[0_4px_16px_rgba(0,0,0,0.6)] backdrop-blur-md transition-all active:scale-95 cursor-pointer border ${
             isStageLocked
               ? 'bg-amber-500/20 text-amber-400 border-amber-500/50 shadow-[0_0_16px_rgba(245,158,11,0.35)] ring-1 ring-amber-400/40'
               : 'bg-[#14141A]/90 text-[#8C8A93] border-[#2A2A31] hover:text-[#F4F2F0] hover:border-[#3E3E48]'
           }`}
           title={
             isStageLocked
-              ? 'Screen Locked: accidental taps will not open editing options. Scrolling enabled. Tap to unlock.'
-              : 'Lock Screen: prevent editing options from popping up accidentally while scrolling'
+              ? 'Screen Locked: accidental taps and exiting disabled. Tap to unlock.'
+              : 'Lock Screen: prevent accidental taps and back navigation'
           }
           aria-label={isStageLocked ? 'Unlock screen' : 'Lock screen'}
         >
           {isStageLocked ? (
             <>
-              <Lock size={15} className="text-amber-400 stroke-[2.5]" />
-              <span className="font-semibold text-amber-400">Locked</span>
+              <Lock size={14} className="text-amber-400 stroke-[2.5]" />
+              <span className="hidden sm:inline font-semibold text-amber-400">Locked</span>
             </>
           ) : (
             <>
-              <Unlock size={15} className="stroke-[2.2]" />
-              <span className="font-semibold text-[#8C8A93]">Lock</span>
+              <Unlock size={14} className="stroke-[2.2]" />
+              <span className="hidden sm:inline font-semibold text-[#8C8A93]">Lock</span>
             </>
           )}
         </button>
@@ -540,12 +561,23 @@ export function PiascoreLyricsReader({ initialLyric, folderId }: Props) {
           showUI ? 'translate-y-0' : '-translate-y-full'
         }`}
       >
-        {/* Left: Catalog Button */}
+        {/* Left: Catalog Button (Blocked when Stage Locked) */}
         <button
-          onClick={() =>
-            router.push(folderId ? `/lyrics/folder?id=${folderId}` : '/lyrics')
-          }
-          className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-accent-start hover:bg-black/5 dark:hover:bg-white/5 rounded-lg transition-all active:scale-95"
+          disabled={isStageLocked}
+          onClick={() => {
+            if (isStageLocked) {
+              showLockNotification('Screen is locked · Tap lock icon to unlock');
+              return;
+            }
+            router.push(folderId ? `/lyrics/folder?id=${folderId}` : '/lyrics');
+          }}
+          className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg transition-all active:scale-95 ${
+            isStageLocked
+              ? 'opacity-30 cursor-not-allowed text-[#8C8A93]'
+              : 'text-accent-start hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer'
+          }`}
+          title={isStageLocked ? 'Catalog navigation disabled while screen is locked' : 'Back to Catalog'}
+          aria-label="Back to Catalog"
         >
           <FolderOpen size={16} className="text-accent-start" />
           <span>Catalog</span>

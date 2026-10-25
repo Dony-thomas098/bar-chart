@@ -638,3 +638,21 @@ body {
     height: 255.4mm;
   }
 }
+
+/* Rotate / phone landscape mode optimizations for score viewer */
+@media (orientation: landscape) and (max-height: 520px) {
+  .phone-rotate-hide-transpose {
+    display: none !important;
+  }
+  .phone-rotate-compact-lock {
+    padding: 0.35rem !important;
+    width: 1.85rem !important;
+    height: 1.85rem !important;
+    min-width: 1.85rem !important;
+    min-height: 1.85rem !important;
+    justify-content: center !important;
+  }
+  .phone-rotate-compact-lock span {
+    display: none !important;
+  }
+}

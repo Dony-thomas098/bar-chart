@@ -298,7 +298,7 @@ describe('Multi-Device Band Synchronization & Profile Field Preservation', () =>
     const originalUpdateUser = supabase.auth.updateUser;
     supabase.auth.updateUser = (async () => {
       updateUserCalled = true;
-      return { data: { user: null }, error: null };
+      return { data: { user: null }, error: null } as unknown as Awaited<ReturnType<typeof supabase.auth.updateUser>>;
     }) as any;
 
     try {
@@ -618,5 +618,47 @@ describe('Print Data Freshness and Realtime Synchronization', () => {
     expect(loaderContent).toContain('onError');
     expect(loaderContent).toContain('setBannerError(true)');
     expect(loaderContent).toContain('Chord<span className="text-orange-500">ly</span>');
+  });
+});
+
+describe('Viewer Stage Lock and Rotate Mode Optimizations', () => {
+  it('hides transpose pill and provides compact lock button in rotate/landscape mode on mobile', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+
+    const reader = fs.readFileSync(path.resolve(__dirname, '../components/PiascoreReader.tsx'), 'utf-8');
+    const lyricsReader = fs.readFileSync(path.resolve(__dirname, '../components/PiascoreLyricsReader.tsx'), 'utf-8');
+    const css = fs.readFileSync(path.resolve(__dirname, '../app/globals.css'), 'utf-8');
+
+    // Transpose pill must have phone-rotate-hide-transpose
+    expect(reader).toContain('phone-rotate-hide-transpose');
+
+    // Lock button must have phone-rotate-compact-lock
+    expect(reader).toContain('phone-rotate-compact-lock');
+    expect(lyricsReader).toContain('phone-rotate-compact-lock');
+
+    // CSS must hide transpose and compact the lock button under landscape + max-height 520px
+    expect(css).toContain('.phone-rotate-hide-transpose');
+    expect(css).toContain('.phone-rotate-compact-lock');
+    expect(css).toContain('orientation: landscape');
+    expect(css).toContain('max-height: 520px');
+  });
+
+  it('blocks exiting to menu/catalog while stage lock is enabled', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+
+    const reader = fs.readFileSync(path.resolve(__dirname, '../components/PiascoreReader.tsx'), 'utf-8');
+    const lyricsReader = fs.readFileSync(path.resolve(__dirname, '../components/PiascoreLyricsReader.tsx'), 'utf-8');
+
+    // Must intercept popstate when isStageLocked is true to prevent back navigation
+    expect(reader).toContain('chordly_stage_lock_prevent_exit');
+    expect(reader).toContain('window.addEventListener(\'popstate\', handlePopState)');
+    expect(lyricsReader).toContain('chordly_lyrics_lock_prevent_exit');
+    expect(lyricsReader).toContain('window.addEventListener(\'popstate\', handlePopState)');
+
+    // Catalog buttons must be disabled when isStageLocked is active
+    expect(reader).toContain('disabled={isStageLocked}');
+    expect(lyricsReader).toContain('disabled={isStageLocked}');
   });
 });
