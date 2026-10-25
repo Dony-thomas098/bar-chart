@@ -34,11 +34,24 @@ function toSuperscript(str: string): string {
 export function normalizeChordInput(raw: string): string {
   if (!raw || raw === '_' || raw === '%' || raw === '.') return raw;
 
+  if (raw.includes(' ')) {
+    return raw
+      .split(' ')
+      .map(part => normalizeChordInput(part))
+      .join(' ');
+  }
+
   return raw
-    .replace(/^([A-G])#/i, '$1♯')
-    .replace(/^([A-G])b/i, '$1♭')
-    .replace(/\/([A-G])#/i, '/$1♯')
-    .replace(/\/([A-G])b/i, '/$1♭')
+    .replace(/^([a-g])([#b♯♭]?)/i, (_, r, acc) => {
+      const rootUpper = r.toUpperCase();
+      const accChar = acc === '#' || acc === '♯' ? '♯' : acc === 'b' || acc === '♭' ? '♭' : '';
+      return rootUpper + accChar;
+    })
+    .replace(/\/([a-g])([#b♯♭]?)/i, (_, r, acc) => {
+      const rootUpper = r.toUpperCase();
+      const accChar = acc === '#' || acc === '♯' ? '♯' : acc === 'b' || acc === '♭' ? '♭' : '';
+      return '/' + rootUpper + accChar;
+    })
     .replace(/maj7/gi, 'Δ7')
     .replace(/major7/gi, 'Δ7')
     .replace(/maj9/gi, 'Δ9')
@@ -137,6 +150,18 @@ export function parseChord(raw: string): React.ReactNode {
     return <span>{raw}</span>;
   }
 
+  const trimmed = raw.trim();
+  if (trimmed.includes(' ')) {
+    const tokens = trimmed.split(/\s+/);
+    return (
+      <span className="inline-flex items-baseline gap-1.5">
+        {tokens.map((tok, i) => (
+          <React.Fragment key={i}>{parseChord(tok)}</React.Fragment>
+        ))}
+      </span>
+    );
+  }
+
   // If it doesn't start with A-G, just return it
   if (!/^[A-G]/.test(raw)) {
     return <span>{raw}</span>;
@@ -204,6 +229,14 @@ export function parseChordToText(raw: string): string {
 
   if (raw === '_' || raw === '%' || raw === '.') {
     return raw;
+  }
+
+  const trimmed = raw.trim();
+  if (trimmed.includes(' ')) {
+    return trimmed
+      .split(/\s+/)
+      .map(tok => parseChordToText(tok))
+      .join(' ');
   }
 
   if (!/^[A-G]/.test(raw)) {

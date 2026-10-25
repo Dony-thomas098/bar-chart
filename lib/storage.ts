@@ -105,7 +105,7 @@ if (typeof window !== 'undefined' && typeof indexedDB !== 'undefined') {
 export const getDBPromise = () => dbPromise;
 
 // Utility to check network and guest mode state
-const isOnline = () => {
+export const isOnline = () => {
   if (typeof window !== 'undefined' && localStorage.getItem('chord-grid-guest-mode') === 'true') {
     return false;
   }
@@ -1136,6 +1136,14 @@ export async function saveChart(chart: Chart) {
       console.warn('[Storage] Network error saving chart, queueing pending save:', err);
     }
   }
+  if (savedOnline && dbPromise) {
+    try {
+      const db = await dbPromise;
+      if (db) {
+        await db.delete('pending_saves', chart.id);
+      }
+    } catch {}
+  }
   if (!savedOnline && dbPromise) {
     try {
       const db = await dbPromise;
@@ -1146,6 +1154,7 @@ export async function saveChart(chart: Chart) {
       console.warn('[Storage] Failed to queue pending save:', err);
     }
   }
+  return { savedOnline };
 }
 
 export async function readChart(id: string, bypassCache = false): Promise<Chart | null> {
@@ -1159,8 +1168,18 @@ export async function readChart(id: string, bypassCache = false): Promise<Chart 
         if (isOnline()) {
           (async () => {
             try {
+              if (db) {
+                const pending = await db.get('pending_saves', id);
+                if (pending) return; // Do not overwrite with stale cloud data if we have pending local changes
+              }
               const { data } = await supabase.from('charts').select('*').eq('id', id).single();
-              if (data) await cacheChart(data);
+              if (data) {
+                const cloudTime = new Date(data.updated_at || 0).getTime();
+                const cachedTime = new Date(cached.updated_at || 0).getTime();
+                if (cloudTime > cachedTime) {
+                  await cacheChart(data);
+                }
+              }
             } catch {}
           })();
         }

@@ -73,6 +73,10 @@ export default function ChartEditor() {
   }, [chartId, authLoading, user, router]);
   
   const { chart, loading: chartLoading, saveStatus, collaborators, updateChart, forceSave } = useChartSync(chartId);
+  const chartRef = useRef<ChartData | null>(chart);
+  useEffect(() => {
+    chartRef.current = chart;
+  }, [chart]);
   const returnTo = searchParams.get('returnTo');
   const [copied, setCopied] = useState(false);
   const [customText, setCustomText] = useState<string | null>(null);
@@ -314,6 +318,9 @@ export default function ChartEditor() {
   }, [chart, generateText]);
 
   const handleBlockEdit = useCallback((updates: Partial<ChartData>) => {
+    if (chartRef.current) {
+      chartRef.current = { ...chartRef.current, ...updates, custom_text: null };
+    }
     updateChart({ ...updates, custom_text: null });
   }, [updateChart]);
 
@@ -326,19 +333,28 @@ export default function ChartEditor() {
   const formatChordCase = useCallback((val: string) => {
     if (!val) return val;
     const normalized = normalizeChordInput(val);
-    return normalized.split('/').map(part => {
-      if (!part) return part;
-      if (/^[a-g]/i.test(part)) {
-        return part.charAt(0).toUpperCase() + part.slice(1);
-      }
-      return part;
-    }).join('/');
+    return normalized
+      .split(' ')
+      .map(token => {
+        return token
+          .split('/')
+          .map(part => {
+            if (!part) return part;
+            if (/^[a-g]/i.test(part)) {
+              return part.charAt(0).toUpperCase() + part.slice(1);
+            }
+            return part;
+          })
+          .join('/');
+      })
+      .join(' ');
   }, []);
 
   const updateBar = useCallback((lineId: string, blockId: string, barIndex: number, val: string) => {
-    if (!chart) return;
+    const currentChart = chartRef.current || chart;
+    if (!currentChart) return;
     const formattedVal = formatChordCase(val);
-    const newLines = chart.lines.map(l => {
+    const newLines = currentChart.lines.map(l => {
       if (l.id !== lineId) return l;
       const blocks = l.blocks.map(b => {
         if (b.id !== blockId) return b;
@@ -348,6 +364,9 @@ export default function ChartEditor() {
       });
       return { ...l, blocks };
     });
+    if (chartRef.current) {
+      chartRef.current = { ...currentChart, lines: newLines };
+    }
     handleBlockEdit({ lines: newLines });
   }, [chart, formatChordCase, handleBlockEdit]);
 
@@ -526,11 +545,13 @@ export default function ChartEditor() {
   }, [chart?.lines]);
 
   const getActiveBarValue = useCallback(() => {
-    if (!activeMobileSelection || !chart?.lines) return '';
-    const line = chart.lines.find(l => l.id === activeMobileSelection.lineId);
+    if (!activeMobileSelection) return '';
+    const currentChart = chartRef.current || chart;
+    if (!currentChart?.lines) return '';
+    const line = currentChart.lines.find(l => l.id === activeMobileSelection.lineId);
     const block = line?.blocks.find(b => b.id === activeMobileSelection.blockId);
     return block?.bars[activeMobileSelection.barIndex] || '';
-  }, [chart?.lines, activeMobileSelection]);
+  }, [chart, activeMobileSelection]);
 
   // ─── Smooth auto-scroll to active bar cell ──────────────────────────────────
   useEffect(() => {
@@ -626,30 +647,64 @@ export default function ChartEditor() {
     if (!activeMobileSelection) return;
     let current = getActiveBarValue();
 
-    let toAppend = key;
-    if (key === 'dim') toAppend = '°';
-    else if (key === 'aug') toAppend = '+';
-    else if (key === 'maj7') toAppend = 'Δ7';
-    else if (key === 'm7b5') toAppend = 'ø7';
+    const isRoot = ['C', 'D', 'E', 'F', 'G', 'A', 'B'].includes(key);
 
     if (key === '/') {
-      current = current.trim() + '/';
+      current = current.trim() ? current.trim() + '/' : '/';
       setIsSlashBassMode(true);
       showToast('Pick bass note (C - B)');
-    } else if (isSlashBassMode && ['C', 'D', 'E', 'F', 'G', 'A', 'B'].includes(key)) {
+    } else if (isSlashBassMode && isRoot) {
       current += key;
       setIsSlashBassMode(false);
-    } else if (key === '␣') {
-      current = current.trim() + ' ';
-      setIsSlashBassMode(false);
-    } else if (key === '.') {
-      current = current.trim() ? `${current.trim()} .` : '.';
-      setIsSlashBassMode(false);
-    } else if (key === '%') {
-      current = '%';
+    } else if (isRoot) {
+      // If not in slash bass mode:
+      // Tapping a root note sets/replaces the root chord cleanly
+      if (!current || current === '-' || current === '_' || current === '.') {
+        current = key;
+      } else if (current.endsWith(' ')) {
+        // Multi-chord in a single bar (e.g. "D G")
+        current += key;
+      } else {
+        // Replaces chord root cleanly
+        current = key;
+      }
       setIsSlashBassMode(false);
     } else {
-      current += toAppend;
+      let toAppend = key;
+      if (key === 'dim') toAppend = '°';
+      else if (key === 'aug') toAppend = '+';
+      else if (key === 'maj7') toAppend = 'Δ7';
+      else if (key === 'm7b5') toAppend = 'ø7';
+      else if (key === 'b') toAppend = '♭';
+      else if (key === '#') toAppend = '♯';
+
+      if (key === '␣') {
+        current = current.trim() + ' ';
+        setIsSlashBassMode(false);
+      } else if (key === '.') {
+        current = current.trim() ? `${current.trim()} .` : '.';
+        setIsSlashBassMode(false);
+      } else if (key === '%') {
+        current = '%';
+        setIsSlashBassMode(false);
+      } else {
+        if (current === '-' || current === '_') {
+          current = '';
+        }
+
+        // Swap accidentals if user taps opposite accidental
+        if ((toAppend === '♯' || toAppend === '#') && (current.endsWith('♭') || current.endsWith('b'))) {
+          current = current.slice(0, -1) + '♯';
+        } else if ((toAppend === '♭' || toAppend === 'b') && (current.endsWith('♯') || current.endsWith('#'))) {
+          current = current.slice(0, -1) + '♭';
+        } else if ((toAppend === '♯' || toAppend === '#') && (current.endsWith('♯') || current.endsWith('#'))) {
+          // already sharp
+        } else if ((toAppend === '♭' || toAppend === 'b') && (current.endsWith('♭') || current.endsWith('b'))) {
+          // already flat
+        } else {
+          current += toAppend;
+        }
+      }
     }
 
     updateBar(
@@ -665,11 +720,20 @@ export default function ChartEditor() {
     const current = getActiveBarValue();
     if (current.length > 0) {
       setIsSlashBassMode(false);
+      let newLen = current.length - 1;
+      const multiChars = ['maj7', 'min7', 'sus4', 'sus2', 'add9', 'dim7', 'aug7', 'm7b5', 'Δ7', 'ø7'];
+      for (const mc of multiChars) {
+        if (current.endsWith(mc)) {
+          newLen = current.length - mc.length;
+          break;
+        }
+      }
+      const updated = newLen > 0 ? current.slice(0, newLen) : '';
       updateBar(
         activeMobileSelection.lineId,
         activeMobileSelection.blockId,
         activeMobileSelection.barIndex,
-        current.slice(0, -1)
+        updated
       );
     }
   }, [activeMobileSelection, getActiveBarValue, updateBar]);
@@ -779,13 +843,13 @@ export default function ChartEditor() {
           <div className="flex flex-col items-center justify-center relative mb-2 sm:mb-4">
             
             {/* Top Bar for buttons */}
-            <div className="w-full flex justify-end lg:justify-between items-center gap-2 sm:gap-4 mb-4 sm:mb-8">
+            <div className="w-full flex justify-between items-center gap-2 sm:gap-4 mb-4 sm:mb-8">
               <button 
                 onClick={async () => {
                   await forceSave();
                   router.push(returnTo ?? `/chart?id=${chart.id}`);
                 }}
-                className="hidden lg:flex px-4 py-2.5 text-xs font-bold tracking-wider uppercase text-text-primary bg-white/70 dark:bg-white/10 border border-glass shadow-sm rounded-full hover:bg-white items-center transition-all active:scale-95"
+                className="flex px-3 sm:px-4 py-2 sm:py-2.5 text-xs font-bold tracking-wider uppercase text-text-primary bg-white/70 dark:bg-white/10 border border-glass shadow-sm rounded-full hover:bg-white items-center transition-all active:scale-95"
               >
                 <CornerLeftUp size={15} className="mr-1.5" /> {returnTo ? 'Performance' : 'Viewer'}
               </button>
@@ -1308,7 +1372,11 @@ export default function ChartEditor() {
                 Next <ChevronRight size={13} />
               </button>
               <button
-                onClick={() => { if (typeof navigator !== 'undefined' && 'vibrate' in navigator) navigator.vibrate(20); setActiveMobileSelection(null); }}
+                onClick={async () => {
+                  if (typeof navigator !== 'undefined' && 'vibrate' in navigator) navigator.vibrate(20);
+                  setActiveMobileSelection(null);
+                  await forceSave();
+                }}
                 className="px-3.5 py-1.5 bg-btn-dark text-white rounded-full text-xs font-bold flex items-center gap-1 active:scale-95 shadow-btn-dark transition-all"
               >
                 <Check size={13} /> Done

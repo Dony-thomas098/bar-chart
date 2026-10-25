@@ -142,16 +142,14 @@ export function OfflineSyncProvider({ children }: { children: React.ReactNode })
         { event: '*', schema: 'public', table: 'charts', filter: bandFilter },
         async (payload: any) => {
           if (autoSyncRef.current) {
+            const targetId = payload.new?.id || payload.old?.id;
             let hasPending = false;
             try {
               const { getDBPromise } = await import('@/lib/storage');
               const db = await getDBPromise();
-              if (db) {
-                const targetId = payload.new?.id || payload.old?.id;
-                if (targetId) {
-                  const pending = await db.get('pending_saves', targetId);
-                  if (pending) hasPending = true;
-                }
+              if (db && targetId) {
+                const pending = await db.get('pending_saves', targetId);
+                if (pending) hasPending = true;
               }
             } catch {}
 
@@ -159,7 +157,18 @@ export function OfflineSyncProvider({ children }: { children: React.ReactNode })
               if (payload.eventType === 'DELETE') {
                 await deleteFromCache(payload.old.id, 'charts');
               } else if (payload.new) {
-                await cacheChart(payload.new as Chart);
+                try {
+                  const { getDBPromise } = await import('@/lib/storage');
+                  const db = await getDBPromise();
+                  const cached = await db?.get('charts', targetId);
+                  const cloudTime = new Date(payload.new.updated_at || 0).getTime();
+                  const cachedTime = new Date(cached?.updated_at || 0).getTime();
+                  if (!cached || cloudTime >= cachedTime) {
+                    await cacheChart(payload.new as Chart);
+                  }
+                } catch {
+                  await cacheChart(payload.new as Chart);
+                }
               }
             }
           }
@@ -173,16 +182,14 @@ export function OfflineSyncProvider({ children }: { children: React.ReactNode })
         { event: '*', schema: 'public', table: 'lyrics', filter: bandFilter },
         async (payload: any) => {
           if (autoSyncRef.current) {
+            const targetId = payload.new?.id || payload.old?.id;
             let hasPending = false;
             try {
               const { getDBPromise } = await import('@/lib/storage');
               const db = await getDBPromise();
-              if (db) {
-                const targetId = payload.new?.id || payload.old?.id;
-                if (targetId) {
-                  const pending = await db.get('pending_saves', targetId);
-                  if (pending) hasPending = true;
-                }
+              if (db && targetId) {
+                const pending = await db.get('pending_saves', targetId);
+                if (pending) hasPending = true;
               }
             } catch {}
 
@@ -204,16 +211,14 @@ export function OfflineSyncProvider({ children }: { children: React.ReactNode })
         { event: '*', schema: 'public', table: 'folders', filter: bandFilter },
         async (payload: any) => {
           if (autoSyncRef.current) {
+            const targetId = payload.new?.id || payload.old?.id;
             let hasPending = false;
             try {
               const { getDBPromise } = await import('@/lib/storage');
               const db = await getDBPromise();
-              if (db) {
-                const targetId = payload.new?.id || payload.old?.id;
-                if (targetId) {
-                  const pending = await db.get('pending_saves', targetId);
-                  if (pending) hasPending = true;
-                }
+              if (db && targetId) {
+                const pending = await db.get('pending_saves', targetId);
+                if (pending) hasPending = true;
               }
             } catch {}
 

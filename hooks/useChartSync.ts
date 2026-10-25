@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { ChartData } from '@/lib/chart-types';
-import { readChart, saveChart } from '@/lib/storage';
+import { readChart, saveChart, isOnline } from '@/lib/storage';
 
 
 export function useChartSync(chartId: string) {
@@ -54,12 +54,23 @@ export function useChartSync(chartId: string) {
         { event: 'UPDATE', schema: 'public', table: 'charts', filter: `id=eq.${chartId}` },
         (payload: any) => {
           if (isMounted && payload.new) {
-            setChart(prev => prev ? { ...prev, ...payload.new } : payload.new);
+            // Never overwrite active edits if the local user has pending changes
+            if (hasPendingChanges.current) {
+              return;
+            }
+            const incomingTime = new Date(payload.new.updated_at || 0).getTime();
+            const localTime = new Date(latestChartRef.current?.updated_at || 0).getTime();
+            if (incomingTime >= localTime) {
+              setChart(prev => prev ? { ...prev, ...payload.new } : payload.new);
+            }
           }
         }
       )
       .on('broadcast', { event: 'update' }, (payload) => {
         if (isMounted && payload.payload) {
+          if (hasPendingChanges.current) {
+            return;
+          }
           setChart(prev => prev ? { ...prev, ...payload.payload } : payload.payload);
         }
       })
@@ -121,33 +132,44 @@ export function useChartSync(chartId: string) {
   const persistChart = async (chartToSave: ChartData) => {
     setSaveStatus('saving');
     try {
-      await saveChart({
+      const savePayload = {
         ...chartToSave,
         updated_at: new Date().toISOString()
-      });
-      setSaveStatus('saved');
-      hasPendingChanges.current = false;
+      };
+      await saveChart(savePayload);
+
+      // Only mark saved if no newer edits occurred while this save was in flight
+      if (
+        !latestChartRef.current ||
+        latestChartRef.current.updated_at === chartToSave.updated_at ||
+        latestChartRef.current === chartToSave
+      ) {
+        hasPendingChanges.current = false;
+        setSaveStatus(isOnline() ? 'saved' : 'offline');
+      }
     } catch (err) {
       setSaveStatus('offline');
     }
   };
 
   const forceSave = async () => {
-    if (hasPendingChanges.current && latestChartRef.current) {
-      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    if (latestChartRef.current) {
       await persistChart(latestChartRef.current);
     }
   };
 
-  const updateChart = useCallback((partial: Partial<ChartData>) => {
+  const updateChart = useCallback((partial: Partial<ChartData> | ((prev: ChartData) => Partial<ChartData>)) => {
     setChart(prev => {
       if (!prev) return prev;
-      const updated = { ...prev, ...partial };
-      
+      const partialObj = typeof partial === 'function' ? partial(prev) : partial;
+      const updated = { ...prev, ...partialObj };
+      latestChartRef.current = updated;
+
       channelRef.current?.send({
         type: 'broadcast',
         event: 'update',
-        payload: partial
+        payload: partialObj
       });
 
       hasPendingChanges.current = true;
