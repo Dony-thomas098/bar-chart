@@ -358,7 +358,7 @@ export async function listFolder(
   }
 
   // Attempt online fetch if online OR if local cache is currently empty
-  const shouldAttemptOnline = isOnline() || (local.folders.length === 0 && local.charts.length === 0);
+  const shouldAttemptOnline = isOnline();
 
   if (shouldAttemptOnline) {
     try {

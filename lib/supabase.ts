@@ -14,9 +14,47 @@ if (!supabaseUrl || !supabaseKey) {
   }
 }
 
+// Custom fetch wrapper that prevents unhandled net::ERR_INTERNET_DISCONNECTED when offline
+const customFetch = (input: RequestInfo | URL, init?: RequestInit) => {
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    return Promise.reject(new TypeError('Failed to fetch (offline)'));
+  }
+  return fetch(input, init);
+};
+
 // Fallback to placeholder in headless test environments to prevent createClient constructor crash
 export const supabase = createClient(
   supabaseUrl || 'https://placeholder.supabase.co',
-  supabaseKey || 'placeholder-anon-key'
+  supabaseKey || 'placeholder-anon-key',
+  {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+    },
+    global: {
+      fetch: customFetch as typeof fetch,
+    },
+  }
 );
 
+// Manage autoRefreshToken based on browser online/offline status to prevent ERR_INTERNET_DISCONNECTED polling
+if (typeof window !== 'undefined') {
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    try {
+      supabase.auth.stopAutoRefresh();
+    } catch {}
+  }
+
+  window.addEventListener('online', () => {
+    try {
+      supabase.auth.startAutoRefresh();
+    } catch {}
+  });
+
+  window.addEventListener('offline', () => {
+    try {
+      supabase.auth.stopAutoRefresh();
+    } catch {}
+  });
+}

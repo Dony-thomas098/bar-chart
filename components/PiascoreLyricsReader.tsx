@@ -569,7 +569,7 @@ export function PiascoreLyricsReader({ initialLyric, folderId }: Props) {
               showLockNotification('Screen is locked · Tap lock icon to unlock');
               return;
             }
-            router.push(folderId ? `/lyrics/folder?id=${folderId}` : '/lyrics');
+            router.push(folderId ? `/lyrics/folder/?id=${folderId}` : '/lyrics');
           }}
           className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg transition-all active:scale-95 ${
             isStageLocked

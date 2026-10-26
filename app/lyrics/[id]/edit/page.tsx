@@ -100,7 +100,7 @@ export default function LyricsEditor() {
             <button 
               onClick={async () => {
                 await forceSave();
-                router.push(`/lyrics/view?id=${lyric.id}`);
+                router.push(`/lyrics/view/?id=${lyric.id}`);
               }}
               className="hidden lg:flex px-4 py-2 text-sm font-bold tracking-widest uppercase text-text-secondary hover:text-white bg-surface border border-border shadow-md rounded-xl hover:bg-surface-raised items-center transition-all"
             >

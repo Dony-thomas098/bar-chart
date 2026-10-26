@@ -271,6 +271,7 @@ self.addEventListener('fetch', (event) => {
   // Bypass dev mode HMR, chrome extensions, Supabase API calls, OTA update manifest, authorization headers
   if (
     request.method !== 'GET' ||
+    url.origin !== self.location.origin ||
     url.pathname.startsWith('/_next/webpack-hmr') ||
     url.hostname.includes('supabase.co') ||
     url.protocol.startsWith('chrome-extension') ||

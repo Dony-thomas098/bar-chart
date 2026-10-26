@@ -7,7 +7,8 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     globals: true,
-  } as any,
+    fileParallelism: false,
+  },
   resolve: {
     alias: {
       '@': path.resolve(import.meta.dirname, './'),

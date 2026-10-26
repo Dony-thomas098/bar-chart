@@ -847,7 +847,7 @@ export default function ChartEditor() {
               <button 
                 onClick={async () => {
                   await forceSave();
-                  router.push(returnTo ?? `/chart?id=${chart.id}`);
+                  router.push(returnTo ?? `/chart/?id=${chart.id}`);
                 }}
                 className="flex px-3 sm:px-4 py-2 sm:py-2.5 text-xs font-bold tracking-wider uppercase text-text-primary bg-white/70 dark:bg-white/10 border border-glass shadow-sm rounded-full hover:bg-white items-center transition-all active:scale-95"
               >

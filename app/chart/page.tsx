@@ -1,6 +1,6 @@
 'use client';
 
-import React, { Suspense } from 'react';
+import React, { Suspense, useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { useAuth } from '@/components/AuthProvider';
 import { useChartSync } from '@/hooks/useChartSync';
@@ -10,26 +10,49 @@ import { ChartData } from '@/lib/chart-types';
 import { PiascoreReader } from '@/components/PiascoreReader';
 
 function ChartViewerContent() {
-  const { user, loading: authLoading } = useAuth();
   const params = useParams();
   const searchParams = useSearchParams();
   const router = useRouter();
-  const chartId = (params?.id as string) || searchParams?.get('id') || '';
 
-  React.useEffect(() => {
-    if (chartId === 'edit') {
+  const getInitialChartId = () => {
+    if (params?.id && params.id !== 'edit') return params.id as string;
+    const spId = searchParams?.get('id');
+    if (spId) return spId;
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const wId = urlParams.get('id');
+      if (wId) return wId;
+    }
+    return '';
+  };
+
+  const [resolvedChartId, setResolvedChartId] = useState<string>(getInitialChartId);
+
+  useEffect(() => {
+    const currentId =
+      (params?.id && params.id !== 'edit' ? (params.id as string) : null) ||
+      searchParams?.get('id') ||
+      (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('id') : null) ||
+      '';
+    if (currentId && currentId !== resolvedChartId) {
+      setResolvedChartId(currentId);
+    }
+  }, [params, searchParams, resolvedChartId]);
+
+  useEffect(() => {
+    if (resolvedChartId === 'edit') {
       const search = typeof window !== 'undefined' ? window.location.search : '';
       router.replace(`/chart/edit/${search}`);
     }
-  }, [chartId, router]);
+  }, [resolvedChartId, router]);
 
-  const { chart, loading: chartLoading } = useChartSync(chartId === 'edit' ? '' : chartId);
+  const { chart, loading: chartLoading } = useChartSync(resolvedChartId === 'edit' ? '' : resolvedChartId);
 
-  if (chartId === 'edit') {
+  if (resolvedChartId === 'edit') {
     return null;
   }
 
-  if (authLoading || chartLoading) {
+  if (chartLoading) {
     return (
       <div className="flex h-screen items-center justify-center bg-[#121214] text-white">
         <div className="flex items-center gap-3">
@@ -40,7 +63,7 @@ function ChartViewerContent() {
     );
   }
 
-  if (!user || !chart) {
+  if (!chart) {
     return (
       <div className="flex h-screen flex-col items-center justify-center bg-[#121214] text-white gap-4">
         <p className="text-slate-400 text-sm">Chart not found or access denied.</p>

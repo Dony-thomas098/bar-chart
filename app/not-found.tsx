@@ -15,47 +15,67 @@ export default function NotFound() {
 
     const path = window.location.pathname;
 
-    // 1. Check for /perform/CODE (e.g. /perform/C6H6BG) -> Redirect to /perform/stage?code=CODE
+    // 1. Check for /perform/CODE (e.g. /perform/C6H6BG) -> Redirect to /perform/stage/?code=CODE
     const performMatch = path.match(/^\/perform\/([A-Za-z0-9]{4,12})/i);
     if (performMatch && performMatch[1].toLowerCase() !== 'stage' && performMatch[1].toLowerCase() !== 'demo') {
-      const target = `/perform/stage?code=${performMatch[1].toUpperCase()}`;
+      const target = `/perform/stage/?code=${performMatch[1].toUpperCase()}`;
       setRedirecting(true);
       setRedirectTarget(`Live Stage Session ${performMatch[1].toUpperCase()}`);
       router.replace(target);
       return;
     }
 
-    // 2. Check for /chart/ID -> Redirect to /chart?id=ID
+    // 2. Check for /chart/ID/edit -> Redirect to /chart/edit/?id=ID
+    const chartEditMatch = path.match(/^\/chart\/([A-Za-z0-9_-]{8,})\/edit/i);
+    if (chartEditMatch && chartEditMatch[1].toLowerCase() !== 'demo') {
+      const target = `/chart/edit/?id=${chartEditMatch[1]}`;
+      setRedirecting(true);
+      setRedirectTarget('Chart Editor');
+      router.replace(target);
+      return;
+    }
+
+    // 3. Check for /chart/ID -> Redirect to /chart/?id=ID
     const chartMatch = path.match(/^\/chart\/([A-Za-z0-9_-]{8,})/i);
     if (chartMatch && chartMatch[1].toLowerCase() !== 'demo' && chartMatch[1].toLowerCase() !== 'edit') {
-      const target = `/chart?id=${chartMatch[1]}`;
+      const target = `/chart/?id=${chartMatch[1]}`;
       setRedirecting(true);
       setRedirectTarget('Chord Chart');
       router.replace(target);
       return;
     }
 
-    // 3. Check for /folder/ID -> Redirect to /folder?id=ID
+    // 4. Check for /folder/ID -> Redirect to /folder/?id=ID
     const folderMatch = path.match(/^\/folder\/([A-Za-z0-9_-]{8,})/i);
     if (folderMatch && folderMatch[1].toLowerCase() !== 'demo') {
-      const target = `/folder?id=${folderMatch[1]}`;
+      const target = `/folder/?id=${folderMatch[1]}`;
       setRedirecting(true);
       setRedirectTarget('Folder');
       router.replace(target);
       return;
     }
 
-    // 4. Check for /lyrics/ID -> Redirect to /lyrics/view?id=ID
+    // 5. Check for /lyrics/ID/edit -> Redirect to /lyrics/edit/?id=ID
+    const lyricsEditMatch = path.match(/^\/lyrics\/([A-Za-z0-9_-]{8,})\/edit/i);
+    if (lyricsEditMatch && lyricsEditMatch[1].toLowerCase() !== 'demo') {
+      const target = `/lyrics/edit/?id=${lyricsEditMatch[1]}`;
+      setRedirecting(true);
+      setRedirectTarget('Lyrics Editor');
+      router.replace(target);
+      return;
+    }
+
+    // 6. Check for /lyrics/ID -> Redirect to /lyrics/view/?id=ID
     const lyricsMatch = path.match(/^\/lyrics\/([A-Za-z0-9_-]{8,})/i);
     if (lyricsMatch && lyricsMatch[1].toLowerCase() !== 'demo' && lyricsMatch[1].toLowerCase() !== 'edit' && lyricsMatch[1].toLowerCase() !== 'folder') {
-      const target = `/lyrics/view?id=${lyricsMatch[1]}`;
+      const target = `/lyrics/view/?id=${lyricsMatch[1]}`;
       setRedirecting(true);
       setRedirectTarget('Lyrics');
       router.replace(target);
       return;
     }
 
-    // 5. Check for /setlists/ID/perform -> Redirect to /setlists/perform?id=ID
+    // 7. Check for /setlists/ID/perform -> Redirect to /setlists/perform?id=ID
     const setlistPerformMatch = path.match(/^\/setlists\/([A-Za-z0-9_-]{4,})\/perform/i);
     if (setlistPerformMatch && setlistPerformMatch[1].toLowerCase() !== 'demo') {
       const target = `/setlists/perform?id=${setlistPerformMatch[1]}`;
@@ -65,7 +85,7 @@ export default function NotFound() {
       return;
     }
 
-    // 6. Check for /setlists/ID -> Redirect to /setlists/view?id=ID
+    // 8. Check for /setlists/ID -> Redirect to /setlists/view?id=ID
     const setlistMatch = path.match(/^\/setlists\/([A-Za-z0-9_-]{4,})/i);
     if (setlistMatch && setlistMatch[1].toLowerCase() !== 'demo' && setlistMatch[1].toLowerCase() !== 'view' && setlistMatch[1].toLowerCase() !== 'perform') {
       const target = `/setlists/view?id=${setlistMatch[1]}`;

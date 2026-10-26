@@ -111,6 +111,27 @@ export function hasJoinedBand(user?: { email?: string | null; user_metadata?: Re
 export async function syncBandForUser(user: { id: string; email?: string | null; user_metadata?: Record<string, unknown> }): Promise<Band | null> {
   if (!user) return null;
 
+  // Guard: If offline, return cached or locally stored band immediately
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    if (user.email) {
+      const cached = getBandForEmail(user.email);
+      if (cached) {
+        saveBandLocally(cached, user.email);
+        return cached;
+      }
+    }
+    const stored = getStoredBand();
+    if (stored.id && stored.name && stored.code) {
+      return {
+        id: stored.id,
+        name: stored.name,
+        code: stored.code,
+        admin_id: user.id,
+      };
+    }
+    return null;
+  }
+
   // 1. Check email cache first for immediate synchronous restoration
   if (user.email) {
     const cached = getBandForEmail(user.email);

@@ -460,7 +460,7 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
                 if (pathname === '/' || pathname === '/lyrics' || pathname === '/chords' || pathname.startsWith('/folder/') || pathname.startsWith('/lyrics/folder/')) {
                   window.dispatchEvent(new Event('refresh-folder'));
                 } else {
-                  router.push(currentFolderId ? (folderKind === 'lyrics' ? `/lyrics/folder?id=${currentFolderId}` : `/folder?id=${currentFolderId}`) : (folderKind === 'lyrics' ? (isSinger ? '/' : '/lyrics') : (isSinger ? '/chords' : '/')));
+                  router.push(currentFolderId ? (folderKind === 'lyrics' ? `/lyrics/folder/?id=${currentFolderId}` : `/folder/?id=${currentFolderId}`) : (folderKind === 'lyrics' ? (isSinger ? '/' : '/lyrics') : (isSinger ? '/chords' : '/')));
                 }
               }
               setCreateFolderModal(false);

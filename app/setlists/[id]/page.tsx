@@ -141,9 +141,9 @@ function SortableItemRow({
 
   const handleOpenItem = () => {
     if (item.item_type === 'chart') {
-      router.push(`/chart?id=${item.item_id}`);
+      router.push(`/chart/?id=${item.item_id}`);
     } else {
-      router.push(`/lyrics/view?id=${item.item_id}`);
+      router.push(`/lyrics/view/?id=${item.item_id}`);
     }
   };
 

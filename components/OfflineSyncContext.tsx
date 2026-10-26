@@ -133,6 +133,11 @@ export function OfflineSyncProvider({ children }: { children: React.ReactNode })
       return;
     }
 
+    // Do not attempt to open websocket when device is offline
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      return;
+    }
+
     const bandFilter = `band_id=eq.${currentBandId}`;
 
     const channel = supabase
@@ -331,6 +336,7 @@ export function OfflineSyncProvider({ children }: { children: React.ReactNode })
       // Check there's an actual session (not guest)
       const isGuest = localStorage.getItem('chord-grid-guest-mode') === 'true';
       if (isGuest) return;
+      if (typeof navigator !== 'undefined' && !navigator.onLine) return;
 
       try {
         const { data: { session } } = await supabase.auth.getSession();
@@ -372,14 +378,23 @@ export function OfflineSyncProvider({ children }: { children: React.ReactNode })
 
     const handleOnline = () => {
       if (!autoSyncRef.current) return;
+      subscribeToRealtime();
       // Slight delay so the pending_saves flush in storage.ts can run first
       setTimeout(() => {
         triggerSync(false).catch(() => {});
       }, 1500);
     };
 
+    const handleOffline = () => {
+      unsubscribeFromRealtime();
+    };
+
     window.addEventListener('online', handleOnline);
-    return () => window.removeEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
   }, [triggerSync]);
 
   // ── Clear sync result after a display timeout ─────────────────────────

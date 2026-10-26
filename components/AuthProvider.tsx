@@ -153,6 +153,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Background sync from Supabase according to user id / email
     let isCancelled = false;
     const syncRemoteProfile = async () => {
+      if (typeof navigator !== 'undefined' && !navigator.onLine) return;
       try {
         // Sync band first
         const syncedBand = await syncBandForUser(user);

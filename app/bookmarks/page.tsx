@@ -69,7 +69,7 @@ export default function BookmarksPage() {
                       key={item.id}
                       interactive
                       className="p-5 flex flex-col items-center justify-center cursor-pointer relative group"
-                      onClick={() => router.push(`/chart?id=${item.id}`)}
+                      onClick={() => router.push(`/chart/?id=${item.id}`)}
                     >
                       <button
                         className="absolute top-3 right-3 p-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors z-10"
@@ -103,7 +103,7 @@ export default function BookmarksPage() {
                       key={item.id}
                       interactive
                       className="p-5 flex flex-col items-center justify-center cursor-pointer relative group"
-                      onClick={() => router.push(`/lyrics/view?id=${item.id}`)}
+                      onClick={() => router.push(`/lyrics/view/?id=${item.id}`)}
                     >
                       <button
                         className="absolute top-3 right-3 p-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors z-10"

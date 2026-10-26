@@ -662,3 +662,35 @@ describe('Viewer Stage Lock and Rotate Mode Optimizations', () => {
     expect(lyricsReader).toContain('disabled={isStageLocked}');
   });
 });
+
+describe('Offline Stability & Resource Handling', () => {
+  it('bypasses cross-origin requests in Service Worker to avoid 404 Offline Resource Not Found', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+    const swGen = fs.readFileSync(path.resolve(__dirname, '../scripts/generate-sw.js'), 'utf-8');
+    const publicSw = fs.readFileSync(path.resolve(__dirname, '../public/sw.js'), 'utf-8');
+
+    expect(swGen).toContain('url.origin !== self.location.origin');
+    expect(publicSw).toContain('url.origin !== self.location.origin');
+  });
+
+  it('stops Supabase token auto-refresh when offline and guards fetch', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+    const supabaseCode = fs.readFileSync(path.resolve(__dirname, '../lib/supabase.ts'), 'utf-8');
+
+    expect(supabaseCode).toContain('stopAutoRefresh');
+    expect(supabaseCode).toContain('startAutoRefresh');
+    expect(supabaseCode).toContain('customFetch');
+    expect(supabaseCode).toContain('navigator.onLine');
+  });
+
+  it('avoids opening realtime websocket connections when offline', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+    const syncContext = fs.readFileSync(path.resolve(__dirname, '../components/OfflineSyncContext.tsx'), 'utf-8');
+
+    expect(syncContext).toContain('!navigator.onLine');
+    expect(syncContext).toContain("window.addEventListener('offline', handleOffline)");
+  });
+});

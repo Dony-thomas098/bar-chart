@@ -48,4 +48,41 @@ describe('Chart and Lyrics Editor Navigation & Routing Fixes', () => {
     expect(folderCode).toContain("Edit Chart");
     expect(folderCode).toContain("Edit Lyrics");
   });
+
+  it('guarantees app/not-found.tsx redirects dynamic edit paths to edit query targets', () => {
+    const notFoundCode = fs.readFileSync(path.resolve(__dirname, '../app/not-found.tsx'), 'utf-8');
+    // Ensure edit route regex check exists before plain chart/lyrics check
+    const chartEditPos = notFoundCode.indexOf('chartEditMatch');
+    const chartPlainPos = notFoundCode.indexOf('chartMatch');
+    expect(chartEditPos).toBeGreaterThan(-1);
+    expect(chartPlainPos).toBeGreaterThan(-1);
+    expect(chartEditPos).toBeLessThan(chartPlainPos);
+    expect(notFoundCode).toContain('`/chart/edit/?id=${chartEditMatch[1]}`');
+
+    const lyricsEditPos = notFoundCode.indexOf('lyricsEditMatch');
+    const lyricsPlainPos = notFoundCode.indexOf('lyricsMatch');
+    expect(lyricsEditPos).toBeGreaterThan(-1);
+    expect(lyricsPlainPos).toBeGreaterThan(-1);
+    expect(lyricsEditPos).toBeLessThan(lyricsPlainPos);
+    expect(notFoundCode).toContain('`/lyrics/edit/?id=${lyricsEditMatch[1]}`');
+  });
+
+  it('guarantees chart and lyrics viewers allow offline and guest users without requiring user auth', () => {
+    const chartPage = fs.readFileSync(path.resolve(__dirname, '../app/chart/page.tsx'), 'utf-8');
+    const chartIdPage = fs.readFileSync(path.resolve(__dirname, '../app/chart/[id]/page.tsx'), 'utf-8');
+    const lyricsPage = fs.readFileSync(path.resolve(__dirname, '../app/lyrics/view/page.tsx'), 'utf-8');
+    const lyricsIdPage = fs.readFileSync(path.resolve(__dirname, '../app/lyrics/[id]/page.tsx'), 'utf-8');
+
+    // Neither chart viewer should block unauthenticated users when local chart is present
+    expect(chartPage).not.toContain('!user || !chart');
+    expect(chartPage).toContain('if (!chart)');
+    expect(chartIdPage).not.toContain('!user || !chart');
+    expect(chartIdPage).toContain('if (!chart)');
+
+    // Neither lyrics viewer should block unauthenticated users when local lyric is present
+    expect(lyricsPage).not.toContain('!user || !lyric');
+    expect(lyricsPage).toContain('if (!lyric)');
+    expect(lyricsIdPage).not.toContain('!user || !lyric');
+    expect(lyricsIdPage).toContain('if (!lyric)');
+  });
 });
