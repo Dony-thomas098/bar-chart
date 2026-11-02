@@ -134,6 +134,7 @@ function generateSW() {
     '/logo-banner.png',
     '/favicon.ico',
     '/favicon-32x32.png',
+    '/icon.png',
     '/icon-192x192.png',
     '/icon-512x512.png',
     '/apple-touch-icon.png'
@@ -168,6 +169,7 @@ self.addEventListener('install', (event) => {
         '/logo-banner.png',
         '/favicon.ico',
         '/favicon-32x32.png',
+        '/icon.png',
         '/icon-192x192.png',
         '/icon-512x512.png',
         '/apple-touch-icon.png'
@@ -177,7 +179,7 @@ self.addEventListener('install', (event) => {
         priorityAssets.map(async (asset) => {
           try {
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 2000);
+            const timeoutId = setTimeout(() => controller.abort(), 5000);
             const response = await fetch(asset, { 
               cache: 'no-cache',
               signal: controller.signal 
@@ -203,7 +205,7 @@ self.addEventListener('install', (event) => {
           batch.map(async (asset) => {
             try {
               const controller = new AbortController();
-              const timeoutId = setTimeout(() => controller.abort(), 2000);
+              const timeoutId = setTimeout(() => controller.abort(), 5000);
               const response = await fetch(asset, { 
                 cache: 'no-cache',
                 signal: controller.signal 
@@ -273,6 +275,8 @@ self.addEventListener('fetch', (event) => {
     request.method !== 'GET' ||
     url.origin !== self.location.origin ||
     url.pathname.startsWith('/_next/webpack-hmr') ||
+    url.pathname.includes('webpack') ||
+    url.pathname.includes('hot-update') ||
     url.hostname.includes('supabase.co') ||
     url.protocol.startsWith('chrome-extension') ||
     url.pathname.endsWith('/update.json') ||
@@ -377,6 +381,24 @@ self.addEventListener('fetch', (event) => {
             const bookmarksCached = await caches.match('/bookmarks/index.html', { ignoreSearch: true }) ||
                                     await caches.match('/bookmarks/', { ignoreSearch: true });
             if (bookmarksCached) return bookmarksCached;
+          }
+
+          if (url.pathname.startsWith('/auth')) {
+            const authCached = await caches.match('/auth/index.html', { ignoreSearch: true }) ||
+                               await caches.match('/auth/', { ignoreSearch: true });
+            if (authCached) return authCached;
+          }
+
+          if (url.pathname.startsWith('/chords')) {
+            const chordsCached = await caches.match('/chords/index.html', { ignoreSearch: true }) ||
+                                 await caches.match('/chords/', { ignoreSearch: true });
+            if (chordsCached) return chordsCached;
+          }
+
+          if (url.pathname.startsWith('/printer')) {
+            const printerCached = await caches.match('/printer/index.html', { ignoreSearch: true }) ||
+                                  await caches.match('/printer/', { ignoreSearch: true });
+            if (printerCached) return printerCached;
           }
 
           if (url.pathname.startsWith('/setlists')) {
@@ -498,6 +520,22 @@ self.addEventListener('fetch', (event) => {
           const fallback = await caches.match('/setlists/index.txt', { ignoreSearch: true });
           if (fallback) return fallback;
         }
+        if (url.pathname.startsWith('/chords')) {
+          const fallback = await caches.match('/chords/index.txt', { ignoreSearch: true });
+          if (fallback) return fallback;
+        }
+        if (url.pathname.startsWith('/folder')) {
+          const fallback = await caches.match('/folder/index.txt', { ignoreSearch: true });
+          if (fallback) return fallback;
+        }
+        if (url.pathname.startsWith('/auth')) {
+          const fallback = await caches.match('/auth/index.txt', { ignoreSearch: true });
+          if (fallback) return fallback;
+        }
+        if (url.pathname.startsWith('/printer')) {
+          const fallback = await caches.match('/printer/index.txt', { ignoreSearch: true });
+          if (fallback) return fallback;
+        }
 
         // If online, fetch from network and update cache
         try {
@@ -516,7 +554,7 @@ self.addEventListener('fetch', (event) => {
                           await caches.match('/__next._full.txt', { ignoreSearch: true });
           if (rootTxt) return rootTxt;
 
-          return new Response('', { status: 404, statusText: 'Offline Resource Not Found' });
+          return new Response('', { status: 200, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
         }
       })()
     );
@@ -552,6 +590,17 @@ self.addEventListener('fetch', (event) => {
       const pathMatch = await caches.match(url.pathname, { ignoreSearch: true });
       if (pathMatch) return pathMatch;
 
+      // Try matching by variations of path (e.g. /lyrics/view -> /lyrics/view/, /lyrics/view/index.html)
+      const trimmedPath = url.pathname.endsWith('/') ? url.pathname.slice(0, -1) : url.pathname;
+      const slashMatch = await caches.match(trimmedPath + '/', { ignoreSearch: true });
+      if (slashMatch) return slashMatch;
+
+      const unslashMatch = await caches.match(trimmedPath, { ignoreSearch: true });
+      if (unslashMatch) return unslashMatch;
+
+      const indexMatch = await caches.match(trimmedPath + '/index.html', { ignoreSearch: true });
+      if (indexMatch) return indexMatch;
+
       // Try matching by full URL string
       const fullUrlMatch = await caches.match(url.href, { ignoreSearch: true });
       if (fullUrlMatch) return fullUrlMatch;
@@ -571,30 +620,32 @@ self.addEventListener('fetch', (event) => {
         }
         return networkResponse;
       } catch (err) {
-        // OFFLINE FALLBACK FOR JS CHUNKS:
+        // OFFLINE FALLBACK FOR JS CHUNKS / SCRIPTS:
         // If a requested chunk has a hash mismatch (e.g. page-hash1.js vs page-hash2.js),
         // search the cache for any chunk matching the same component path prefix
-        if (url.pathname.startsWith('/_next/static/chunks/') && url.pathname.endsWith('.js')) {
-          try {
-            const cache = await caches.open(CACHE_NAME);
-            const keys = await cache.keys();
-            // Strip trailing hash from chunk filename: e.g. "page-e4806be85e52a4ad.js" -> "page-"
-            const prefix = url.pathname.replace(/-[a-f0-9]+\\.js$/, '-');
-            if (prefix !== url.pathname) {
-              const matchingKey = keys.find((k) => {
-                try {
-                  const kUrl = new URL(k.url);
-                  return kUrl.pathname.startsWith(prefix) && kUrl.pathname.endsWith('.js');
-                } catch (e) {
-                  return false;
+        if (request.destination === 'script' || url.pathname.endsWith('.js')) {
+          if (url.pathname.startsWith('/_next/static/chunks/')) {
+            try {
+              const cache = await caches.open(CACHE_NAME);
+              const keys = await cache.keys();
+              // Strip trailing hash from chunk filename: e.g. "page-e4806be85e52a4ad.js" -> "page-"
+              const prefix = url.pathname.replace(/-[a-f0-9]+\.js$/, '-');
+              if (prefix !== url.pathname) {
+                const matchingKey = keys.find((k) => {
+                  try {
+                    const kUrl = new URL(k.url);
+                    return kUrl.pathname.startsWith(prefix) && kUrl.pathname.endsWith('.js');
+                  } catch (e) {
+                    return false;
+                  }
+                });
+                if (matchingKey) {
+                  const fallbackChunk = await cache.match(matchingKey);
+                  if (fallbackChunk) return fallbackChunk;
                 }
-              });
-              if (matchingKey) {
-                const fallbackChunk = await cache.match(matchingKey);
-                if (fallbackChunk) return fallbackChunk;
               }
-            }
-          } catch (e) {}
+            } catch (e) {}
+          }
 
           // Return a safe empty JS script instead of 404 text so webpack doesn't crash fatally
           return new Response('/* offline chunk placeholder */', {
@@ -603,7 +654,7 @@ self.addEventListener('fetch', (event) => {
           });
         }
 
-        if (url.pathname.endsWith('.css')) {
+        if (request.destination === 'style' || url.pathname.endsWith('.css')) {
           return new Response('', {
             status: 200,
             headers: { 'Content-Type': 'text/css' },
@@ -626,7 +677,11 @@ self.addEventListener('fetch', (event) => {
           });
         }
 
-        if (url.pathname === '/logo-banner.png') {
+        // Image fallback: transparent 1x1 png for any requested image
+        if (
+          request.destination === 'image' ||
+          url.pathname.match(/\\.(png|jpg|jpeg|svg|webp|gif|ico)$/i)
+        ) {
           const transparentPng = Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII='), function(c) { return c.charCodeAt(0); });
           return new Response(transparentPng, {
             status: 200,
@@ -634,7 +689,26 @@ self.addEventListener('fetch', (event) => {
           });
         }
 
-        return new Response('', { status: 404, statusText: 'Offline Resource Not Found' });
+        // Font fallback: empty font
+        if (
+          request.destination === 'font' ||
+          url.pathname.match(/\\.(woff|woff2|ttf|otf|eot)$/i)
+        ) {
+          return new Response(new Uint8Array(0), {
+            status: 200,
+            headers: { 'Content-Type': 'font/woff2' },
+          });
+        }
+
+        // HTML document fallback for soft-nav fetch
+        if (request.destination === 'document' || url.pathname.endsWith('.html')) {
+          const rootCached = await caches.match('/index.html', { ignoreSearch: true }) ||
+                             await caches.match('/', { ignoreSearch: true });
+          if (rootCached) return rootCached;
+        }
+
+        // Safe final fallback: return 204 No Content so browser does not throw "404 (Offline Resource Not Found)"
+        return new Response('', { status: 204, statusText: 'No Content (Offline)' });
       }
     })()
   );

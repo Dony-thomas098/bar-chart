@@ -674,6 +674,25 @@ describe('Offline Stability & Resource Handling', () => {
     expect(publicSw).toContain('url.origin !== self.location.origin');
   });
 
+  it('guarantees Service Worker never returns 404 Offline Resource Not Found status on missing offline resources', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+    const swGen = fs.readFileSync(path.resolve(__dirname, '../scripts/generate-sw.js'), 'utf-8');
+    const publicSw = fs.readFileSync(path.resolve(__dirname, '../public/sw.js'), 'utf-8');
+
+    // Never return 404 status
+    expect(swGen).not.toContain("status: 404, statusText: 'Offline Resource Not Found'");
+    expect(publicSw).not.toContain("status: 404, statusText: 'Offline Resource Not Found'");
+
+    // Safe fallbacks exist
+    expect(swGen).toContain("new Response('', { status: 204, statusText: 'No Content (Offline)' })");
+    expect(publicSw).toContain("new Response('', { status: 204, statusText: 'No Content (Offline)' })");
+    expect(swGen).toContain("url.pathname.includes('hot-update')");
+    expect(publicSw).toContain("url.pathname.includes('hot-update')");
+    expect(swGen).toContain("'/icon.png'");
+    expect(publicSw).toContain("'/icon.png'");
+  });
+
   it('stops Supabase token auto-refresh when offline and guards fetch', async () => {
     const fs = await import('fs');
     const path = await import('path');
