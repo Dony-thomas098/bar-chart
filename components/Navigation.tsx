@@ -82,14 +82,14 @@ export function Navigation() {
     id: 'chords',
     label: 'Chords',
     iconKey: 'folder',
-    href: isSinger ? '/chords' : '/',
+    href: isSinger ? '/chords/' : '/',
   };
 
   const setlistsItem = {
     id: 'setlists',
     label: 'Setlists',
     iconKey: 'list',
-    href: '/setlists',
+    href: '/setlists/',
   };
 
   const createItem = {
@@ -103,14 +103,14 @@ export function Navigation() {
     id: 'lyrics',
     label: 'Lyrics',
     iconKey: 'type',
-    href: isSinger ? '/' : '/lyrics',
+    href: isSinger ? '/' : '/lyrics/',
   };
 
   const starredItem = {
     id: 'starred',
     label: 'Starred',
     iconKey: 'star',
-    href: '/bookmarks',
+    href: '/bookmarks/',
   };
 
   const items = isSinger
@@ -362,7 +362,9 @@ export function Navigation() {
     }
 
     go(i);
-    if (pathname !== item.href) {
+    const normalizedPath = (pathname || '').replace(/\/+$/, '') || '/';
+    const normalizedItemHref = (item.href || '').replace(/\/+$/, '') || '/';
+    if (normalizedPath !== normalizedItemHref) {
       router.push(item.href);
     }
   };

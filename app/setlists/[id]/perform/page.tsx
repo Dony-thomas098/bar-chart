@@ -45,6 +45,7 @@ function useSetlistSession(setlistId: string, isLeaderDevice: boolean) {
   useEffect(() => { isFollowingRef.current = isFollowing; }, [isFollowing]);
 
   useEffect(() => {
+    if (!setlistId) return;
     isMountedRef.current = true;
     const isLdr = isLeaderRef.current;
 
@@ -54,7 +55,12 @@ function useSetlistSession(setlistId: string, isLeaderDevice: boolean) {
       if (user) myNameRef.current = user.email?.split('@')[0] ?? 'Anonymous';
 
       const instanceId = Math.random().toString(36).slice(2, 8);
-      const channel = supabase.channel(`setlist-${setlistId}-${instanceId}`);
+      const channel = supabase.channel(`setlist-${setlistId}`, {
+        config: {
+          presence: { key: instanceId },
+          broadcast: { ack: false, self: false },
+        },
+      });
       channelRef.current = channel;
 
       channel
@@ -197,7 +203,33 @@ export default function SetlistPerformPage() {
   const params = useParams();
   const searchParams = useSearchParams();
   const router = useRouter();
-  const setlistId = (params?.id as string) || searchParams?.get('id') || '';
+  const getInitialSetlistId = () => {
+    if (params?.id && params.id !== 'view' && params.id !== 'perform' && params.id !== 'demo') {
+      return params.id as string;
+    }
+    const spId = searchParams?.get('id');
+    if (spId) return spId;
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const wId = urlParams.get('id');
+      if (wId) return wId;
+    }
+    return '';
+  };
+
+  const [resolvedSetlistId, setResolvedSetlistId] = useState<string>(getInitialSetlistId);
+  const setlistId = resolvedSetlistId;
+
+  useEffect(() => {
+    const currentId =
+      (params?.id && params.id !== 'view' && params.id !== 'perform' && params.id !== 'demo' ? (params.id as string) : null) ||
+      searchParams?.get('id') ||
+      (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('id') : null) ||
+      '';
+    if (currentId && currentId !== resolvedSetlistId) {
+      setResolvedSetlistId(currentId);
+    }
+  }, [params, searchParams, resolvedSetlistId]);
 
   const [items, setItems] = useState<SetlistItem[]>([]);
   const [setlistName, setSetlistName] = useState('');
@@ -257,7 +289,7 @@ export default function SetlistPerformPage() {
 
   // Load items
   useEffect(() => {
-    if (authLoading || !user) return;
+    if (authLoading || !user || !setlistId) return;
     (async () => {
       setLoading(true);
       const { supabase: sb } = await import('@/lib/supabase');
@@ -414,7 +446,7 @@ export default function SetlistPerformPage() {
   const handleEndSession = () => {
     endSession();
     sessionStorage.removeItem(`setlist-leader-${setlistId}`);
-    router.push(`/setlists/view?id=${setlistId}`);
+    router.push(`/setlists/view/?id=${setlistId}`);
   };
 
   const currentItem = items[songPosition];
@@ -426,7 +458,7 @@ export default function SetlistPerformPage() {
       <div className="min-h-screen bg-bg flex flex-col items-center justify-center text-text-primary gap-4">
         <Radio size={40} className="text-accent-start opacity-50" />
         <h2 className="text-2xl font-bold">Session ended</h2>
-        <button onClick={() => router.push(`/setlists/view?id=${setlistId}`)} className="px-6 py-3 bg-accent-gradient text-white font-bold rounded-xl shadow-md hover:brightness-110 transition-all">
+        <button onClick={() => router.push(`/setlists/view/?id=${setlistId}`)} className="px-6 py-3 bg-accent-gradient text-white font-bold rounded-xl shadow-md hover:brightness-110 transition-all">
           Back to Setlist
         </button>
       </div>
@@ -440,7 +472,7 @@ export default function SetlistPerformPage() {
         <p className="text-sm text-text-secondary">
           {mode === 'loading' && !isLeaderDevice ? 'Waiting for leader to join…' : 'Loading…'}
         </p>
-        <button onClick={() => router.push(`/setlists/view?id=${setlistId}`)} className="text-xs text-text-secondary underline mt-2">Cancel</button>
+        <button onClick={() => router.push(`/setlists/view/?id=${setlistId}`)} className="text-xs text-text-secondary underline mt-2">Cancel</button>
       </div>
     );
   }
@@ -461,7 +493,7 @@ export default function SetlistPerformPage() {
         {/* Row 1: setlist name + controls */}
         <div className="flex items-center gap-3 px-3 py-2.5">
           <button
-            onClick={() => isLeader ? setShowEndConfirmModal(true) : router.push(`/setlists/view?id=${setlistId}`)}
+            onClick={() => isLeader ? setShowEndConfirmModal(true) : router.push(`/setlists/view/?id=${setlistId}`)}
             className="p-2 text-text-secondary hover:text-white bg-surface-raised border border-border rounded-lg transition-all shrink-0"
             title="Close setlist performance"
           >

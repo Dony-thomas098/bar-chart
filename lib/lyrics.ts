@@ -53,6 +53,7 @@ export async function saveLyrics(lyric: Lyric) {
 }
 
 export async function readLyrics(id: string): Promise<Lyric | null> {
+  if (!id || id === 'edit') return null;
   // 1. Try local cache first
   const dbPromise = getDBPromise();
   if (dbPromise) {

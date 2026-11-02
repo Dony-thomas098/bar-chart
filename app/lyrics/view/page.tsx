@@ -7,7 +7,20 @@ import { useLyricsSync } from '@/hooks/useLyricsSync';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { Lyric } from '@/lib/lyrics';
 
-import { PiascoreLyricsReader } from '@/components/PiascoreLyricsReader';
+const PiascoreLyricsReader = dynamic(
+  () => import('@/components/PiascoreLyricsReader').then((mod) => mod.PiascoreLyricsReader),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-screen items-center justify-center bg-[#121214] text-white">
+        <div className="flex items-center gap-3">
+          <div className="w-6 h-6 border-2 border-accent-start border-t-transparent rounded-full animate-spin" />
+          <span className="text-sm font-medium">Loading lyrics score...</span>
+        </div>
+      </div>
+    ),
+  }
+);
 
 function LyricsViewerContent() {
   const params = useParams();
@@ -15,7 +28,7 @@ function LyricsViewerContent() {
   const router = useRouter();
 
   const getInitialLyricId = () => {
-    if (params?.id && params.id !== 'edit') return params.id as string;
+    if (params?.id && params.id !== 'edit' && params.id !== 'view' && params.id !== 'demo') return params.id as string;
     const spId = searchParams?.get('id');
     if (spId) return spId;
     if (typeof window !== 'undefined') {
@@ -30,7 +43,7 @@ function LyricsViewerContent() {
 
   useEffect(() => {
     const currentId =
-      (params?.id && params.id !== 'edit' ? (params.id as string) : null) ||
+      (params?.id && params.id !== 'edit' && params.id !== 'view' && params.id !== 'demo' ? (params.id as string) : null) ||
       searchParams?.get('id') ||
       (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('id') : null) ||
       '';
@@ -52,7 +65,7 @@ function LyricsViewerContent() {
     return null;
   }
 
-  if (lyricLoading) {
+  if (lyricLoading || !resolvedLyricId) {
     return (
       <div className="flex h-screen items-center justify-center bg-[#121214] text-white">
         <div className="flex items-center gap-3">
@@ -68,7 +81,7 @@ function LyricsViewerContent() {
       <div className="flex h-screen flex-col items-center justify-center bg-[#121214] text-white gap-4">
         <p className="text-slate-400 text-sm">Lyrics not found or access denied.</p>
         <button
-          onClick={() => router.push('/lyrics')}
+          onClick={() => router.push('/lyrics/')}
           className="px-5 py-2.5 bg-accent-gradient font-bold rounded-xl text-white hover:brightness-110 transition-all"
         >
           Go to Lyrics Catalog

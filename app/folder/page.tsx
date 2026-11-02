@@ -12,7 +12,31 @@ function FolderPageContent() {
   const { user, loading: authLoading } = useAuth();
   const params = useParams();
   const searchParams = useSearchParams();
-  const folderId = (params?.id as string) || searchParams?.get('id') || '';
+
+  const getInitialFolderId = () => {
+    const spId = searchParams?.get('id');
+    if (spId) return spId;
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const wId = urlParams.get('id');
+      if (wId) return wId;
+    }
+    return (params?.id as string) || '';
+  };
+
+  const [resolvedFolderId, setResolvedFolderId] = useState<string>(getInitialFolderId);
+  const folderId = resolvedFolderId;
+
+  useEffect(() => {
+    const currentId =
+      searchParams?.get('id') ||
+      (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('id') : null) ||
+      (params?.id as string) ||
+      '';
+    if (currentId && currentId !== resolvedFolderId) {
+      setResolvedFolderId(currentId);
+    }
+  }, [params, searchParams, resolvedFolderId]);
 
   const [folder, setFolder] = useState<Folder | null>(null);
   const [loading, setLoading] = useState(true);

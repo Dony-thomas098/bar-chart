@@ -334,7 +334,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     try {
-      await flushPendingSaves();
+      await Promise.race([
+        flushPendingSaves(),
+        new Promise((resolve) => setTimeout(resolve, 1500)),
+      ]);
     } catch (e) {
       console.warn('[Auth] Error flushing pending saves during signout:', e);
     }
@@ -360,6 +363,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.removeItem(PROFESSION_KEY);
       localStorage.removeItem(INSTRUMENT_KEY);
       localStorage.removeItem(USERNAME_KEY);
+      localStorage.removeItem('chord-grid-onboarding-completed');
+      localStorage.removeItem('chord-grid-band-id');
+      localStorage.removeItem('chord-grid-band-name');
+      localStorage.removeItem('chord-grid-band-joined');
+
+      // Purge all Supabase auth tokens from localStorage so session is genuinely terminated
+      try {
+        const keysToRemove = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && (k.startsWith('sb-') || k.includes('auth-token') || k.includes('supabase.auth'))) {
+            keysToRemove.push(k);
+          }
+        }
+        keysToRemove.forEach((k) => localStorage.removeItem(k));
+      } catch {}
     }
     clearActiveBandSession();
     lastSyncedUserIdRef.current = null;
@@ -375,7 +394,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       email: null,
     });
     try {
-      await supabase.auth.signOut();
+      await Promise.race([
+        supabase.auth.signOut(),
+        new Promise((resolve) => setTimeout(resolve, 2000)),
+      ]);
     } catch (err) {
       console.warn('[Auth] SignOut error:', err);
     }

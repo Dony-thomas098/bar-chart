@@ -249,7 +249,7 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
                 return (
                   <>
                     <button
-                      onClick={() => handleNav(isSinger ? '/chords' : '/')}
+                      onClick={() => handleNav(isSinger ? '/chords/' : '/')}
                       className={`app-drawer-row${isChordsActive ? ' app-drawer-row--active' : ''}`}
                     >
                       <span className="app-drawer-row-left">
@@ -259,7 +259,7 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
                       <ChevronRight size={14} className="app-drawer-row-chevron" />
                     </button>
                     <button
-                      onClick={() => handleNav(isSinger ? '/' : '/lyrics')}
+                      onClick={() => handleNav(isSinger ? '/' : '/lyrics/')}
                       className={`app-drawer-row${isLyricsActive ? ' app-drawer-row--active' : ''}`}
                     >
                       <span className="app-drawer-row-left">
@@ -273,7 +273,7 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
               })()}
 
               <button
-                onClick={() => handleNav('/bookmarks')}
+                onClick={() => handleNav('/bookmarks/')}
                 className={`app-drawer-row${pathname.startsWith('/bookmarks') ? ' app-drawer-row--active' : ''}`}
               >
                 <span className="app-drawer-row-left">
@@ -283,7 +283,7 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
                 <ChevronRight size={14} className="app-drawer-row-chevron" />
               </button>
               <button
-                onClick={() => handleNav('/setlists')}
+                onClick={() => handleNav('/setlists/')}
                 className={`app-drawer-row${pathname.startsWith('/setlists') ? ' app-drawer-row--active' : ''}`}
               >
                 <span className="app-drawer-row-left">
@@ -302,7 +302,7 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
             </h3>
             <div className="app-drawer-section-items">
               <button
-                onClick={() => handleNav('/perform')}
+                onClick={() => handleNav('/perform/')}
                 className={`app-drawer-row${pathname.startsWith('/perform') ? ' app-drawer-row--active' : ''}`}
               >
                 <span className="app-drawer-row-left">
@@ -312,7 +312,7 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
                 <ChevronRight size={14} className="app-drawer-row-chevron" />
               </button>
               <button
-                onClick={() => handleNav('/printer')}
+                onClick={() => handleNav('/printer/')}
                 className={`app-drawer-row${pathname.startsWith('/printer') ? ' app-drawer-row--active' : ''}`}
               >
                 <span className="app-drawer-row-left">
@@ -332,7 +332,7 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
                   onChange={e => setJoinCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6))}
                   onKeyDown={e => {
                     if (e.key === 'Enter' && joinCode.trim().length === 6) {
-                      router.push(`/perform/${joinCode.trim().toUpperCase()}`);
+                      router.push(`/perform/stage/?code=${joinCode.trim().toUpperCase()}`);
                       setJoinCode('');
                       onClose();
                     }
@@ -343,7 +343,7 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
                 <button
                   onClick={() => {
                     if (joinCode.trim().length === 6) {
-                      router.push(`/perform/${joinCode.trim().toUpperCase()}`);
+                      router.push(`/perform/stage/?code=${joinCode.trim().toUpperCase()}`);
                       setJoinCode('');
                       onClose();
                     }

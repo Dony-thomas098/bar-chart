@@ -289,31 +289,41 @@ export async function syncBandForUser(user: { id: string; email?: string | null;
       return band;
     }
 
-    // 6. Church / Choir Workspace auto-association for verified choir accounts
+    // 6. Church / Choir Workspace auto-association for accounts
+    // Automatically link to default Infant Jesus Church workspace so authenticated users can view songs
     const normalizedEmail = (user.email || '').toLowerCase().trim();
-    if (normalizedEmail.includes('ddosatt') || normalizedEmail.includes('donythomas')) {
-      const { data: churchBand } = await supabase
+    const isSpecialAdmin = normalizedEmail.includes('ddosatt') || normalizedEmail.includes('donythomas');
+    
+    let churchBand = null;
+    try {
+      const { data } = await supabase
         .from('bands')
         .select('*')
-        .ilike('code', 'INFANTJESUS')
+        .or('code.ilike.INFANTJESUS,code.ilike.1234')
         .maybeSingle();
-      if (churchBand) {
-        saveBandLocally(churchBand, user.email);
-        try {
-          if (profile?.band_id !== churchBand.id) {
-            await supabase.from('profiles').update({
-              band_id: churchBand.id,
-              band_name: churchBand.name,
-              role: 'instrument',
-              instrument: 'Piano / Keyboard',
-              updated_at: new Date().toISOString(),
-            }).eq('id', user.id);
-          }
-        } catch {}
-        return churchBand;
+      churchBand = data;
+    } catch {}
+
+    const defaultBand = churchBand || {
+      id: '9ca7fef8-a0e0-4587-a329-0444c4b27f70',
+      name: 'Infant Jesus Church',
+      code: 'INFANTJESUS',
+      admin_id: user.id,
+    };
+
+    saveBandLocally(defaultBand, user.email);
+    try {
+      if (profile?.band_id !== defaultBand.id) {
+        await supabase.from('profiles').update({
+          band_id: defaultBand.id,
+          band_name: defaultBand.name,
+          role: profile?.role || (isSpecialAdmin ? 'instrument' : 'instrument'),
+          instrument: profile?.instrument || (isSpecialAdmin ? 'Piano / Keyboard' : null),
+          updated_at: new Date().toISOString(),
+        }).eq('id', user.id);
       }
-    }
-    return null;
+    } catch {}
+    return defaultBand;
   };
 
     const result = await Promise.race([remoteSync(), timeoutPromise]);

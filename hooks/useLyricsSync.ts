@@ -21,11 +21,17 @@ export function useLyricsSync(lyricId: string) {
   }, [lyric]);
 
   useEffect(() => {
+    if (!lyricId || lyricId === 'edit') {
+      setLoading(true);
+      return;
+    }
+
     let isMounted = true;
+    setLoading(true);
     
     const safetyTimer = setTimeout(() => {
       if (isMounted) setLoading(false);
-    }, 2500);
+    }, 3500);
 
     readLyrics(lyricId)
       .then(data => {

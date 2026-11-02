@@ -361,7 +361,7 @@ export default function SetlistsPage() {
       return;
     }
     sessionStorage.setItem(`setlist-leader-${s.id}`, '1');
-    router.push(`/setlists/perform?id=${s.id}`);
+    router.push(`/setlists/perform/?id=${s.id}`);
   };
 
   const handleSendToPerformQueue = (s: Setlist & { songCount?: number }) => {
@@ -369,13 +369,13 @@ export default function SetlistsPage() {
       showToast('Setlist is empty. Add songs first');
       return;
     }
-    router.push(`/perform?setlistId=${s.id}`);
+    router.push(`/perform/?setlistId=${s.id}`);
   };
 
   const handleCreate = (s: Setlist) => {
     setShowNew(false);
     setSetlists(prev => [{ ...s, songCount: 0 }, ...prev]);
-    router.push(`/setlists/view?id=${s.id}`);
+    router.push(`/setlists/view/?id=${s.id}`);
   };
 
   const handleRename = (id: string, name: string) => {
@@ -451,7 +451,7 @@ export default function SetlistsPage() {
             <SetlistCard
               key={s.id}
               setlist={s}
-              onOpen={() => router.push(`/setlists/view?id=${s.id}`)}
+              onOpen={() => router.push(`/setlists/view/?id=${s.id}`)}
               onRename={() => setRenaming(s)}
               onDuplicate={() => handleDuplicate(s.id)}
               onDelete={() => setDeleting(s)}

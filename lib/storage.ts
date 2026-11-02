@@ -234,6 +234,7 @@ export async function deleteFromCache(id: string, store: 'charts' | 'lyrics' | '
 
 /** Clear all cached data belonging to a specific band from IndexedDB */
 export async function clearBandCache(bandId?: string | null) {
+  if (!bandId) return;
   if (!dbPromise) return;
   try {
     const db = await dbPromise;
@@ -246,7 +247,7 @@ export async function clearBandCache(bandId?: string | null) {
     ]);
 
     const isTargetBand = (itemBandId?: string | null) => {
-      if (!bandId) return true;
+      if (!bandId) return false;
       if (itemBandId === bandId) return true;
       if (bandId === DEFAULT_CHURCH_BAND_ID && !itemBandId) return true;
       return false;
@@ -312,7 +313,7 @@ export async function listFolderFromCache(
 
   const matchesBand = (itemBandId: string | null | undefined) => {
     if (isGuestMode) return true;
-    if (!activeBandId) return false;
+    if (!activeBandId) return !itemBandId;
     if (activeBandId === DEFAULT_CHURCH_BAND_ID) return itemBandId === activeBandId || !itemBandId;
     return itemBandId === activeBandId;
   };
@@ -967,7 +968,7 @@ export async function listTrash(bandId?: string | null) {
 
   const matchesBand = (itemBandId: string | null | undefined) => {
     if (isGuestMode) return true;
-    if (!activeBandId) return false;
+    if (!activeBandId) return !itemBandId;
     if (activeBandId === DEFAULT_CHURCH_BAND_ID) return itemBandId === activeBandId || !itemBandId;
     return itemBandId === activeBandId;
   };
@@ -1158,6 +1159,7 @@ export async function saveChart(chart: Chart) {
 }
 
 export async function readChart(id: string, bypassCache = false): Promise<Chart | null> {
+  if (!id || id === 'edit') return null;
   // 1. Try local IndexedDB cache first for instant (<5ms) rendering
   if (!bypassCache && dbPromise) {
     try {
@@ -1228,7 +1230,7 @@ export async function getRecentCharts(limit: number = 5, bandId?: string | null)
     const db = await dbPromise;
     const allCharts = await db.getAll('charts');
     return allCharts
-      .filter(c => !c.title.startsWith('__TRASH__:') && (isGuestMode || (activeBandId && (activeBandId === DEFAULT_CHURCH_BAND_ID ? (c.band_id === activeBandId || !c.band_id) : c.band_id === activeBandId))))
+      .filter(c => !c.title.startsWith('__TRASH__:') && (isGuestMode || (activeBandId ? (activeBandId === DEFAULT_CHURCH_BAND_ID ? (c.band_id === activeBandId || !c.band_id) : c.band_id === activeBandId) : !c.band_id)))
       .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
       .slice(0, limit);
   }
@@ -1249,7 +1251,7 @@ export async function getAllFolders(kind?: 'chart' | 'lyrics', bandId?: string |
   } else if (dbPromise) {
     const db = await dbPromise;
     const all = await db.getAll('folders');
-    const filtered = all.filter(f => !f.name.startsWith('__TRASH__:') && (isGuestMode || (activeBandId && (activeBandId === DEFAULT_CHURCH_BAND_ID ? (f.band_id === activeBandId || !f.band_id) : f.band_id === activeBandId))));
+    const filtered = all.filter(f => !f.name.startsWith('__TRASH__:') && (isGuestMode || (activeBandId ? (activeBandId === DEFAULT_CHURCH_BAND_ID ? (f.band_id === activeBandId || !f.band_id) : f.band_id === activeBandId) : !f.band_id)));
     if (kind) return filtered.filter(f => f.kind === kind);
     return filtered;
   }
@@ -1294,8 +1296,8 @@ export async function getBookmarks(bandId?: string | null) {
     const charts = await db.getAll('charts');
     const lyrics = await db.getAll('lyrics');
     const all = [
-      ...charts.filter(c => c.is_bookmarked && !c.title.startsWith('__TRASH__:') && (isGuestMode || (activeBandId && (activeBandId === DEFAULT_CHURCH_BAND_ID ? (c.band_id === activeBandId || !c.band_id) : c.band_id === activeBandId)))).map((c) => ({ id: c.id, title: c.title, updated_at: c.updated_at, is_bookmarked: c.is_bookmarked, type: 'chart' as const })),
-      ...lyrics.filter(l => l.is_bookmarked && !l.title.startsWith('__TRASH__:') && (isGuestMode || (activeBandId && (activeBandId === DEFAULT_CHURCH_BAND_ID ? (l.band_id === activeBandId || !l.band_id) : l.band_id === activeBandId)))).map((l) => ({ id: l.id, title: l.title, updated_at: l.updated_at, is_bookmarked: l.is_bookmarked, type: 'lyrics' as const }))
+      ...charts.filter(c => c.is_bookmarked && !c.title.startsWith('__TRASH__:') && (isGuestMode || (activeBandId ? (activeBandId === DEFAULT_CHURCH_BAND_ID ? (c.band_id === activeBandId || !c.band_id) : c.band_id === activeBandId) : !c.band_id))).map((c) => ({ id: c.id, title: c.title, updated_at: c.updated_at, is_bookmarked: c.is_bookmarked, type: 'chart' as const })),
+      ...lyrics.filter(l => l.is_bookmarked && !l.title.startsWith('__TRASH__:') && (isGuestMode || (activeBandId ? (activeBandId === DEFAULT_CHURCH_BAND_ID ? (l.band_id === activeBandId || !l.band_id) : l.band_id === activeBandId) : !l.band_id))).map((l) => ({ id: l.id, title: l.title, updated_at: l.updated_at, is_bookmarked: l.is_bookmarked, type: 'lyrics' as const }))
     ];
     return all.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
   }
@@ -1369,7 +1371,7 @@ export async function searchAll(
         const db = await dbPromise;
         const allDbFolders = await db.getAll('folders');
         rawFolders = allDbFolders.filter(
-          f => f.kind === kind && !f.name.startsWith('__TRASH__:') && (isGuestMode || (activeBandId && (activeBandId === DEFAULT_CHURCH_BAND_ID ? (f.band_id === activeBandId || !f.band_id) : f.band_id === activeBandId))) && f.name.toLowerCase().includes(cleanQuery)
+          f => f.kind === kind && !f.name.startsWith('__TRASH__:') && (isGuestMode || (activeBandId ? (activeBandId === DEFAULT_CHURCH_BAND_ID ? (f.band_id === activeBandId || !f.band_id) : f.band_id === activeBandId) : !f.band_id)) && f.name.toLowerCase().includes(cleanQuery)
         );
       } catch {}
     }
@@ -1417,7 +1419,7 @@ export async function searchAll(
       const db = await dbPromise;
       const allDbItems = await db.getAll(kind === 'chart' ? 'charts' : 'lyrics');
       rawItems = allDbItems.filter(
-        c => !c.title.startsWith('__TRASH__:') && (isGuestMode || (activeBandId && (activeBandId === DEFAULT_CHURCH_BAND_ID ? (c.band_id === activeBandId || !c.band_id) : c.band_id === activeBandId))) && c.title.toLowerCase().includes(cleanQuery)
+        c => !c.title.startsWith('__TRASH__:') && (isGuestMode || (activeBandId ? (activeBandId === DEFAULT_CHURCH_BAND_ID ? (c.band_id === activeBandId || !c.band_id) : c.band_id === activeBandId) : !c.band_id)) && c.title.toLowerCase().includes(cleanQuery)
       );
     } catch {}
   }

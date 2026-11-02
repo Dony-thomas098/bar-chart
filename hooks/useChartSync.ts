@@ -23,11 +23,17 @@ export function useChartSync(chartId: string) {
   }, [chart]);
 
   useEffect(() => {
+    if (!chartId || chartId === 'edit') {
+      setLoading(true);
+      return;
+    }
+
     let isMounted = true;
+    setLoading(true);
     
     const safetyTimer = setTimeout(() => {
       if (isMounted) setLoading(false);
-    }, 2500);
+    }, 3500);
 
     readChart(chartId)
       .then(data => {

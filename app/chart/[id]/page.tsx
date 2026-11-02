@@ -28,7 +28,7 @@ function ChartViewerDetailContent() {
   const router = useRouter();
 
   const getInitialChartId = () => {
-    if (params?.id && params.id !== 'edit') return params.id as string;
+    if (params?.id && params.id !== 'edit' && params.id !== 'view' && params.id !== 'demo') return params.id as string;
     const spId = searchParams?.get('id');
     if (spId) return spId;
     if (typeof window !== 'undefined') {
@@ -44,7 +44,7 @@ function ChartViewerDetailContent() {
 
   useEffect(() => {
     const currentId =
-      (params?.id && params.id !== 'edit' ? (params.id as string) : null) ||
+      (params?.id && params.id !== 'edit' && params.id !== 'view' && params.id !== 'demo' ? (params.id as string) : null) ||
       searchParams?.get('id') ||
       (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('id') : null) ||
       '';
@@ -66,7 +66,7 @@ function ChartViewerDetailContent() {
     return null;
   }
 
-  if (chartLoading) {
+  if (chartLoading || !chartId) {
     return (
       <div className="flex h-screen items-center justify-center bg-[#121214] text-white">
         <div className="flex items-center gap-3">

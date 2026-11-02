@@ -359,7 +359,33 @@ export default function SetlistDetailPage() {
   const params = useParams();
   const searchParams = useSearchParams();
   const router = useRouter();
-  const setlistId = (params?.id as string) || searchParams?.get('id') || '';
+  const getInitialSetlistId = () => {
+    if (params?.id && params.id !== 'view' && params.id !== 'perform' && params.id !== 'demo') {
+      return params.id as string;
+    }
+    const spId = searchParams?.get('id');
+    if (spId) return spId;
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const wId = urlParams.get('id');
+      if (wId) return wId;
+    }
+    return '';
+  };
+
+  const [resolvedSetlistId, setResolvedSetlistId] = useState<string>(getInitialSetlistId);
+  const setlistId = resolvedSetlistId;
+
+  useEffect(() => {
+    const currentId =
+      (params?.id && params.id !== 'view' && params.id !== 'perform' && params.id !== 'demo' ? (params.id as string) : null) ||
+      searchParams?.get('id') ||
+      (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('id') : null) ||
+      '';
+    if (currentId && currentId !== resolvedSetlistId) {
+      setResolvedSetlistId(currentId);
+    }
+  }, [params, searchParams, resolvedSetlistId]);
 
   const [setlist, setSetlist] = useState<Setlist | null>(null);
   const [items, setItems] = useState<SetlistItem[]>([]);
@@ -386,13 +412,14 @@ export default function SetlistDetailPage() {
   );
 
   const load = useCallback(async () => {
+    if (!setlistId) return;
     setLoading(true);
     try {
       const { supabase } = await import('@/lib/supabase');
       const { data: sl, error } = await supabase.from('setlists').select('*').eq('id', setlistId).single();
       if (error || !sl) {
         console.warn('[Setlist] Error loading setlist:', error);
-        router.push('/setlists');
+        router.push('/setlists/');
         return;
       }
       setSetlist(sl);
@@ -402,7 +429,7 @@ export default function SetlistDetailPage() {
       setItems(loaded);
     } catch (err) {
       console.error('[Setlist] Load error:', err);
-      router.push('/setlists');
+      router.push('/setlists/');
     } finally {
       setLoading(false);
     }
@@ -637,7 +664,7 @@ export default function SetlistDetailPage() {
                 disabled={items.length === 0}
                 onClick={() => {
                   sessionStorage.setItem(`setlist-leader-${setlistId}`, '1');
-                  router.push(`/setlists/perform?id=${setlistId}`);
+                  router.push(`/setlists/perform/?id=${setlistId}`);
                 }}
                 className="flex-1 py-2.5 px-5 btn-dark-pill flex items-center justify-center gap-2 text-sm disabled:opacity-40 cursor-pointer"
               >
@@ -718,7 +745,7 @@ export default function SetlistDetailPage() {
             <button
               onClick={() => {
                 sessionStorage.setItem(`setlist-leader-${setlistId}`, '1');
-                router.push(`/setlists/perform?id=${setlistId}`);
+                router.push(`/setlists/perform/?id=${setlistId}`);
               }}
               className="pointer-events-auto px-8 py-3 btn-dark-pill shadow-2xl flex items-center gap-2 text-sm font-extrabold cursor-pointer animate-in fade-in slide-in-from-bottom-2 duration-200"
             >

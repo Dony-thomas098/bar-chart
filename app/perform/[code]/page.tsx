@@ -94,7 +94,7 @@ function PerformChartWrapper({
 function CodeBadge({ code }: { code: string }) {
   const [copied, setCopied] = useState(false);
   const copy = () => {
-    const url = `${window.location.origin}/perform/stage?code=${code}`;
+    const url = `${window.location.origin}/perform/stage/?code=${code}`;
     navigator.clipboard.writeText(url);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -115,7 +115,36 @@ export default function PerformancePage() {
   const params = useParams();
   const searchParams = useSearchParams();
   const router = useRouter();
-  const code = ((params?.code as string) || searchParams?.get('code') || '').toUpperCase();
+
+  const getInitialCode = () => {
+    const rawParam = Array.isArray(params?.code) ? params.code[0] : params?.code;
+    if (rawParam && rawParam.toLowerCase() !== 'stage' && rawParam.toLowerCase() !== 'demo') {
+      return rawParam.toUpperCase();
+    }
+    const spCode = searchParams?.get('code');
+    if (spCode) return spCode.toUpperCase();
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const wCode = urlParams.get('code');
+      if (wCode) return wCode.toUpperCase();
+    }
+    return '';
+  };
+
+  const [resolvedCode, setResolvedCode] = useState<string>(getInitialCode);
+  const code = resolvedCode;
+
+  useEffect(() => {
+    const rawParam = Array.isArray(params?.code) ? params.code[0] : params?.code;
+    const currentCode =
+      (rawParam && rawParam.toLowerCase() !== 'stage' && rawParam.toLowerCase() !== 'demo' ? rawParam : null) ||
+      searchParams?.get('code') ||
+      (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('code') : null) ||
+      '';
+    if (currentCode && currentCode.toUpperCase() !== resolvedCode) {
+      setResolvedCode(currentCode.toUpperCase());
+    }
+  }, [params, searchParams, resolvedCode]);
 
   // Read leader payload from sessionStorage (set by builder page on this device)
   const [initialPayload] = useState<{ chartIds: string[]; sessionName: string } | undefined>(() => {

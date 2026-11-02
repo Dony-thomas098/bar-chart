@@ -85,4 +85,64 @@ describe('Chart and Lyrics Editor Navigation & Routing Fixes', () => {
     expect(lyricsIdPage).not.toContain('!user || !lyric');
     expect(lyricsIdPage).toContain('if (!lyric)');
   });
+
+  it('guarantees Setlist Live Performance uses a shared Supabase channel and proper presence key', () => {
+    const setlistPerformCode = fs.readFileSync(path.resolve(__dirname, '../app/setlists/[id]/perform/page.tsx'), 'utf-8');
+    // Channel name must be shared across all devices for the setlist
+    expect(setlistPerformCode).toContain('supabase.channel(`setlist-${setlistId}`');
+    expect(setlistPerformCode).not.toContain('supabase.channel(`setlist-${setlistId}-${instanceId}`)');
+    expect(setlistPerformCode).toContain('presence: { key: instanceId }');
+  });
+
+  it('guarantees Setlist and Live Stage routes use canonical trailing slashes', () => {
+    const setlistListCode = fs.readFileSync(path.resolve(__dirname, '../app/setlists/page.tsx'), 'utf-8');
+    expect(setlistListCode).toContain('/setlists/view/?id=');
+    expect(setlistListCode).toContain('/setlists/perform/?id=');
+    expect(setlistListCode).not.toContain("router.push(`/setlists/view?id=");
+    expect(setlistListCode).not.toContain("router.push(`/setlists/perform?id=");
+
+    const performCode = fs.readFileSync(path.resolve(__dirname, '../app/perform/page.tsx'), 'utf-8');
+    expect(performCode).toContain('/perform/stage/?code=');
+    expect(performCode).not.toContain("router.push(`/perform/stage?code=");
+
+    const notFoundCode = fs.readFileSync(path.resolve(__dirname, '../app/not-found.tsx'), 'utf-8');
+    expect(notFoundCode).toContain('/setlists/view/?id=');
+    expect(notFoundCode).toContain('/setlists/perform/?id=');
+  });
+
+  it('guarantees dynamic route pages guard against static route names (view, perform, stage, edit)', () => {
+    const setlistDetailPage = fs.readFileSync(path.resolve(__dirname, '../app/setlists/[id]/page.tsx'), 'utf-8');
+    expect(setlistDetailPage).toContain("params.id !== 'view'");
+    expect(setlistDetailPage).toContain("params.id !== 'perform'");
+
+    const setlistPerformPage = fs.readFileSync(path.resolve(__dirname, '../app/setlists/[id]/perform/page.tsx'), 'utf-8');
+    expect(setlistPerformPage).toContain("params.id !== 'view'");
+    expect(setlistPerformPage).toContain("params.id !== 'perform'");
+
+    const stagePerformPage = fs.readFileSync(path.resolve(__dirname, '../app/perform/[code]/page.tsx'), 'utf-8');
+    expect(stagePerformPage).toContain("toLowerCase() !== 'stage'");
+
+    const lyricsDetailPage = fs.readFileSync(path.resolve(__dirname, '../app/lyrics/[id]/page.tsx'), 'utf-8');
+    expect(lyricsDetailPage).toContain("params.id !== 'view'");
+    expect(lyricsDetailPage).toContain("params.id !== 'edit'");
+
+    const lyricsViewPage = fs.readFileSync(path.resolve(__dirname, '../app/lyrics/view/page.tsx'), 'utf-8');
+    expect(lyricsViewPage).toContain("params.id !== 'view'");
+    expect(lyricsViewPage).toContain("params.id !== 'edit'");
+  });
+
+  it('guarantees FolderBrowser refreshes on kind change and Navigation/Sidebar use trailing slashes', () => {
+    const folderCode = fs.readFileSync(path.resolve(__dirname, '../components/FolderBrowser.tsx'), 'utf-8');
+    expect(folderCode).toContain('[folderId, kind]');
+
+    const navCode = fs.readFileSync(path.resolve(__dirname, '../components/Navigation.tsx'), 'utf-8');
+    expect(navCode).toContain("href: isSinger ? '/' : '/lyrics/'");
+    expect(navCode).toContain("href: '/setlists/'");
+    expect(navCode).toContain("href: isSinger ? '/chords/' : '/'");
+
+    const sidebarCode = fs.readFileSync(path.resolve(__dirname, '../components/Sidebar.tsx'), 'utf-8');
+    expect(sidebarCode).toContain("handleNav(isSinger ? '/' : '/lyrics/')");
+    expect(sidebarCode).toContain("handleNav('/setlists/')");
+    expect(sidebarCode).toContain("handleNav('/perform/')");
+  });
 });

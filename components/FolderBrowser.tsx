@@ -185,7 +185,7 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
         try {
           window.history.pushState({ chordCraftTrap: true }, '', window.location.href);
         } catch {}
-        router.push(kind === 'lyrics' ? '/lyrics' : '/');
+        router.push(kind === 'lyrics' ? '/lyrics/' : '/');
         return;
       }
 
@@ -324,7 +324,7 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
     const handleRefresh = () => loadContents();
     window.addEventListener('refresh-folder', handleRefresh);
     return () => window.removeEventListener('refresh-folder', handleRefresh);
-  }, [folderId]);
+  }, [folderId, kind]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -348,7 +348,7 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
       setSearchResults(results);
     }, 300);
     return () => clearTimeout(delayDebounceFn);
-  }, [searchQuery, folderId]);
+  }, [searchQuery, folderId, kind]);
 
 
   const executeRename = async (newName: string) => {
