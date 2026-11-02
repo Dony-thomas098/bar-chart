@@ -215,6 +215,8 @@ const PRECACHE_ASSETS = [
   "/_next/static/css/676caacb685ce77a.css",
   "/_next/static/css/9cdd061e9fa6d1a6.css",
   "/_next/static/css/ddad215bfed91e8e.css",
+  "/_next/static/EeNexMgj3ZlT15XGJ3aKl/_buildManifest.js",
+  "/_next/static/EeNexMgj3ZlT15XGJ3aKl/_ssgManifest.js",
   "/_next/static/media/558ca1a6aa3cb55e-s.p.woff2",
   "/_next/static/media/636a5ac981f94f8b-s.p.woff2",
   "/_next/static/media/64d784ea54a4acde-s.woff2",
@@ -224,9 +226,7 @@ const PRECACHE_ASSETS = [
   "/_next/static/media/9e7b0a821b9dfcb4-s.woff2",
   "/_next/static/media/ac0e76ddaeeb7981-s.woff2",
   "/_next/static/media/edc640959b0c7826-s.woff2",
-  "/_next/static/media/ff71da380fbe67dd-s.woff2",
-  "/_next/static/oLB7-ne6oAXJI6CM2fs9y/_buildManifest.js",
-  "/_next/static/oLB7-ne6oAXJI6CM2fs9y/_ssgManifest.js"
+  "/_next/static/media/ff71da380fbe67dd-s.woff2"
 ];
 
 // Install: precache critical assets safely without blocking activation

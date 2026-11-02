@@ -515,18 +515,18 @@ describe('Setlist Routing and 404 Fallback Logic', () => {
     const performPage = fs.readFileSync(path.resolve(__dirname, '../app/setlists/[id]/perform/page.tsx'), 'utf-8');
     const notFoundPage = fs.readFileSync(path.resolve(__dirname, '../app/not-found.tsx'), 'utf-8');
 
-    // Detail page routes Play / View Set to /setlists/perform?id=
-    expect(detailPage).toContain('/setlists/perform?id=');
+    // Detail page routes Play / View Set to /setlists/perform/?id=
+    expect(detailPage).toContain('/setlists/perform/?id=');
     expect(detailPage).not.toContain('router.push(/setlists//perform)');
 
-    // Perform page back buttons route to /setlists/view?id=
-    expect(performPage).toContain('/setlists/view?id=');
+    // Perform page back buttons route to /setlists/view/?id=
+    expect(performPage).toContain('/setlists/view/?id=');
     expect(performPage).not.toContain('router.push(/setlists/)');
 
     // not-found.tsx handles setlist fallback redirects
     expect(notFoundPage).toContain('Setlist Performance');
-    expect(notFoundPage).toContain('/setlists/perform?id=');
-    expect(notFoundPage).toContain('/setlists/view?id=');
+    expect(notFoundPage).toContain('/setlists/perform/?id=');
+    expect(notFoundPage).toContain('/setlists/view/?id=');
   });
 });
 
