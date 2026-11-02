@@ -207,11 +207,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           // Backfill Supabase profiles table if local or synced band was found but missing from DB
           if (finalBandId && remoteProfile.band_id !== finalBandId) {
             try {
-              await supabase.from('profiles').update({
+              await supabase.from('profiles').upsert({
+                id: user.id,
+                email: email || null,
                 band_id: finalBandId,
                 band_name: finalBandName,
+                role: finalProfession || 'instrument',
+                instrument: finalInstrument || null,
                 updated_at: new Date().toISOString(),
-              }).eq('id', user.id);
+              }, { onConflict: 'id' });
             } catch {}
           }
         } else if (syncedBand) {
@@ -221,6 +225,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             band_name: syncedBand.name,
             band_code: syncedBand.code,
           }));
+          try {
+            await supabase.from('profiles').upsert({
+              id: user.id,
+              email: email || null,
+              band_id: syncedBand.id,
+              band_name: syncedBand.name,
+              role: initialProfession || 'instrument',
+              instrument: initialInstrument || null,
+              updated_at: new Date().toISOString(),
+            }, { onConflict: 'id' });
+          } catch {}
+        }
+
+        // Auto-download all band songs to IndexedDB in background
+        const activeBandToSync = syncedBand?.id || initialBandId;
+        if (activeBandToSync) {
+          try {
+            const { syncAllOffline } = await import('@/lib/storage');
+            syncAllOffline(activeBandToSync).catch(() => {});
+          } catch {}
         }
       } catch (err) {
         console.warn('[Auth] Background remote profile sync warning:', err);

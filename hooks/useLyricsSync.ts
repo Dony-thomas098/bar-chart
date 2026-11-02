@@ -31,7 +31,7 @@ export function useLyricsSync(lyricId: string) {
     
     const safetyTimer = setTimeout(() => {
       if (isMounted) setLoading(false);
-    }, 3500);
+    }, 8000);
 
     readLyrics(lyricId)
       .then(data => {

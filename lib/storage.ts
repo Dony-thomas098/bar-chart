@@ -1115,7 +1115,7 @@ export async function moveEntry(id: string, type: 'folder' | 'chart' | 'lyrics',
 export async function saveChart(chart: Chart) {
   chart.updated_at = new Date().toISOString();
   if (!chart.band_id && typeof window !== 'undefined') {
-    const activeBandId = localStorage.getItem('chord-grid-band-id');
+    const activeBandId = localStorage.getItem('chord-grid-band-id') || DEFAULT_CHURCH_BAND_ID;
     if (activeBandId) {
       chart.band_id = activeBandId;
     }
@@ -1194,7 +1194,7 @@ export async function readChart(id: string, bypassCache = false): Promise<Chart 
   if (isOnline()) {
     try {
       const fetchPromise = supabase.from('charts').select('*').eq('id', id).single();
-      const timeoutPromise = new Promise<any>((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000));
+      const timeoutPromise = new Promise<any>((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000));
       const { data, error } = await Promise.race([fetchPromise, timeoutPromise]);
       if (!error && data) {
         await cacheChart(data);

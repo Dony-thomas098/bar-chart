@@ -30,6 +30,12 @@ async function cacheLyric(lyric: Lyric) {
 
 export async function saveLyrics(lyric: Lyric) {
   lyric.updated_at = new Date().toISOString();
+  if (!lyric.band_id && typeof window !== 'undefined') {
+    const activeBandId = localStorage.getItem('chord-grid-band-id') || '9ca7fef8-a0e0-4587-a329-0444c4b27f70';
+    if (activeBandId) {
+      lyric.band_id = activeBandId;
+    }
+  }
   let savedOnline = false;
   if (isOnline()) {
     try {
@@ -78,7 +84,7 @@ export async function readLyrics(id: string): Promise<Lyric | null> {
   if (isOnline()) {
     try {
       const fetchPromise = supabase.from('lyrics').select('*').eq('id', id).single();
-      const timeoutPromise = new Promise<any>((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000));
+      const timeoutPromise = new Promise<any>((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000));
       const { data, error } = await Promise.race([fetchPromise, timeoutPromise]);
       if (!error && data) {
         await cacheLyric(data);

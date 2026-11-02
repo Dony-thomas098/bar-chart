@@ -33,7 +33,7 @@ export function useChartSync(chartId: string) {
     
     const safetyTimer = setTimeout(() => {
       if (isMounted) setLoading(false);
-    }, 3500);
+    }, 8000);
 
     readChart(chartId)
       .then(data => {

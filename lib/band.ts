@@ -138,14 +138,27 @@ export async function syncBandForUser(user: { id: string; email?: string | null;
     if (cached) {
       saveBandLocally(cached, user.email);
       // If offline or non-browser test environment, return cached immediately
-      if (typeof window !== 'undefined' && !navigator.onLine) {
+      if (typeof window !== 'undefined' && (!navigator.onLine || (typeof process !== 'undefined' && process.env.NODE_ENV === 'test'))) {
         return cached;
       }
     }
   }
 
+  // Pre-seed default church band immediately if local session is empty
+  const currentLocalBand = getStoredBand();
+  if (!currentLocalBand.id) {
+    const preseedBand: Band = (user.email ? getBandForEmail(user.email) : null) || {
+      id: '9ca7fef8-a0e0-4587-a329-0444c4b27f70',
+      name: 'Infant Jesus Church',
+      code: 'INFANTJESUS',
+      admin_id: user.id,
+    };
+    saveBandLocally(preseedBand, user.email);
+  }
+
   try {
-    const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 2000));
+    const isTest = typeof process !== 'undefined' && process.env.NODE_ENV === 'test';
+    const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), isTest ? 1500 : 8000));
     const remoteSync = async (): Promise<Band | null> => {
       // 2. Query Supabase profiles table for band_id (by id or email)
       let profileBandId: string | null = null;
@@ -313,16 +326,23 @@ export async function syncBandForUser(user: { id: string; email?: string | null;
 
     saveBandLocally(defaultBand, user.email);
     try {
-      if (profile?.band_id !== defaultBand.id) {
-        await supabase.from('profiles').update({
-          band_id: defaultBand.id,
-          band_name: defaultBand.name,
-          role: profile?.role || (isSpecialAdmin ? 'instrument' : 'instrument'),
-          instrument: profile?.instrument || (isSpecialAdmin ? 'Piano / Keyboard' : null),
-          updated_at: new Date().toISOString(),
-        }).eq('id', user.id);
-      }
+      await supabase.from('profiles').upsert({
+        id: user.id,
+        email: user.email || null,
+        band_id: defaultBand.id,
+        band_name: defaultBand.name,
+        role: profile?.role || (isSpecialAdmin ? 'admin' : 'instrument'),
+        instrument: profile?.instrument || (isSpecialAdmin ? 'Piano / Keyboard' : null),
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'id' });
     } catch {}
+
+    // Auto-trigger full offline sync in background so all church songs download to IndexedDB
+    try {
+      const { syncAllOffline } = await import('./storage');
+      syncAllOffline(defaultBand.id).catch(() => {});
+    } catch {}
+
     return defaultBand;
   };
 

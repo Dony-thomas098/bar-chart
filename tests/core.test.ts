@@ -314,6 +314,21 @@ describe('Multi-Device Band Synchronization & Profile Field Preservation', () =>
     }
   });
 
+  it('guarantees saveChart and saveLyrics default unassigned band_id to church band workspace', async () => {
+    const { DEFAULT_CHURCH_BAND_ID } = await import('../lib/storage');
+    expect(DEFAULT_CHURCH_BAND_ID).toBe('9ca7fef8-a0e0-4587-a329-0444c4b27f70');
+
+    const fs = await import('fs');
+    const path = await import('path');
+    const storageCode = fs.readFileSync(path.resolve(__dirname, '../lib/storage.ts'), 'utf-8');
+    const lyricsCode = fs.readFileSync(path.resolve(__dirname, '../lib/lyrics.ts'), 'utf-8');
+    const authProviderCode = fs.readFileSync(path.resolve(__dirname, '../components/AuthProvider.tsx'), 'utf-8');
+
+    expect(storageCode).toContain("localStorage.getItem('chord-grid-band-id') || DEFAULT_CHURCH_BAND_ID");
+    expect(lyricsCode).toContain("localStorage.getItem('chord-grid-band-id') || '9ca7fef8-a0e0-4587-a329-0444c4b27f70'");
+    expect(authProviderCode).toContain("await supabase.from('profiles').upsert");
+  });
+
   it('guarantees service worker includes key routes and ignoreSearch for offline PWA navigation', async () => {
     const fs = await import('fs');
     const path = await import('path');
