@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/components/AuthProvider';
 import { usePerformanceSession } from '@/hooks/usePerformanceSession';
-import { readChart } from '@/lib/storage';
+import { readChart, readLyrics } from '@/lib/storage';
 import { useChartPrefetch } from '@/hooks/useChartPrefetch';
 import { ChartData } from '@/lib/chart-types';
 import { ChartRenderer } from '@/components/ChartRenderer';
@@ -146,13 +146,24 @@ export default function PerformancePage() {
     }
   }, [params, searchParams, resolvedCode]);
 
-  // Read leader payload from sessionStorage (set by builder page on this device)
-  const [initialPayload] = useState<{ chartIds: string[]; sessionName: string } | undefined>(() => {
-    if (typeof window === 'undefined') return undefined;
-    const raw = sessionStorage.getItem(`perform-leader-${code}`);
+  // Read leader payload from sessionStorage or localStorage (set by builder page or reader on this device)
+  const initialPayload = React.useMemo(() => {
+    if (!code || typeof window === 'undefined') return undefined;
+    const raw =
+      sessionStorage.getItem(`perform-leader-${code}`) ||
+      localStorage.getItem(`perform-leader-${code}`) ||
+      localStorage.getItem(`perform-active-session-${code}`);
     if (!raw) return undefined;
-    try { return JSON.parse(raw); } catch { return undefined; }
-  });
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed && Array.isArray(parsed.chartIds) && parsed.chartIds.length > 0) {
+        return { chartIds: parsed.chartIds, sessionName: parsed.sessionName || 'Live Performance' };
+      }
+    } catch {
+      return undefined;
+    }
+    return undefined;
+  }, [code]);
 
   const {
     mode, currentIndex, chartIds, sessionName, leaderName,
@@ -170,6 +181,7 @@ export default function PerformancePage() {
   }, [currentIndex, isFollowing]);
 
   const [currentChart, setCurrentChart] = useState<ChartData | null>(null);
+  const [currentLyrics, setCurrentLyrics] = useState<any | null>(null);
   const [chartLoading, setChartLoading] = useState(false);
   const [showHeader, setShowHeader] = useState(true);
   const [sessionEnded, setSessionEnded] = useState(false);
@@ -183,8 +195,8 @@ export default function PerformancePage() {
   // ── Pre-fetch surrounding charts ──────────────────────────────────────────
   const { getFromCache, addToCache } = useChartPrefetch(chartIds, localIndex);
 
-  // Load chart when localIndex changes
-  const loadCurrentChart = useCallback((forceFromDb = false) => {
+  // Load chart or lyrics when localIndex changes
+  const loadCurrentSong = useCallback(async (forceFromDb = false) => {
     if (!chartIds.length || chartIds[localIndex] === undefined) return;
     const id = chartIds[localIndex];
 
@@ -193,25 +205,42 @@ export default function PerformancePage() {
       const cached = getFromCache(id);
       if (cached) {
         setCurrentChart(cached);
+        setCurrentLyrics(null);
         setChartLoading(false);
         return;
       }
     }
 
     setChartLoading(true);
-    // Bypass local cache if we want to fetch fresh edits from DB
-    readChart(id, forceFromDb).then(data => {
-      if (data) {
-        setCurrentChart(data as ChartData);
-        addToCache(id, data as ChartData);
+    try {
+      const chartData = await readChart(id, forceFromDb);
+      if (chartData) {
+        setCurrentChart(chartData as ChartData);
+        setCurrentLyrics(null);
+        addToCache(id, chartData as ChartData);
+        setChartLoading(false);
+        return;
       }
-      setChartLoading(false);
-    });
+    } catch (e) {}
+
+    try {
+      const lyricsData = await readLyrics(id);
+      if (lyricsData) {
+        setCurrentLyrics(lyricsData);
+        setCurrentChart(null);
+        setChartLoading(false);
+        return;
+      }
+    } catch (e) {}
+
+    setCurrentChart(null);
+    setCurrentLyrics(null);
+    setChartLoading(false);
   }, [localIndex, chartIds, getFromCache, addToCache]);
 
   useEffect(() => {
-    loadCurrentChart();
-  }, [loadCurrentChart]);
+    loadCurrentSong();
+  }, [loadCurrentSong]);
 
   // Listen for session-end broadcast
   useEffect(() => {
@@ -368,7 +397,7 @@ export default function PerformancePage() {
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                loadCurrentChart(true);
+                loadCurrentSong(true);
               }}
               className="p-2 text-text-secondary hover:text-white bg-surface border border-border rounded-lg transition-all"
               title="Refresh current chart"
@@ -401,56 +430,92 @@ export default function PerformancePage() {
         </div>
       </div>
 
-      {/* ── Chart Canvas ── */}
+      {/* ── Content Canvas ── */}
       <main
         className="flex-1 w-full h-screen overflow-hidden select-none"
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onClick={toggleHeader}
       >
-        <TransformWrapper
-          initialScale={performMinScale}
-          minScale={performMinScale}
-          maxScale={4}
-          centerOnInit={false}
-          centerZoomedOut={false}
-          limitToBounds={true}
-          wheel={{
-            step: 0.1,
-            wheelDisabled: true, // Enables natural vertical mouse wheel scrolling down & up
-          }}
-          trackPadPanning={{
-            disabled: false,
-            velocityDisabled: false,
-            lockAxisX: true, // Locks vertical scroll along Y-axis so chart remains centered
-          }}
-          panning={{
-            disabled: false,
-            velocityDisabled: false,
-            lockAxisX: true, // Locks vertical scroll along Y-axis so chart remains centered
-          }}
-          pinch={{
-            step: 5,
-            disabled: false,
-            allowPanning: true,
-          }}
-          doubleClick={{ disabled: true }}
-        >
-          <TransformComponent
-            wrapperClass="!w-full !h-screen cursor-pointer"
-            contentClass="w-max flex flex-col items-start justify-start pt-20 pb-36"
+        {chartLoading ? (
+          <div className="flex items-center justify-center w-full h-[60vh] text-text-secondary">
+            <div className="w-8 h-8 rounded-full border-2 border-accent-start border-t-transparent animate-spin" />
+          </div>
+        ) : currentChart ? (
+          <TransformWrapper
+            initialScale={performMinScale}
+            minScale={performMinScale}
+            maxScale={4}
+            centerOnInit={false}
+            centerZoomedOut={false}
+            limitToBounds={true}
+            wheel={{
+              step: 0.1,
+              wheelDisabled: true,
+            }}
+            trackPadPanning={{
+              disabled: false,
+              velocityDisabled: false,
+              lockAxisX: true,
+            }}
+            panning={{
+              disabled: false,
+              velocityDisabled: false,
+              lockAxisX: true,
+            }}
+            pinch={{
+              step: 5,
+              disabled: false,
+              allowPanning: true,
+            }}
+            doubleClick={{ disabled: true }}
           >
-            <div onClick={(e) => { e.stopPropagation(); toggleHeader(); }} className="w-fit max-w-none flex flex-col items-start justify-start">
-              {chartLoading || !currentChart ? (
-                <div className="flex items-center justify-center w-64 h-64 text-text-secondary">
-                  <div className="w-8 h-8 rounded-full border-2 border-accent-start border-t-transparent animate-spin" />
-                </div>
-              ) : (
+            <TransformComponent
+              wrapperClass="!w-full !h-screen cursor-pointer"
+              contentClass="w-max flex flex-col items-start justify-start pt-20 pb-36"
+            >
+              <div onClick={(e) => { e.stopPropagation(); toggleHeader(); }} className="w-fit max-w-none flex flex-col items-start justify-start">
                 <PerformChartWrapper chart={currentChart} onBaseScaleChange={setPerformMinScale} />
-              )}
+              </div>
+            </TransformComponent>
+          </TransformWrapper>
+        ) : currentLyrics ? (
+          <div className="w-full flex justify-center py-20 px-4 pb-36 overflow-y-auto">
+            <div className="w-full max-w-3xl bg-white text-slate-900 rounded-[24px] p-6 sm:p-12 shadow-2xl border border-slate-200/80">
+              <h1 className="text-3xl sm:text-4xl font-extrabold mb-6 text-slate-900 tracking-tight">
+                {currentLyrics.title || 'Untitled Lyrics'}
+              </h1>
+              <pre
+                className="font-sans text-lg sm:text-xl leading-relaxed whitespace-pre-wrap text-slate-900 font-medium"
+                style={selectedFont !== 'system' ? { fontFamily: selectedFont } : {}}
+              >
+                {currentLyrics.body || ''}
+              </pre>
             </div>
-          </TransformComponent>
-        </TransformWrapper>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center w-full h-[60vh] text-center p-6 text-text-secondary select-none">
+            <div className="w-16 h-16 rounded-full bg-orange-500/10 flex items-center justify-center mb-4 border border-orange-500/20 text-orange-500">
+              <Radio size={32} />
+            </div>
+            <h2 className="text-xl font-bold text-text-primary mb-2">Item Unavailable</h2>
+            <p className="text-sm max-w-sm mb-6 text-text-secondary">
+              This song could not be loaded or may have been removed.
+            </p>
+            {localIndex < totalCharts - 1 && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (isLeader) goTo(localIndex + 1);
+                  else { setLocalIndex(idx => Math.min(totalCharts - 1, idx + 1)); stopFollowing(); }
+                }}
+                className="px-5 py-2.5 bg-accent-gradient text-white font-bold rounded-xl text-xs uppercase tracking-wider shadow-lg active:scale-95"
+              >
+                Skip to Next Song →
+              </button>
+            )}
+          </div>
+        )}
       </main>
 
       {/* ── Bottom Interactive Navigation Pill ── */}
@@ -473,16 +538,19 @@ export default function PerformancePage() {
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                if (currentIndex < totalCharts - 1) {
-                  if (isLeader) goTo(currentIndex + 1);
+                const activeIdx = isFollowing ? currentIndex : localIndex;
+                if (activeIdx < totalCharts - 1) {
+                  if (isLeader) goTo(activeIdx + 1);
                   else { setLocalIndex(idx => Math.min(totalCharts - 1, idx + 1)); stopFollowing(); }
                 }
               }}
               className="px-3 py-1 rounded-full bg-surface-raised hover:bg-border transition-all text-text-primary flex items-center gap-1.5 cursor-pointer"
               title="Click to go to Next Page / Song"
             >
-              <span className="text-accent-start font-black">{currentIndex + 1} / {totalCharts}</span>
-              {currentChart && <span className="text-text-primary truncate max-w-[160px]">· {currentChart.title}</span>}
+              <span className="text-accent-start font-black">{(isFollowing ? currentIndex : localIndex) + 1} / {totalCharts}</span>
+              {(currentChart?.title || currentLyrics?.title) && (
+                <span className="text-text-primary truncate max-w-[160px]">· {currentChart?.title || currentLyrics?.title}</span>
+              )}
             </button>
 
             <button

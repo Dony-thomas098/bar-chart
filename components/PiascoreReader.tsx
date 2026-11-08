@@ -468,7 +468,7 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
     if (onLeaderStart) {
       onLeaderStart(code);
     } else {
-      router.push(`/perform/stage?code=${code}`);
+      router.push(`/perform/stage/?code=${code}`);
     }
   };
 
@@ -479,7 +479,7 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
       if (onFollowStart) {
         onFollowStart(c);
       } else {
-        router.push(`/perform/stage?code=${c}`);
+        router.push(`/perform/stage/?code=${c}`);
       }
     }
   };

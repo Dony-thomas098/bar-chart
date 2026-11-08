@@ -55,6 +55,16 @@ export default function NotFound() {
       return;
     }
 
+    // 4b. Check for /lyrics/folder/ID -> Redirect to /lyrics/folder/?id=ID
+    const lyricsFolderMatch = path.match(/^\/lyrics\/folder\/([A-Za-z0-9_-]{8,})/i);
+    if (lyricsFolderMatch && lyricsFolderMatch[1].toLowerCase() !== 'demo') {
+      const target = `/lyrics/folder/?id=${lyricsFolderMatch[1]}`;
+      setRedirecting(true);
+      setRedirectTarget('Lyrics Folder');
+      router.replace(target);
+      return;
+    }
+
     // 5. Check for /lyrics/ID/edit -> Redirect to /lyrics/edit/?id=ID
     const lyricsEditMatch = path.match(/^\/lyrics\/([A-Za-z0-9_-]{8,})\/edit/i);
     if (lyricsEditMatch && lyricsEditMatch[1].toLowerCase() !== 'demo') {

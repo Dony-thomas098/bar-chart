@@ -8,12 +8,16 @@ import { LogoLoading } from '@/components/LogoLoading';
 export default function LyricsHome() {
   const { user, loading } = useAuth();
 
-  if (loading || !user) {
+  if (loading) {
     return (
       <LogoLoading
         statusText="Loading lyrics"
       />
     );
+  }
+
+  if (!user) {
+    return null;
   }
 
   return (

@@ -150,7 +150,7 @@ function generateSW() {
   console.log(`[SW Gen] Collected ${allAssets.length} total precache assets (including ${staticFiles.length} static JS/CSS chunks).`);
 
   const swTemplate = `// Chordly Service Worker - Full Offline PWA Cache
-const CACHE_NAME = 'chordly-v11';
+const CACHE_NAME = 'chordly-v12';
 
 const PRECACHE_ASSETS = ${JSON.stringify(allAssets, null, 2)};
 
@@ -352,6 +352,11 @@ self.addEventListener('fetch', (event) => {
                                    await caches.match('/lyrics/folder/', { ignoreSearch: true });
               if (folderCached) return folderCached;
             }
+            if (url.pathname === '/lyrics' || url.pathname === '/lyrics/') {
+              const catalogCached = await caches.match('/lyrics/index.html', { ignoreSearch: true }) ||
+                                    await caches.match('/lyrics/', { ignoreSearch: true });
+              if (catalogCached) return catalogCached;
+            }
             const lyricsCached = await caches.match('/lyrics/view/index.html', { ignoreSearch: true }) ||
                                  await caches.match('/lyrics/view/', { ignoreSearch: true }) ||
                                  await caches.match('/lyrics/index.html', { ignoreSearch: true }) ||
@@ -486,6 +491,10 @@ self.addEventListener('fetch', (event) => {
           }
           if (url.pathname.startsWith('/lyrics/folder')) {
             const fallback = await caches.match('/lyrics/folder/index.txt', { ignoreSearch: true });
+            if (fallback) return fallback;
+          }
+          if (url.pathname === '/lyrics' || url.pathname === '/lyrics/') {
+            const fallback = await caches.match('/lyrics/index.txt', { ignoreSearch: true });
             if (fallback) return fallback;
           }
           const fallback = await caches.match('/lyrics/view/index.txt', { ignoreSearch: true }) ||

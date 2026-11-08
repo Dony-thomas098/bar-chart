@@ -28,7 +28,7 @@ function LyricsViewerContent() {
   const router = useRouter();
 
   const getInitialLyricId = () => {
-    if (params?.id && params.id !== 'edit' && params.id !== 'view' && params.id !== 'demo') return params.id as string;
+    if (params?.id && params.id !== 'edit' && params.id !== 'view' && params.id !== 'demo' && params.id !== 'folder') return params.id as string;
     const spId = searchParams?.get('id');
     if (spId) return spId;
     if (typeof window !== 'undefined') {
@@ -43,7 +43,7 @@ function LyricsViewerContent() {
 
   useEffect(() => {
     const currentId =
-      (params?.id && params.id !== 'edit' && params.id !== 'view' && params.id !== 'demo' ? (params.id as string) : null) ||
+      (params?.id && params.id !== 'edit' && params.id !== 'view' && params.id !== 'demo' && params.id !== 'folder' ? (params.id as string) : null) ||
       searchParams?.get('id') ||
       (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('id') : null) ||
       '';

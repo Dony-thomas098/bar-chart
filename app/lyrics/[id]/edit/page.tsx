@@ -74,7 +74,7 @@ export default function LyricsEditor() {
     return (
       <div className="flex h-screen flex-col items-center justify-center text-white">
         <p>Lyrics not found or access denied.</p>
-        <button onClick={() => router.push('/lyrics')} className="mt-4 px-4 py-2 bg-indigo-600 rounded-md">Go Home</button>
+        <button onClick={() => router.push('/lyrics/')} className="mt-4 px-4 py-2 bg-indigo-600 rounded-md">Go Home</button>
       </div>
     );
   }

@@ -28,9 +28,9 @@ interface SetlistPresence {
 }
 
 function useSetlistSession(setlistId: string, isLeaderDevice: boolean) {
-  const [mode, setMode] = useState<PerfMode>('loading');
+  const [mode, setMode] = useState<PerfMode>(isLeaderDevice ? 'leader' : 'loading');
   const [songPosition, setSongPosition] = useState(0);
-  const [leaderName, setLeaderName] = useState<string | null>(null);
+  const [leaderName, setLeaderName] = useState<string | null>(isLeaderDevice ? 'Leader (You)' : null);
   const [followerCount, setFollowerCount] = useState(0);
   const [isFollowing, setIsFollowing] = useState(true);
 
@@ -43,11 +43,18 @@ function useSetlistSession(setlistId: string, isLeaderDevice: boolean) {
 
   useEffect(() => { positionRef.current = songPosition; }, [songPosition]);
   useEffect(() => { isFollowingRef.current = isFollowing; }, [isFollowing]);
+  useEffect(() => {
+    isLeaderRef.current = isLeaderDevice;
+    if (isLeaderDevice) {
+      setMode('leader');
+      setLeaderName('Leader (You)');
+    }
+  }, [isLeaderDevice]);
 
   useEffect(() => {
     if (!setlistId) return;
     isMountedRef.current = true;
-    const isLdr = isLeaderRef.current;
+    const isLdr = isLeaderRef.current || isLeaderDevice;
 
     const init = async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -89,9 +96,10 @@ function useSetlistSession(setlistId: string, isLeaderDevice: boolean) {
         })
         .subscribe(async (status) => {
           if (status !== 'SUBSCRIBED' || !isMountedRef.current) return;
-          if (isLdr) {
-            await channel.track({ role: 'leader', name: myNameRef.current, songPosition: 0 });
+          if (isLeaderRef.current || isLeaderDevice) {
+            await channel.track({ role: 'leader', name: myNameRef.current, songPosition: positionRef.current });
             setMode('leader');
+            setLeaderName('Leader (You)');
           } else {
             await channel.track({ role: 'follower', name: myNameRef.current, songPosition: 0 });
           }
@@ -128,7 +136,17 @@ function useSetlistSession(setlistId: string, isLeaderDevice: boolean) {
     setSongPosition(positionRef.current);
   }, []);
 
-  return { mode, songPosition, leaderName, followerCount, isFollowing, goTo, endSession, stopFollowing, resumeFollowing };
+  const takeLead = useCallback(() => {
+    isLeaderRef.current = true;
+    setMode('leader');
+    setLeaderName('Leader (You)');
+    const ch = channelRef.current;
+    if (ch) {
+      ch.track({ role: 'leader', name: myNameRef.current, songPosition: positionRef.current }).catch(() => {});
+    }
+  }, []);
+
+  return { mode, songPosition, leaderName, followerCount, isFollowing, goTo, endSession, stopFollowing, resumeFollowing, takeLead };
 }
 
 // ─── Chart zoom wrapper ───────────────────────────────────────────────────────
@@ -279,10 +297,10 @@ export default function SetlistPerformPage() {
   useEffect(() => { const f = localStorage.getItem('chord-grid-font'); if (f) setSelectedFont(f); }, []);
 
   const isLeaderDevice = typeof window !== 'undefined'
-    ? !!sessionStorage.getItem(`setlist-leader-${setlistId}`)
+    ? (sessionStorage.getItem(`setlist-leader-${setlistId}`) === '1' || localStorage.getItem(`setlist-leader-${setlistId}`) === '1')
     : false;
 
-  const { mode, songPosition, leaderName, followerCount, isFollowing, goTo, endSession, stopFollowing, resumeFollowing } =
+  const { mode, songPosition, leaderName, followerCount, isFollowing, goTo, endSession, stopFollowing, resumeFollowing, takeLead } =
     useSetlistSession(setlistId, isLeaderDevice);
 
   const isLeader = mode === 'leader';
@@ -465,14 +483,29 @@ export default function SetlistPerformPage() {
     );
   }
 
-  if (loading || mode === 'loading') {
+  if (loading || (mode === 'loading' && !isLeaderDevice)) {
     return (
-      <div className="min-h-screen bg-bg flex flex-col items-center justify-center text-text-primary gap-4">
+      <div className="min-h-screen bg-bg flex flex-col items-center justify-center text-text-primary gap-4 p-6 text-center">
         <div className="w-10 h-10 rounded-full border-2 border-accent-start border-t-transparent animate-spin" />
         <p className="text-sm text-text-secondary">
           {mode === 'loading' && !isLeaderDevice ? 'Waiting for leader to join…' : 'Loading…'}
         </p>
-        <button onClick={() => router.push(`/setlists/view/?id=${setlistId}`)} className="text-xs text-text-secondary underline mt-2">Cancel</button>
+        <div className="flex items-center gap-3 mt-3">
+          {items.length > 0 && (
+            <button
+              onClick={() => {
+                if (typeof window !== 'undefined') {
+                  sessionStorage.setItem(`setlist-leader-${setlistId}`, '1');
+                }
+                takeLead();
+              }}
+              className="px-5 py-2.5 bg-accent-gradient text-white font-bold rounded-xl text-xs uppercase tracking-wider shadow-lg"
+            >
+              Perform Solo / Take Lead
+            </button>
+          )}
+          <button onClick={() => router.push(`/setlists/view/?id=${setlistId}`)} className="text-xs text-text-secondary underline">Cancel</button>
+        </div>
       </div>
     );
   }

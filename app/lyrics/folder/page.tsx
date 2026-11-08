@@ -4,6 +4,7 @@ import React, { Suspense } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { FolderBrowser } from '@/components/FolderBrowser';
 import { Header } from '@/components/Header';
+import { LogoLoading } from '@/components/LogoLoading';
 import { getFolder } from '@/lib/storage';
 import { useParams, useSearchParams } from 'next/navigation';
 
@@ -41,11 +42,19 @@ function LyricsFolderContent() {
 
   React.useEffect(() => {
     if (!folderId) return;
-    getFolder(folderId).then(f => setFolderName(f?.name || 'Folder'));
+    getFolder(folderId)
+      .then(f => setFolderName(f?.name || 'Folder'))
+      .catch((err) => {
+        console.warn('[LyricsFolder] Error reading folder:', err);
+      });
   }, [folderId]);
 
-  if (authLoading || !user) {
-    return <div className="flex h-screen items-center justify-center text-white">Loading...</div>;
+  if (authLoading) {
+    return <LogoLoading statusText="Loading lyrics folder" />;
+  }
+
+  if (!user) {
+    return null;
   }
 
   return (
@@ -60,7 +69,7 @@ function LyricsFolderContent() {
 
 export default function LyricsFolderPage() {
   return (
-    <Suspense fallback={<div className="flex h-screen items-center justify-center text-white">Loading...</div>}>
+    <Suspense fallback={<LogoLoading statusText="Loading lyrics folder" />}>
       <LyricsFolderContent />
     </Suspense>
   );

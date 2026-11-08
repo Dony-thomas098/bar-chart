@@ -720,7 +720,7 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
       {folderId && (
         <div className="mb-4 flex items-center gap-3">
           <button
-            onClick={() => router.push(kind === 'lyrics' ? '/lyrics' : '/')}
+            onClick={() => router.push(kind === 'lyrics' ? '/lyrics/' : '/')}
             className="hidden lg:flex w-10 h-10 rounded-full glass-card items-center justify-center text-text-primary hover:bg-white/80 active:scale-95 transition-all shadow-sm"
             title="Back to root"
           >

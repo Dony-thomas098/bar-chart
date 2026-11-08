@@ -108,6 +108,7 @@ describe('Chart and Lyrics Editor Navigation & Routing Fixes', () => {
     const notFoundCode = fs.readFileSync(path.resolve(__dirname, '../app/not-found.tsx'), 'utf-8');
     expect(notFoundCode).toContain('/setlists/view/?id=');
     expect(notFoundCode).toContain('/setlists/perform/?id=');
+    expect(notFoundCode).toContain('`/lyrics/folder/?id=${lyricsFolderMatch[1]}`');
   });
 
   it('guarantees dynamic route pages guard against static route names (view, perform, stage, edit)', () => {
@@ -125,10 +126,12 @@ describe('Chart and Lyrics Editor Navigation & Routing Fixes', () => {
     const lyricsDetailPage = fs.readFileSync(path.resolve(__dirname, '../app/lyrics/[id]/page.tsx'), 'utf-8');
     expect(lyricsDetailPage).toContain("params.id !== 'view'");
     expect(lyricsDetailPage).toContain("params.id !== 'edit'");
+    expect(lyricsDetailPage).toContain("params.id !== 'folder'");
 
     const lyricsViewPage = fs.readFileSync(path.resolve(__dirname, '../app/lyrics/view/page.tsx'), 'utf-8');
     expect(lyricsViewPage).toContain("params.id !== 'view'");
     expect(lyricsViewPage).toContain("params.id !== 'edit'");
+    expect(lyricsViewPage).toContain("params.id !== 'folder'");
   });
 
   it('guarantees FolderBrowser refreshes on kind change and Navigation/Sidebar use trailing slashes', () => {
@@ -144,5 +147,23 @@ describe('Chart and Lyrics Editor Navigation & Routing Fixes', () => {
     expect(sidebarCode).toContain("handleNav(isSinger ? '/' : '/lyrics/')");
     expect(sidebarCode).toContain("handleNav('/setlists/')");
     expect(sidebarCode).toContain("handleNav('/perform/')");
+  });
+
+  it('guarantees Lyrics catalog route /lyrics/ and folder routes are matched before single lyrics viewer in Service Worker', () => {
+    const swGenCode = fs.readFileSync(path.resolve(__dirname, '../scripts/generate-sw.js'), 'utf-8');
+    
+    // In generate-sw.js, check that /lyrics and /lyrics/ are intercepted and served /lyrics/index.html
+    const catalogMatchPos = swGenCode.indexOf("url.pathname === '/lyrics' || url.pathname === '/lyrics/'");
+    const lyricsViewPos = swGenCode.indexOf("caches.match('/lyrics/view/index.html'");
+    expect(catalogMatchPos).toBeGreaterThan(-1);
+    expect(lyricsViewPos).toBeGreaterThan(-1);
+    expect(catalogMatchPos).toBeLessThan(lyricsViewPos);
+
+    // Also verify RSC flight payload for catalog is matched before lyrics/view
+    const rscCatalogPos = swGenCode.indexOf("url.pathname === '/lyrics' || url.pathname === '/lyrics/'", catalogMatchPos + 1);
+    const rscViewPos = swGenCode.indexOf("caches.match('/lyrics/view/index.txt'");
+    expect(rscCatalogPos).toBeGreaterThan(-1);
+    expect(rscViewPos).toBeGreaterThan(-1);
+    expect(rscCatalogPos).toBeLessThan(rscViewPos);
   });
 });

@@ -569,7 +569,7 @@ export function PiascoreLyricsReader({ initialLyric, folderId }: Props) {
               showLockNotification('Screen is locked · Tap lock icon to unlock');
               return;
             }
-            router.push(folderId ? `/lyrics/folder/?id=${folderId}` : '/lyrics');
+            router.push(folderId ? `/lyrics/folder/?id=${folderId}` : '/lyrics/');
           }}
           className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg transition-all active:scale-95 ${
             isStageLocked
@@ -1007,7 +1007,25 @@ export function PiascoreLyricsReader({ initialLyric, folderId }: Props) {
               <button
                 onClick={() => {
                   const code = Math.random().toString(36).substr(2, 6).toUpperCase();
-                  router.push(`/perform/stage?code=${code}`);
+                  sessionStorage.setItem(
+                    `perform-leader-${code}`,
+                    JSON.stringify({
+                      chartIds: tabs.map((t) => t.id),
+                      sessionName: currentLyric?.title || 'Live Performance',
+                    })
+                  );
+                  try {
+                    localStorage.setItem(
+                      `perform-active-session-${code}`,
+                      JSON.stringify({
+                        chartIds: tabs.map((t) => t.id),
+                        sessionName: currentLyric?.title || 'Live Performance',
+                        createdAt: Date.now()
+                      })
+                    );
+                  } catch {}
+                  setIsSyncModalOpen(false);
+                  router.push(`/perform/stage/?code=${code}`);
                 }}
                 className="w-full py-3 text-sm font-bold text-accent-start hover:bg-slate-50 dark:hover:bg-white/5 active:bg-slate-100 transition-colors"
               >
@@ -1016,7 +1034,8 @@ export function PiascoreLyricsReader({ initialLyric, folderId }: Props) {
               <button
                 onClick={() => {
                   if (syncJoinCodeInput.trim().length === 6) {
-                    router.push(`/perform/stage?code=${syncJoinCodeInput.trim().toUpperCase()}`);
+                    setIsSyncModalOpen(false);
+                    router.push(`/perform/stage/?code=${syncJoinCodeInput.trim().toUpperCase()}`);
                   }
                 }}
                 disabled={syncJoinCodeInput.trim().length !== 6}

@@ -37,13 +37,13 @@ export function usePerformanceSession(
   code: string,
   initialPayload?: { chartIds: string[]; sessionName: string },
 ): UsePerformanceSessionResult {
-  const isLeader = !!initialPayload;
+  const isLeader = !!(initialPayload && Array.isArray(initialPayload.chartIds) && initialPayload.chartIds.length > 0);
 
-  const [mode, setMode] = useState<PerformRole>('loading');
+  const [mode, setMode] = useState<PerformRole>(isLeader ? 'leader' : 'loading');
   const [currentIndex, setCurrentIndex] = useState(0);
   const [chartIds, setChartIds] = useState<string[]>(initialPayload?.chartIds ?? []);
   const [sessionName, setSessionName] = useState(initialPayload?.sessionName ?? '');
-  const [leaderName, setLeaderName] = useState<string | null>(null);
+  const [leaderName, setLeaderName] = useState<string | null>(isLeader ? 'Leader (You)' : null);
   const [followerCount, setFollowerCount] = useState(0);
   const [isFollowing, setIsFollowing] = useState(true);
 
@@ -63,6 +63,19 @@ export function usePerformanceSession(
   useEffect(() => { isFollowingRef.current = isFollowing; }, [isFollowing]);
 
   useEffect(() => {
+    if (initialPayload?.chartIds && initialPayload.chartIds.length > 0) {
+      setChartIds(initialPayload.chartIds);
+      if (initialPayload.sessionName) {
+        setSessionName(initialPayload.sessionName);
+      }
+      setMode('leader');
+      modeRef.current = 'leader';
+      setLeaderName('Leader (You)');
+    }
+  }, [initialPayload]);
+
+  useEffect(() => {
+    if (!code) return;
     isMountedRef.current = true;
     const instanceId = Math.random().toString(36).slice(2, 8);
     instanceIdRef.current = instanceId;
@@ -233,8 +246,8 @@ export function usePerformanceSession(
               role: 'leader',
               name: myNameRef.current,
               currentIndex: currentIndexRef.current,
-              chartIds: initialPayload!.chartIds,
-              sessionName: initialPayload!.sessionName,
+              chartIds: initialPayload?.chartIds || chartIds,
+              sessionName: initialPayload?.sessionName || sessionName,
             });
             setMode('leader');
             modeRef.current = 'leader';

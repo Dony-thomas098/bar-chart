@@ -8,12 +8,16 @@ import { LogoLoading } from '@/components/LogoLoading';
 export default function ChordsPage() {
   const { user, loading } = useAuth();
 
-  if (loading || !user) {
+  if (loading) {
     return (
       <LogoLoading
         statusText="Loading chords"
       />
     );
+  }
+
+  if (!user) {
+    return null;
   }
 
   return (

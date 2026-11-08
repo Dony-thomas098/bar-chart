@@ -131,14 +131,16 @@ function PerformContent() {
     let isCancelled = false;
     (async () => {
       try {
-        const { data: setlistData } = await supabase
-          .from('setlists')
-          .select('name')
-          .eq('id', incomingSetlistId)
-          .single();
-        if (!isCancelled && setlistData?.name) {
-          setSetlistName(setlistData.name);
-        }
+        try {
+          const { data: setlistData } = await supabase
+            .from('setlists')
+            .select('name')
+            .eq('id', incomingSetlistId)
+            .single();
+          if (!isCancelled && setlistData?.name) {
+            setSetlistName(setlistData.name);
+          }
+        } catch {}
 
         const items = await listSetlistItems(incomingSetlistId);
         if (!isCancelled && items && items.length > 0) {
@@ -162,7 +164,7 @@ function PerformContent() {
     const t = setTimeout(async () => {
       const res = await searchAll(searchQuery);
       if (!searchQuery.trim()) return;
-      setSearchResults(res.filter(r => r.type === 'chart'));
+      setSearchResults(res.filter(r => r.type === 'chart' || r.type === 'lyrics'));
       setIsSearching(false);
     }, 300);
     return () => clearTimeout(t);
@@ -173,7 +175,7 @@ function PerformContent() {
     setQueue(prev => [...prev, {
       id: chart.id,
       title: chart.title || 'Untitled',
-      meta: chart.time_sig ? `${chart.time_sig} · t=${chart.tempo}` : '',
+      meta: chart.type === 'lyrics' ? 'Lyrics' : (chart.time_sig ? `${chart.time_sig} · t=${chart.tempo}` : 'Chart'),
     }]);
   };
 
@@ -288,7 +290,7 @@ function PerformContent() {
           <input
             type="text"
             className="block w-full pl-11 pr-4 py-3 bg-surface-glass backdrop-blur-xl border border-glass rounded-full text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-orange-500/30 transition-all font-medium shadow-glass text-sm"
-            placeholder="Search charts to add to live setlist…"
+            placeholder="Search charts and lyrics to add to live setlist…"
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             onFocus={() => setIsSearchFocused(true)}
@@ -304,7 +306,7 @@ function PerformContent() {
                     className={`flex items-center justify-between p-3 rounded-xl transition-all group ${!inQueue ? 'cursor-pointer hover:bg-orange-500/10' : 'opacity-60'}`}>
                     <div className="truncate pr-4">
                       <p className="text-sm font-bold text-text-primary truncate group-hover:text-orange-600 transition-colors">{chart.title}</p>
-                      <p className="text-[11px] text-text-secondary">{chart.time_sig} · t={chart.tempo}</p>
+                      <p className="text-[11px] text-text-secondary">{chart.type === 'lyrics' ? 'Lyrics' : (chart.time_sig ? `${chart.time_sig} · t=${chart.tempo}` : 'Chart')}</p>
                     </div>
                     <button disabled={inQueue}
                       className={`shrink-0 px-3 py-1.5 rounded-full flex items-center text-xs font-bold transition-colors ${inQueue ? 'text-text-muted cursor-not-allowed' : 'text-orange-600 bg-orange-500/15 hover:bg-orange-500/25'}`}>

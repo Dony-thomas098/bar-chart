@@ -1,5 +1,5 @@
 // Chordly Service Worker - Full Offline PWA Cache
-const CACHE_NAME = 'chordly-v11';
+const CACHE_NAME = 'chordly-v12';
 
 const PRECACHE_ASSETS = [
   "/",
@@ -125,16 +125,14 @@ const PRECACHE_ASSETS = [
   "/window.svg",
   "/_not-found/index.html",
   "/_not-found/index.txt",
-  "/_next/static/6z5rRzCrOeEVlob9UjLWR/_buildManifest.js",
-  "/_next/static/6z5rRzCrOeEVlob9UjLWR/_ssgManifest.js",
-  "/_next/static/chunks/1135.9c5fa3bec1cc50f0.js",
+  "/_next/static/chunks/1135.b7054bb7edb3ea3b.js",
   "/_next/static/chunks/1390-fe641041ce4d4c98.js",
   "/_next/static/chunks/1966.b8f83f7ba376c962.js",
-  "/_next/static/chunks/2081-583d1baa814457d7.js",
+  "/_next/static/chunks/2081-c0a13615ab096ab5.js",
   "/_next/static/chunks/2104.872c200eb7c4c7a7.js",
-  "/_next/static/chunks/2746-c48e1432c67d04e3.js",
+  "/_next/static/chunks/2746-9ed91d48fc3b9300.js",
   "/_next/static/chunks/2801-f6a3d9c0f1bdf274.js",
-  "/_next/static/chunks/2869.747ab54461d1e6e6.js",
+  "/_next/static/chunks/2869.f313b646a451e6d2.js",
   "/_next/static/chunks/2963-380856e2146d1ad2.js",
   "/_next/static/chunks/3093-5acb6089a975cd75.js",
   "/_next/static/chunks/3133-2d5a201bed12bf63.js",
@@ -149,15 +147,15 @@ const PRECACHE_ASSETS = [
   "/_next/static/chunks/4e0084c3-dd890f23c03dafcc.js",
   "/_next/static/chunks/5276-2ddb3c1a00703749.js",
   "/_next/static/chunks/5334-f4e9fbe94aff5ac9.js",
-  "/_next/static/chunks/561-a079da51462363c6.js",
-  "/_next/static/chunks/6308-31f8a8f431e4b43b.js",
+  "/_next/static/chunks/561-e5628886b01bdaf0.js",
+  "/_next/static/chunks/6308-391316dd640a2e66.js",
   "/_next/static/chunks/6347-281bd97bc965d342.js",
   "/_next/static/chunks/6510-610ff429fb1106a2.js",
-  "/_next/static/chunks/6624-f9382683321c8eea.js",
+  "/_next/static/chunks/6624-1e55d1cb7851904d.js",
   "/_next/static/chunks/6653-45e8391d66f2bb46.js",
   "/_next/static/chunks/6748-43175b2acd6d4958.js",
   "/_next/static/chunks/812.8e8f214a433a0a34.js",
-  "/_next/static/chunks/8527-231771c2b81637f5.js",
+  "/_next/static/chunks/8527-67d74b142f408677.js",
   "/_next/static/chunks/8801-1e28c52a6bd97b26.js",
   "/_next/static/chunks/9021-5088ca070f361cb3.js",
   "/_next/static/chunks/9535-76c8bbd1c16e6ad3.js",
@@ -169,7 +167,7 @@ const PRECACHE_ASSETS = [
   "/_next/static/chunks/app/chart/[id]/edit/page-d57bebc69c4864dd.js",
   "/_next/static/chunks/app/chart/[id]/layout-3dc8c8c7b19ce49c.js",
   "/_next/static/chunks/app/chart/[id]/page-55b8b28b251dd4d5.js",
-  "/_next/static/chunks/app/chords/page-d0823d7fa05ad352.js",
+  "/_next/static/chunks/app/chords/page-092662083284fd71.js",
   "/_next/static/chunks/app/folder/page-c0652d08e940971c.js",
   "/_next/static/chunks/app/folder/[id]/layout-3dc8c8c7b19ce49c.js",
   "/_next/static/chunks/app/folder/[id]/page-bf61cd4fb3f5a1e7.js",
@@ -177,23 +175,23 @@ const PRECACHE_ASSETS = [
   "/_next/static/chunks/app/loading-51838c9ccfe54024.js",
   "/_next/static/chunks/app/logo-review/page-6fa7211f611ddffa.js",
   "/_next/static/chunks/app/lyrics/edit/page-abe123ce1333426a.js",
-  "/_next/static/chunks/app/lyrics/folder/page-f454a6ce6e63dd23.js",
+  "/_next/static/chunks/app/lyrics/folder/page-dc1d4b5f174a26cf.js",
   "/_next/static/chunks/app/lyrics/folder/[id]/layout-3dc8c8c7b19ce49c.js",
-  "/_next/static/chunks/app/lyrics/folder/[id]/page-ef3f4c4de8e18bed.js",
-  "/_next/static/chunks/app/lyrics/page-36a6ba0cb5b0a3eb.js",
-  "/_next/static/chunks/app/lyrics/view/page-f6c08ddf2ae49773.js",
+  "/_next/static/chunks/app/lyrics/folder/[id]/page-8a4733f2b05fd247.js",
+  "/_next/static/chunks/app/lyrics/page-6455e856bf87ca53.js",
+  "/_next/static/chunks/app/lyrics/view/page-191546dee55192be.js",
   "/_next/static/chunks/app/lyrics/[id]/edit/page-9cdd11511eb6a644.js",
   "/_next/static/chunks/app/lyrics/[id]/layout-3dc8c8c7b19ce49c.js",
-  "/_next/static/chunks/app/lyrics/[id]/page-7db949fb609b1365.js",
-  "/_next/static/chunks/app/not-found-8af233e44a4b55d9.js",
+  "/_next/static/chunks/app/lyrics/[id]/page-77f0766420428d6f.js",
+  "/_next/static/chunks/app/not-found-740ccd64cb7e90a0.js",
   "/_next/static/chunks/app/page-b19292ee914beb9c.js",
-  "/_next/static/chunks/app/perform/page-31580882cbc6cd53.js",
+  "/_next/static/chunks/app/perform/page-46e6d9a9bb24ea0a.js",
   "/_next/static/chunks/app/perform/stage/page-3776d88b157fe7fc.js",
   "/_next/static/chunks/app/perform/[code]/layout-3dc8c8c7b19ce49c.js",
   "/_next/static/chunks/app/perform/[code]/page-70f5f270bc4ec47e.js",
   "/_next/static/chunks/app/printer/page-31f75bcc11cd33c6.js",
   "/_next/static/chunks/app/profile/page-360f811b2c5df2a5.js",
-  "/_next/static/chunks/app/setlists/page-0b3448eedeac7e5f.js",
+  "/_next/static/chunks/app/setlists/page-16b7377f7feacada.js",
   "/_next/static/chunks/app/setlists/perform/page-e285975e30944351.js",
   "/_next/static/chunks/app/setlists/view/page-dad53513d783078b.js",
   "/_next/static/chunks/app/setlists/[id]/layout-3dc8c8c7b19ce49c.js",
@@ -211,12 +209,12 @@ const PRECACHE_ASSETS = [
   "/_next/static/chunks/next/dist/client/components/builtin/global-error-c9d4c13f2c41ca7e.js",
   "/_next/static/chunks/next/dist/client/components/builtin/unauthorized-3dc8c8c7b19ce49c.js",
   "/_next/static/chunks/polyfills-42372ed130431b0a.js",
-  "/_next/static/chunks/webpack-6394a5a48261c5a1.js",
+  "/_next/static/chunks/webpack-fc5a67bf14781c27.js",
+  "/_next/static/css/1824707cb6e1b623.css",
   "/_next/static/css/1de9b0b9de0c038b.css",
   "/_next/static/css/604775b3a74dc580.css",
   "/_next/static/css/676caacb685ce77a.css",
   "/_next/static/css/9cdd061e9fa6d1a6.css",
-  "/_next/static/css/ddad215bfed91e8e.css",
   "/_next/static/media/558ca1a6aa3cb55e-s.p.woff2",
   "/_next/static/media/636a5ac981f94f8b-s.p.woff2",
   "/_next/static/media/64d784ea54a4acde-s.woff2",
@@ -226,7 +224,9 @@ const PRECACHE_ASSETS = [
   "/_next/static/media/9e7b0a821b9dfcb4-s.woff2",
   "/_next/static/media/ac0e76ddaeeb7981-s.woff2",
   "/_next/static/media/edc640959b0c7826-s.woff2",
-  "/_next/static/media/ff71da380fbe67dd-s.woff2"
+  "/_next/static/media/ff71da380fbe67dd-s.woff2",
+  "/_next/static/P2nv-Rn1cs30EErj5CFEJ/_buildManifest.js",
+  "/_next/static/P2nv-Rn1cs30EErj5CFEJ/_ssgManifest.js"
 ];
 
 // Install: precache critical assets safely without blocking activation
@@ -427,6 +427,11 @@ self.addEventListener('fetch', (event) => {
                                    await caches.match('/lyrics/folder/', { ignoreSearch: true });
               if (folderCached) return folderCached;
             }
+            if (url.pathname === '/lyrics' || url.pathname === '/lyrics/') {
+              const catalogCached = await caches.match('/lyrics/index.html', { ignoreSearch: true }) ||
+                                    await caches.match('/lyrics/', { ignoreSearch: true });
+              if (catalogCached) return catalogCached;
+            }
             const lyricsCached = await caches.match('/lyrics/view/index.html', { ignoreSearch: true }) ||
                                  await caches.match('/lyrics/view/', { ignoreSearch: true }) ||
                                  await caches.match('/lyrics/index.html', { ignoreSearch: true }) ||
@@ -561,6 +566,10 @@ self.addEventListener('fetch', (event) => {
           }
           if (url.pathname.startsWith('/lyrics/folder')) {
             const fallback = await caches.match('/lyrics/folder/index.txt', { ignoreSearch: true });
+            if (fallback) return fallback;
+          }
+          if (url.pathname === '/lyrics' || url.pathname === '/lyrics/') {
+            const fallback = await caches.match('/lyrics/index.txt', { ignoreSearch: true });
             if (fallback) return fallback;
           }
           const fallback = await caches.match('/lyrics/view/index.txt', { ignoreSearch: true }) ||

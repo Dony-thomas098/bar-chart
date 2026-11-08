@@ -38,17 +38,35 @@ export async function listSetlists(bandId?: string | null): Promise<Setlist[]> {
     return [];
   }
 
-  const bandFilter = activeBandId === DEFAULT_CHURCH_BAND_ID
-    ? `band_id.eq.${activeBandId},band_id.is.null`
-    : `band_id.eq.${activeBandId}`;
+  const cacheKey = `setlists_cache_${activeBandId}`;
 
-  const { data, error } = await supabase
-    .from('setlists')
-    .select('*')
-    .or(bandFilter)
-    .order('updated_at', { ascending: false });
-  if (error) throw error;
-  return data || [];
+  try {
+    const bandFilter = activeBandId === DEFAULT_CHURCH_BAND_ID
+      ? `band_id.eq.${activeBandId},band_id.is.null`
+      : `band_id.eq.${activeBandId}`;
+
+    const { data, error } = await supabase
+      .from('setlists')
+      .select('*')
+      .or(bandFilter)
+      .order('updated_at', { ascending: false });
+    if (error) throw error;
+    const result = data || [];
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(cacheKey, JSON.stringify(result));
+      } catch {}
+    }
+    return result;
+  } catch (err) {
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = localStorage.getItem(cacheKey);
+        if (cached) return JSON.parse(cached);
+      } catch {}
+    }
+    throw err;
+  }
 }
 
 export async function createSetlist(
@@ -146,42 +164,65 @@ export async function duplicateSetlist(id: string): Promise<Setlist> {
 // ─── Setlist Items CRUD ───────────────────────────────────────────────────────
 
 export async function listSetlistItems(setlistId: string): Promise<SetlistItem[]> {
-  const { data: rawItems, error } = await supabase
-    .from('setlist_items')
-    .select('*')
-    .eq('setlist_id', setlistId)
-    .order('position');
-  if (error) throw error;
-  if (!rawItems || rawItems.length === 0) return [];
+  const cacheKey = `setlist_items_cache_${setlistId}`;
 
-  // Enrich with titles from charts + lyrics
-  const chartIds = rawItems.filter(i => i.item_type === 'chart').map(i => i.item_id);
-  const lyricsIds = rawItems.filter(i => i.item_type === 'lyrics').map(i => i.item_id);
+  try {
+    const { data: rawItems, error } = await supabase
+      .from('setlist_items')
+      .select('*')
+      .eq('setlist_id', setlistId)
+      .order('position');
+    if (error) throw error;
+    if (!rawItems || rawItems.length === 0) return [];
 
-  const titleMap: Record<string, string> = {};
+    // Enrich with titles from charts + lyrics
+    const chartIds = rawItems.filter(i => i.item_type === 'chart').map(i => i.item_id);
+    const lyricsIds = rawItems.filter(i => i.item_type === 'lyrics').map(i => i.item_id);
 
-  if (chartIds.length > 0) {
-    const { data: charts } = await supabase
-      .from('charts')
-      .select('id, title')
-      .in('id', chartIds)
-      .not('title', 'like', '__TRASH__:%');
-    (charts || []).forEach(c => { titleMap[c.id] = c.title; });
+    const titleMap: Record<string, string> = {};
+
+    if (chartIds.length > 0) {
+      try {
+        const { data: charts } = await supabase
+          .from('charts')
+          .select('id, title')
+          .in('id', chartIds)
+          .not('title', 'like', '__TRASH__:%');
+        (charts || []).forEach(c => { titleMap[c.id] = c.title; });
+      } catch {}
+    }
+    if (lyricsIds.length > 0) {
+      try {
+        const { data: lyrics } = await supabase
+          .from('lyrics')
+          .select('id, title')
+          .in('id', lyricsIds)
+          .not('title', 'like', '__TRASH__:%');
+        (lyrics || []).forEach(l => { titleMap[l.id] = l.title; });
+      } catch {}
+    }
+
+    const result = rawItems.map(item => ({
+      ...item,
+      title: titleMap[item.item_id] || item.title || 'Unknown (Item Removed)',
+      is_deleted: !titleMap[item.item_id],
+    }));
+
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(cacheKey, JSON.stringify(result));
+      } catch {}
+    }
+    return result;
+  } catch (err) {
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = localStorage.getItem(cacheKey);
+        if (cached) return JSON.parse(cached);
+      } catch {}
+    }
+    throw err;
   }
-  if (lyricsIds.length > 0) {
-    const { data: lyrics } = await supabase
-      .from('lyrics')
-      .select('id, title')
-      .in('id', lyricsIds)
-      .not('title', 'like', '__TRASH__:%');
-    (lyrics || []).forEach(l => { titleMap[l.id] = l.title; });
-  }
-
-  return rawItems.map(item => ({
-    ...item,
-    title: titleMap[item.item_id] || 'Unknown (Item Removed)',
-    is_deleted: !titleMap[item.item_id],
-  }));
 }
 
 export async function addSetlistItems(
