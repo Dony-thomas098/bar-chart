@@ -125,14 +125,14 @@ const PRECACHE_ASSETS = [
   "/window.svg",
   "/_not-found/index.html",
   "/_not-found/index.txt",
-  "/_next/static/chunks/1135.b7054bb7edb3ea3b.js",
+  "/_next/static/chunks/1135.440d05f85ac2b463.js",
   "/_next/static/chunks/1390-fe641041ce4d4c98.js",
   "/_next/static/chunks/1966.b8f83f7ba376c962.js",
   "/_next/static/chunks/2081-c0a13615ab096ab5.js",
   "/_next/static/chunks/2104.872c200eb7c4c7a7.js",
   "/_next/static/chunks/2746-9ed91d48fc3b9300.js",
   "/_next/static/chunks/2801-f6a3d9c0f1bdf274.js",
-  "/_next/static/chunks/2869.f313b646a451e6d2.js",
+  "/_next/static/chunks/2869.e8108d88ef612dcd.js",
   "/_next/static/chunks/2963-380856e2146d1ad2.js",
   "/_next/static/chunks/3093-5acb6089a975cd75.js",
   "/_next/static/chunks/3133-2d5a201bed12bf63.js",
@@ -209,8 +209,8 @@ const PRECACHE_ASSETS = [
   "/_next/static/chunks/next/dist/client/components/builtin/global-error-c9d4c13f2c41ca7e.js",
   "/_next/static/chunks/next/dist/client/components/builtin/unauthorized-3dc8c8c7b19ce49c.js",
   "/_next/static/chunks/polyfills-42372ed130431b0a.js",
-  "/_next/static/chunks/webpack-fc5a67bf14781c27.js",
-  "/_next/static/css/1824707cb6e1b623.css",
+  "/_next/static/chunks/webpack-5265c73eada9d9a4.js",
+  "/_next/static/css/16d7cc6bc5494ccb.css",
   "/_next/static/css/1de9b0b9de0c038b.css",
   "/_next/static/css/604775b3a74dc580.css",
   "/_next/static/css/676caacb685ce77a.css",
@@ -225,8 +225,8 @@ const PRECACHE_ASSETS = [
   "/_next/static/media/ac0e76ddaeeb7981-s.woff2",
   "/_next/static/media/edc640959b0c7826-s.woff2",
   "/_next/static/media/ff71da380fbe67dd-s.woff2",
-  "/_next/static/P2nv-Rn1cs30EErj5CFEJ/_buildManifest.js",
-  "/_next/static/P2nv-Rn1cs30EErj5CFEJ/_ssgManifest.js"
+  "/_next/static/SezqC_I37cA3EmGppyGG7/_buildManifest.js",
+  "/_next/static/SezqC_I37cA3EmGppyGG7/_ssgManifest.js"
 ];
 
 // Install: precache critical assets safely without blocking activation

@@ -676,6 +676,26 @@ describe('Viewer Stage Lock and Rotate Mode Optimizations', () => {
     expect(reader).toContain('disabled={isStageLocked}');
     expect(lyricsReader).toContain('disabled={isStageLocked}');
   });
+
+  it('hides stage lock message after 2 sec and provides direct unlock action on both readers', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+
+    const reader = fs.readFileSync(path.resolve(__dirname, '../components/PiascoreReader.tsx'), 'utf-8');
+    const lyricsReader = fs.readFileSync(path.resolve(__dirname, '../components/PiascoreLyricsReader.tsx'), 'utf-8');
+
+    // Toast auto-hides after exactly 2 seconds (2000ms)
+    expect(reader).toContain('setTimeout(() => setLockToast(null), 2000)');
+    expect(lyricsReader).toContain('setTimeout(() => setLockToast(null), 2000)');
+
+    // Direct unlock button provided inside stage lock toast
+    expect(reader).toContain('aria-label="Unlock stage mode"');
+    expect(lyricsReader).toContain('aria-label="Unlock stage mode"');
+
+    // Popstate effect depends only on isStageLocked to prevent back-looping
+    expect(reader).toContain('}, [isStageLocked]);');
+    expect(lyricsReader).toContain('}, [isStageLocked]);');
+  });
 });
 
 describe('Offline Stability & Resource Handling', () => {

@@ -248,19 +248,47 @@ export function PiascoreLyricsReader({ initialLyric, folderId }: Props) {
   const [lockToast, setLockToast] = useState<string | null>(null);
   const lockToastTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  const showLockNotification = (msg: string) => {
+  const showLockNotification = useCallback((msg: string) => {
     setLockToast(msg);
     if (lockToastTimerRef.current) clearTimeout(lockToastTimerRef.current);
-    lockToastTimerRef.current = setTimeout(() => setLockToast(null), 2200);
-  };
+    lockToastTimerRef.current = setTimeout(() => setLockToast(null), 2000);
+  }, []);
 
-  const closeAllPopups = () => {
+  useEffect(() => {
+    return () => {
+      if (lockToastTimerRef.current) clearTimeout(lockToastTimerRef.current);
+    };
+  }, []);
+
+  const closeAllPopups = useCallback(() => {
     setIsBookmarkOpen(false);
     setIsAdjustOpen(false);
     setIsPageOverviewOpen(false);
     setIsInfoOpen(false);
     setIsMetronomeOpen(false);
-  };
+  }, []);
+
+  const lastToggleTimeRef = useRef(0);
+  const toggleStageLock = useCallback((e?: React.SyntheticEvent) => {
+    if (e) {
+      e.stopPropagation();
+    }
+    const now = Date.now();
+    if (now - lastToggleTimeRef.current < 350) return;
+    lastToggleTimeRef.current = now;
+
+    setIsStageLocked((prev) => {
+      const next = !prev;
+      if (next) {
+        setShowUI(false);
+        closeAllPopups();
+        showLockNotification('Stage Lock ON · Back & accidental taps blocked');
+      } else {
+        showLockNotification('Stage Lock OFF · Screen unlocked');
+      }
+      return next;
+    });
+  }, [closeAllPopups, showLockNotification]);
 
   const handleCanvasClick = () => {
     if (isDraggingRef.current) {
@@ -479,26 +507,37 @@ export function PiascoreLyricsReader({ initialLyric, folderId }: Props) {
     stateKey: 'chordly_lyrics_modal',
   });
 
+  const showLockNotificationRef = useRef(showLockNotification);
+  showLockNotificationRef.current = showLockNotification;
+
   // ── Block going back to menu screen when screen lock is enabled ───────────
   useEffect(() => {
     if (!isStageLocked || typeof window === 'undefined') return;
 
-    window.history.pushState({ chordly_lyrics_lock_prevent_exit: true }, '', window.location.href);
+    let hasPushed = false;
+    try {
+      window.history.pushState({ chordly_lyrics_lock_prevent_exit: true }, '', window.location.href);
+      hasPushed = true;
+    } catch {
+      // Ignore pushState failure
+    }
 
     const handlePopState = () => {
-      window.history.pushState({ chordly_lyrics_lock_prevent_exit: true }, '', window.location.href);
-      showLockNotification('Screen is locked · Tap lock icon to unlock');
+      try {
+        window.history.pushState({ chordly_lyrics_lock_prevent_exit: true }, '', window.location.href);
+      } catch {}
+      showLockNotificationRef.current('Screen is locked · Tap lock icon to unlock');
     };
 
     window.addEventListener('popstate', handlePopState);
 
     return () => {
       window.removeEventListener('popstate', handlePopState);
-      if (window.history.state?.chordly_lyrics_lock_prevent_exit) {
+      if (hasPushed && window.history.state?.chordly_lyrics_lock_prevent_exit) {
         window.history.back();
       }
     };
-  }, [isStageLocked, showLockNotification]);
+  }, [isStageLocked]);
 
   return (
     <div className="fixed inset-0 w-screen h-screen bg-[#e8e8ec] dark:bg-[#121214] text-slate-800 dark:text-slate-100 flex flex-col overflow-hidden select-none font-sans">
@@ -507,21 +546,9 @@ export function PiascoreLyricsReader({ initialLyric, folderId }: Props) {
         {/* Lock Screen Toggle Button: compact small circular button on mobile/rotate mode */}
         <button
           type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            setIsStageLocked((prev) => {
-              const next = !prev;
-              if (next) {
-                setShowUI(false);
-                closeAllPopups();
-                showLockNotification('Stage Lock ON · Back & accidental taps blocked');
-              } else {
-                showLockNotification('Stage Lock OFF · Screen unlocked');
-              }
-              return next;
-            });
-          }}
-          className={`phone-rotate-compact-lock flex items-center justify-center gap-1.5 p-1.5 sm:px-3 sm:py-1.5 rounded-full font-bold text-xs shadow-[0_4px_16px_rgba(0,0,0,0.6)] backdrop-blur-md transition-all active:scale-95 cursor-pointer border ${
+          onClick={toggleStageLock}
+          onTouchEnd={toggleStageLock}
+          className={`phone-rotate-compact-lock flex items-center justify-center gap-1.5 p-2 sm:px-3 sm:py-1.5 rounded-full font-bold text-xs shadow-[0_4px_16px_rgba(0,0,0,0.6)] backdrop-blur-md transition-all active:scale-95 cursor-pointer border touch-manipulation min-h-[36px] min-w-[36px] ${
             isStageLocked
               ? 'bg-amber-500/20 text-amber-400 border-amber-500/50 shadow-[0_0_16px_rgba(245,158,11,0.35)] ring-1 ring-amber-400/40'
               : 'bg-[#14141A]/90 text-[#8C8A93] border-[#2A2A31] hover:text-[#F4F2F0] hover:border-[#3E3E48]'
@@ -536,7 +563,7 @@ export function PiascoreLyricsReader({ initialLyric, folderId }: Props) {
           {isStageLocked ? (
             <>
               <Lock size={14} className="text-amber-400 stroke-[2.5]" />
-              <span className="hidden sm:inline font-semibold text-amber-400">Locked</span>
+              <span className="font-semibold text-amber-400 text-xs">Unlock</span>
             </>
           ) : (
             <>
@@ -549,9 +576,20 @@ export function PiascoreLyricsReader({ initialLyric, folderId }: Props) {
 
       {/* ── STAGE LOCK TOAST NOTIFICATION ───────────────────────────────── */}
       {lockToast && (
-        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-[70] bg-[#1A1A20]/95 backdrop-blur-md border border-amber-500/40 text-amber-300 px-4 py-2 rounded-full text-xs font-semibold shadow-[0_8px_24px_rgba(0,0,0,0.8)] flex items-center gap-2 animate-in fade-in zoom-in-95 duration-200 pointer-events-none">
+        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-[70] bg-[#1A1A20]/95 backdrop-blur-md border border-amber-500/40 text-amber-300 px-4 py-2 rounded-full text-xs font-semibold shadow-[0_8px_24px_rgba(0,0,0,0.8)] flex items-center gap-2.5 animate-in fade-in zoom-in-95 duration-200">
           <Lock size={14} className="text-amber-400 shrink-0" />
           <span>{lockToast}</span>
+          {isStageLocked && (
+            <button
+              type="button"
+              onClick={toggleStageLock}
+              onTouchEnd={toggleStageLock}
+              className="ml-1 px-2.5 py-0.5 rounded-full bg-amber-500 text-black font-bold text-[11px] hover:bg-amber-400 active:scale-95 transition-all cursor-pointer shadow-sm shrink-0 touch-manipulation"
+              aria-label="Unlock stage mode"
+            >
+              Unlock
+            </button>
+          )}
         </div>
       )}
 
