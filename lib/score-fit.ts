@@ -54,14 +54,15 @@ export function calculateScoreFit({
     const scaleY = cardHeight > 0 ? (availableHeight / cardHeight) * 0.98 : 1;
 
     if (cardHeight > 0 && cardHeight * scaleX <= availableHeight) {
-      // Entire score/page fits vertically within screen when scaled to width
-      scale = Math.min(1.85, Math.max(1.0, scaleX));
+      // Entire score/page fits vertically when scaled to available width.
+      // Allow scale below 1.0 so very wide charts shrink to fit rather than clip.
+      scale = Math.min(1.85, Math.max(0.15, scaleX));
     } else if (scaleY >= 1.0) {
       // Fits vertically at 1.0+
       scale = Math.min(1.85, Math.min(scaleX, scaleY));
     } else {
-      // Tall chart/sheet with many lines: scale up for bold readability while enabling smooth vertical pan/scroll
-      scale = Math.min(1.45, Math.max(1.0, scaleX * 0.92));
+      // Tall chart: scale to available width for readability; allow below 1.0 for wide charts.
+      scale = Math.min(1.45, Math.max(0.15, scaleX * 0.92));
     }
 
     const scaledWidth = cardWidth * scale;

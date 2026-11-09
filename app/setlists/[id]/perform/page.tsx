@@ -14,7 +14,7 @@ import { TransformWrapper, TransformComponent, useControls } from 'react-zoom-pa
 import { calculateScoreFit } from '@/lib/score-fit';
 import {
   X, ChevronLeft, ChevronRight, Users, Radio, RefreshCw, FileText, Music,
-  Pencil, Plus, Trash2, RotateCcw, Check, Zap, Save, AlertCircle
+  Pencil, Plus, Minus, Trash2, RotateCcw, Check, Zap, Save, AlertCircle
 } from 'lucide-react';
 
 // ─── Setlist Session Hook ─────────────────────────────────────────────────────
@@ -77,6 +77,10 @@ function useSetlistSession(setlistId: string, isLeaderDevice: boolean) {
           setSongPosition(pos);
           positionRef.current = pos;
         })
+        .on('broadcast', { event: 'chord-update' }, ({ payload }) => {
+          if (!isMountedRef.current) return;
+          window.dispatchEvent(new CustomEvent('setlist-chord-update', { detail: payload }));
+        })
         .on('broadcast', { event: 'session-end' }, () => {
           if (!isMountedRef.current) return;
           window.dispatchEvent(new CustomEvent('setlist-session-end'));
@@ -136,6 +140,16 @@ function useSetlistSession(setlistId: string, isLeaderDevice: boolean) {
     setSongPosition(positionRef.current);
   }, []);
 
+  const broadcastChordUpdate = useCallback((updatePayload: {
+    itemId: string;
+    lines?: Line[] | null;
+    transpose_override?: number | null;
+  }) => {
+    const ch = channelRef.current;
+    if (!ch) return;
+    ch.send({ type: 'broadcast', event: 'chord-update', payload: updatePayload });
+  }, []);
+
   const takeLead = useCallback(() => {
     isLeaderRef.current = true;
     setMode('leader');
@@ -146,7 +160,7 @@ function useSetlistSession(setlistId: string, isLeaderDevice: boolean) {
     }
   }, []);
 
-  return { mode, songPosition, leaderName, followerCount, isFollowing, goTo, endSession, stopFollowing, resumeFollowing, takeLead };
+  return { mode, songPosition, leaderName, followerCount, isFollowing, goTo, endSession, stopFollowing, resumeFollowing, takeLead, broadcastChordUpdate };
 }
 
 // ─── Chart zoom wrapper ───────────────────────────────────────────────────────
@@ -167,10 +181,15 @@ function ChartWrapper({
     const wrapper = instance.wrapperComponent;
     if (!cardEl || !wrapper) return;
 
-    const viewportWidth = wrapper.clientWidth;
-    const viewportHeight = wrapper.clientHeight;
+    // Use the actual viewport dimensions, not the wrapper element, so resize
+    // events always reflect the current screen size even if the wrapper hasn't
+    // re-laid out yet.
+    const viewportWidth = window.innerWidth || wrapper.clientWidth;
+    const viewportHeight = window.innerHeight || wrapper.clientHeight;
     const cardWidth = Math.max(cardEl.scrollWidth, cardEl.offsetWidth);
     const cardHeight = Math.max(cardEl.scrollHeight, cardEl.offsetHeight);
+
+    if (cardWidth <= 0 || cardHeight <= 0) return;
 
     const { scale, posX, posY, effectiveMinScale } = calculateScoreFit({
       viewportWidth,
@@ -194,11 +213,17 @@ function ChartWrapper({
   useEffect(() => {
     let t1: any;
     let t2: any;
+    let t3: any;
     const runFit = () => {
       clearTimeout(t1);
       clearTimeout(t2);
+      clearTimeout(t3);
+      // Three-pass: 50 ms handles normal layout, 250 ms catches font/image
+      // load reflows, 600 ms catches resolution-change repaints where the
+      // card dimensions are still stale on the first two passes.
       t1 = setTimeout(fitToScreen, 50);
-      t2 = setTimeout(fitToScreen, 200);
+      t2 = setTimeout(fitToScreen, 250);
+      t3 = setTimeout(fitToScreen, 600);
     };
     runFit();
     window.addEventListener('resize', runFit);
@@ -206,6 +231,7 @@ function ChartWrapper({
     return () => {
       clearTimeout(t1);
       clearTimeout(t2);
+      clearTimeout(t3);
       window.removeEventListener('resize', runFit);
       window.removeEventListener('orientationchange', runFit);
     };
@@ -300,7 +326,7 @@ export default function SetlistPerformPage() {
     ? (sessionStorage.getItem(`setlist-leader-${setlistId}`) === '1' || localStorage.getItem(`setlist-leader-${setlistId}`) === '1')
     : false;
 
-  const { mode, songPosition, leaderName, followerCount, isFollowing, goTo, endSession, stopFollowing, resumeFollowing, takeLead } =
+  const { mode, songPosition, leaderName, followerCount, isFollowing, goTo, endSession, stopFollowing, resumeFollowing, takeLead, broadcastChordUpdate } =
     useSetlistSession(setlistId, isLeaderDevice);
 
   const isLeader = mode === 'leader';
@@ -401,6 +427,14 @@ export default function SetlistPerformPage() {
       const updated: ChartData = { ...currentChart, lines: editingLines, is_performance_copy: true };
       setCurrentChart(updated);
       addToCache(currentItem, { chart: updated });
+
+      // Broadcast immediately to follower devices
+      broadcastChordUpdate({
+        itemId: currentItem.id,
+        lines: editingLines,
+        transpose_override: currentItem.transpose_override,
+      });
+
       setPerfModalOpen(false);
     } catch (e) {
       alert('Failed to save performance copy');
@@ -418,9 +452,81 @@ export default function SetlistPerformPage() {
     try {
       await updateSetlistItem(currentItem.id, { lines_override: null });
     } catch (err) {}
+
+    // Broadcast revert to follower devices
+    broadcastChordUpdate({
+      itemId: currentItem.id,
+      lines: null,
+      transpose_override: currentItem.transpose_override,
+    });
+
     setPerfModalOpen(false);
     loadSongAt(songPosition, true);
   };
+
+  const handleTranspose = async (delta: number) => {
+    const currentItem = items[songPosition];
+    if (!currentItem || !currentChart || !isLeader) return;
+    const newTranspose = (currentItem.transpose_override ?? 0) + delta;
+    const transposed = transposeChart(currentChart, delta, currentChart.prefer_flats);
+    setCurrentChart(transposed);
+    addToCache(currentItem, { chart: transposed });
+
+    setItems(prev => prev.map((item, idx) => idx === songPosition ? { ...item, transpose_override: newTranspose } : item));
+
+    try {
+      await updateSetlistItem(currentItem.id, { transpose_override: newTranspose });
+    } catch (err) {
+      console.warn('Failed to update setlist item transpose in DB:', err);
+    }
+
+    broadcastChordUpdate({
+      itemId: currentItem.id,
+      transpose_override: newTranspose,
+    });
+  };
+
+  // Listen for broadcast chord / transpose updates from leader
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (!detail || !detail.itemId) return;
+
+      setItems(prev => prev.map(item => {
+        if (item.id !== detail.itemId) return item;
+        const updated = { ...item };
+        if (detail.lines !== undefined) updated.lines_override = detail.lines;
+        if (detail.transpose_override !== undefined) updated.transpose_override = detail.transpose_override;
+        return updated;
+      }));
+
+      const activeItem = items[songPosition];
+      if (activeItem && activeItem.id === detail.itemId && currentChart) {
+        if (detail.lines !== undefined) {
+          if (detail.lines === null) {
+            loadSongAt(songPosition, true);
+            return;
+          } else {
+            const updated = { ...currentChart, lines: detail.lines, is_performance_copy: true };
+            setCurrentChart(updated);
+            addToCache(activeItem, { chart: updated });
+          }
+        }
+        if (typeof detail.transpose_override === 'number') {
+          const currentOffset = activeItem.transpose_override ?? 0;
+          const delta = detail.transpose_override - currentOffset;
+          if (delta !== 0) {
+            const transposed = transposeChart(currentChart, delta, currentChart.prefer_flats);
+            setCurrentChart(transposed);
+            addToCache(activeItem, { chart: transposed });
+          }
+        }
+      }
+    };
+
+    window.addEventListener('setlist-chord-update', handler);
+    return () => window.removeEventListener('setlist-chord-update', handler);
+  }, [items, songPosition, currentChart, addToCache, loadSongAt]);
 
   // Scroll active tab into view when bars are visible
   useEffect(() => {
@@ -556,11 +662,34 @@ export default function SetlistPerformPage() {
               </button>
             )}
 
-            {/* Transpose badge */}
-            {currentItem?.transpose_override !== null && currentItem?.transpose_override !== undefined && currentItem.item_type === 'chart' && (
-              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-accent-gradient/15 text-accent-start border border-accent-solid/20">
-                {currentItem.transpose_override > 0 ? '+' : ''}{currentItem.transpose_override}
-              </span>
+            {/* Transpose Controls */}
+            {currentItem?.item_type === 'chart' && currentChart && (
+              <div
+                onClick={(e) => e.stopPropagation()}
+                className="flex items-center bg-surface-raised border border-border rounded-lg p-0.5"
+              >
+                {isLeader && (
+                  <button
+                    onClick={() => handleTranspose(-1)}
+                    className="w-6 h-6 flex items-center justify-center text-text-secondary hover:text-white rounded active:scale-95 transition-all cursor-pointer"
+                    title="Transpose down 1 semitone (-1)"
+                  >
+                    <Minus size={12} />
+                  </button>
+                )}
+                <span className="text-[10px] font-mono font-bold px-1.5 text-accent-start select-none whitespace-nowrap">
+                  {currentItem.transpose_override ? `${currentItem.transpose_override > 0 ? '+' : ''}${currentItem.transpose_override}` : 'Orig'}
+                </span>
+                {isLeader && (
+                  <button
+                    onClick={() => handleTranspose(1)}
+                    className="w-6 h-6 flex items-center justify-center text-text-secondary hover:text-white rounded active:scale-95 transition-all cursor-pointer"
+                    title="Transpose up 1 semitone (+1)"
+                  >
+                    <Plus size={12} />
+                  </button>
+                )}
+              </div>
             )}
             {/* Follower refresh */}
             {!isLeader && (
@@ -694,8 +823,8 @@ export default function SetlistPerformPage() {
             doubleClick={{ disabled: true }}
           >
             <TransformComponent
-              wrapperStyle={{ width: '100vw', height: '100dvh' }}
-              contentStyle={{ padding: '32px 0 120px' }}
+              wrapperStyle={{ width: '100vw', height: '100dvh', overflow: 'visible' }}
+              contentStyle={{ padding: '32px 0 120px', overflow: 'visible', width: 'max-content' }}
             >
               <ChartWrapper chart={currentChart} songKey={`${songPosition}`} onBaseScaleChange={setPerfMinScale} />
             </TransformComponent>

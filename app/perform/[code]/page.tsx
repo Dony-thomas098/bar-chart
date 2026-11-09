@@ -6,13 +6,16 @@ import { useAuth } from '@/components/AuthProvider';
 import { usePerformanceSession } from '@/hooks/usePerformanceSession';
 import { readChart, readLyrics } from '@/lib/storage';
 import { useChartPrefetch } from '@/hooks/useChartPrefetch';
-import { ChartData } from '@/lib/chart-types';
+import { ChartData, Line, createDefaultLine } from '@/lib/chart-types';
 import { ChartRenderer } from '@/components/ChartRenderer';
 import { TransformWrapper, TransformComponent, useControls } from 'react-zoom-pan-pinch';
 import { calculateScoreFit } from '@/lib/score-fit';
+import { transposeChart } from '@/lib/transpose';
+import { supabase } from '@/lib/supabase';
 import {
   ChevronLeft, ChevronRight, X, Edit2, Copy, Check,
-  Users, Radio, StopCircle, WifiOff, RefreshCw, ScrollText, Play, Pause, Crop
+  Users, Radio, StopCircle, WifiOff, RefreshCw, ScrollText, Play, Pause, Crop,
+  Minus, Plus, Pencil, Trash2, Save
 } from 'lucide-react';
 
 // ─── Inner chart wrapper (needs access to zoom controls) ──────────────────────
@@ -168,6 +171,7 @@ export default function PerformancePage() {
   const {
     mode, currentIndex, chartIds, sessionName, leaderName,
     followerCount, isFollowing, goTo, endSession, stopFollowing, resumeFollowing,
+    broadcastChordUpdate,
   } = usePerformanceSession(code, initialPayload);
 
   // localIndex represents what is currently shown on the screen.
@@ -186,6 +190,11 @@ export default function PerformancePage() {
   const [showHeader, setShowHeader] = useState(true);
   const [sessionEnded, setSessionEnded] = useState(false);
   const [selectedFont, setSelectedFont] = useState('system');
+
+  // Performance Chord Editing State
+  const [perfModalOpen, setPerfModalOpen] = useState(false);
+  const [editingLines, setEditingLines] = useState<Line[]>([]);
+  const [isSavingPerf, setIsSavingPerf] = useState(false);
 
   useEffect(() => {
     const savedFont = localStorage.getItem('chord-grid-font');
@@ -274,6 +283,119 @@ export default function PerformancePage() {
     }
     setShowHeader(prev => !prev);
   }, []);
+
+  // Transpose helper with live broadcast
+  const handleTranspose = useCallback((delta: number) => {
+    if (!currentChart) return;
+    const newOffset = (currentChart.semitone_offset || 0) + delta;
+    const transposed = transposeChart(currentChart, delta, currentChart.prefer_flats);
+    const updated: ChartData = {
+      ...transposed,
+      semitone_offset: newOffset,
+    };
+    setCurrentChart(updated);
+    addToCache(updated.id, updated);
+    if (mode === 'leader') {
+      broadcastChordUpdate({
+        chartId: updated.id,
+        lines: updated.lines,
+        semitone_offset: newOffset,
+        prefer_flats: updated.prefer_flats,
+      });
+    }
+  }, [currentChart, mode, addToCache, broadcastChordUpdate]);
+
+  // Listen for broadcast chord updates from leader (transpositions / line edits)
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (!detail || !detail.chartId) return;
+
+      setCurrentChart(prev => {
+        if (!prev || prev.id !== detail.chartId) return prev;
+        let updated: ChartData = { ...prev };
+        if (detail.lines) {
+          updated.lines = detail.lines;
+        }
+        if (typeof detail.semitone_offset === 'number') {
+          const currentOffset = prev.semitone_offset || 0;
+          const delta = detail.semitone_offset - currentOffset;
+          if (delta !== 0 && !detail.lines) {
+            updated = transposeChart(updated, delta, detail.prefer_flats ?? prev.prefer_flats);
+          }
+          updated.semitone_offset = detail.semitone_offset;
+        }
+        if (detail.prefer_flats !== undefined) {
+          updated.prefer_flats = detail.prefer_flats;
+        }
+        addToCache(detail.chartId, updated);
+        return updated;
+      });
+    };
+
+    window.addEventListener('perform-chord-update', handler);
+    return () => window.removeEventListener('perform-chord-update', handler);
+  }, [addToCache]);
+
+  // Live DB sync for active chart (in case leader edits in full editor and saves)
+  useEffect(() => {
+    if (!currentChart?.id) return;
+    const ch = supabase
+      .channel(`live-stage-chart-${currentChart.id}`)
+      .on(
+        'postgres_changes' as any,
+        { event: 'UPDATE', schema: 'public', table: 'charts', filter: `id=eq.${currentChart.id}` },
+        (payload: any) => {
+          if (payload.new) {
+            setCurrentChart(prev => {
+              if (!prev || prev.id !== payload.new.id) return prev;
+              const updated = { ...prev, ...payload.new };
+              addToCache(updated.id, updated);
+              return updated;
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(ch).catch(() => {});
+    };
+  }, [currentChart?.id, addToCache]);
+
+  // Performance Chord Editing Handlers
+  const handleOpenPerfEdit = () => {
+    if (!currentChart) return;
+    setEditingLines(JSON.parse(JSON.stringify(currentChart.lines || [])));
+    setPerfModalOpen(true);
+  };
+
+  const handleSavePerfCopy = async () => {
+    if (!currentChart) return;
+    setIsSavingPerf(true);
+    try {
+      const updated: ChartData = { ...currentChart, lines: editingLines };
+      setCurrentChart(updated);
+      addToCache(updated.id, updated);
+
+      // Save to local IndexedDB and sync queue
+      const { saveChart } = await import('@/lib/storage');
+      await saveChart(updated);
+
+      // Broadcast immediately to all connected follower devices
+      broadcastChordUpdate({
+        chartId: updated.id,
+        lines: editingLines,
+        semitone_offset: updated.semitone_offset,
+        prefer_flats: updated.prefer_flats,
+      });
+      setPerfModalOpen(false);
+    } catch (err) {
+      console.warn('[Performance] Failed to save performance chords:', err);
+    } finally {
+      setIsSavingPerf(false);
+    }
+  };
 
   // Keyboard navigation for leader
   useEffect(() => {
@@ -393,6 +515,54 @@ export default function PerformancePage() {
 
         <div className="flex items-center gap-2 shrink-0">
           <CodeBadge code={code} />
+
+          {/* Transpose Controls */}
+          {currentChart && (
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="flex items-center bg-surface border border-border rounded-xl p-0.5 shadow-sm"
+            >
+              {isLeader && (
+                <button
+                  onClick={() => handleTranspose(-1)}
+                  className="w-7 h-7 flex items-center justify-center text-text-secondary hover:text-white hover:bg-surface-raised rounded-lg active:scale-95 transition-all cursor-pointer"
+                  title="Transpose down 1 semitone (-1)"
+                >
+                  <Minus size={13} />
+                </button>
+              )}
+              <span className="text-[11px] font-mono font-bold px-2 text-accent-start select-none whitespace-nowrap">
+                {currentChart.semitone_offset === 0
+                  ? 'Orig'
+                  : `${currentChart.semitone_offset > 0 ? '+' : ''}${currentChart.semitone_offset}`}
+              </span>
+              {isLeader && (
+                <button
+                  onClick={() => handleTranspose(1)}
+                  className="w-7 h-7 flex items-center justify-center text-text-secondary hover:text-white hover:bg-surface-raised rounded-lg active:scale-95 transition-all cursor-pointer"
+                  title="Transpose up 1 semitone (+1)"
+                >
+                  <Plus size={13} />
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Edit Chords (Live Performance Edit) button */}
+          {isLeader && currentChart && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleOpenPerfEdit();
+              }}
+              className="px-2.5 py-1.5 bg-yellow-500/15 text-yellow-300 border border-yellow-500/30 rounded-lg hover:bg-yellow-500/25 transition-all flex items-center gap-1.5 text-xs font-bold shrink-0 cursor-pointer"
+              title="Edit Chords live in performance"
+            >
+              <Pencil size={14} />
+              <span className="hidden sm:inline">Edit Chords</span>
+            </button>
+          )}
+
           {!isLeader && (
             <button
               onClick={(e) => {
@@ -414,7 +584,7 @@ export default function PerformancePage() {
               }}
               disabled={!currentChart}
               className="p-2 bg-accent-gradient text-white rounded-lg hover:brightness-110 transition-all disabled:opacity-40"
-              title="Edit current chart"
+              title="Full Chart Editor"
             >
               <Edit2 size={16} />
             </button>
@@ -625,6 +795,116 @@ export default function PerformancePage() {
                 className="flex-1 py-3 px-4 bg-red-600 hover:bg-red-500 rounded-xl text-xs font-bold text-white shadow-md hover:shadow-red-600/30 transition-all"
               >
                 End Session
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Edit Performance Chords Modal ── */}
+      {perfModalOpen && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 overflow-y-auto"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="w-full max-w-2xl bg-white/70 dark:bg-[#18181d]/70 backdrop-blur-2xl saturate-[180%] border border-white/60 dark:border-white/15 rounded-2xl p-6 shadow-[0_8px_32px_rgba(31,38,135,0.12),inset_0_1px_0_rgba(255,255,255,0.8)] flex flex-col gap-5 max-h-[90vh]">
+            <div className="flex items-center justify-between border-b border-border pb-3">
+              <div>
+                <h3 className="text-lg font-bold text-text-primary flex items-center gap-2">
+                  <Pencil size={18} className="text-yellow-400" />
+                  <span>Edit Performance Chords</span>
+                </h3>
+                <p className="text-xs text-yellow-400/90 mt-1 font-medium">
+                  ⚡ Edits instantly broadcast live to all connected follower devices.
+                </p>
+              </div>
+              <button onClick={() => setPerfModalOpen(false)} className="p-1.5 text-text-secondary hover:text-white rounded-lg cursor-pointer">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto pr-1 flex flex-col gap-4">
+              {editingLines.map((line, lineIdx) => (
+                <div key={line.id || lineIdx} className="p-4 bg-surface-raised border border-border rounded-xl flex flex-col gap-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <input
+                      type="text"
+                      placeholder="Section Label (e.g. Verse 1, Chorus)"
+                      value={line.label}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setEditingLines(prev => prev.map((l, i) => i === lineIdx ? { ...l, label: val } : l));
+                      }}
+                      className="px-3 py-1.5 bg-surface border border-border rounded-lg text-xs font-bold text-accent-start focus:outline-none focus:border-accent-solid w-48"
+                    />
+                    <button
+                      onClick={() => {
+                        setEditingLines(prev => prev.filter((_, i) => i !== lineIdx));
+                      }}
+                      className="p-1.5 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-all cursor-pointer"
+                      title="Remove section line"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+
+                  {/* Blocks / Bars */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {line.blocks.map((block, blockIdx) => (
+                      <div key={block.id || blockIdx} className="p-2.5 bg-surface border border-border/60 rounded-lg flex flex-col gap-1.5">
+                        <div className="text-[10px] uppercase tracking-wider text-text-secondary font-bold">Bar Group {blockIdx + 1}</div>
+                        <div className="grid grid-cols-2 gap-1.5">
+                          {block.bars.map((bar, barIdx) => (
+                            <input
+                              key={barIdx}
+                              type="text"
+                              placeholder="e.g. C, G, Am"
+                              value={bar}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setEditingLines(prev => prev.map((l, i) => {
+                                  if (i !== lineIdx) return l;
+                                  const newBlocks = l.blocks.map((b, bi) => {
+                                    if (bi !== blockIdx) return b;
+                                    const newBars = [...b.bars];
+                                    newBars[barIdx] = val;
+                                    return { ...b, bars: newBars };
+                                  });
+                                  return { ...l, blocks: newBlocks };
+                                }));
+                              }}
+                              className="px-2.5 py-1 bg-surface-raised border border-border/80 rounded text-xs font-mono font-bold text-text-primary focus:outline-none focus:border-accent-solid"
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+
+              <button
+                onClick={() => setEditingLines(prev => [...prev, createDefaultLine()])}
+                className="py-2.5 px-4 bg-surface-raised border border-dashed border-border rounded-xl text-xs font-bold text-text-secondary hover:text-white hover:border-accent-solid transition-all flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Plus size={16} /> Add Section Line
+              </button>
+            </div>
+
+            <div className="flex items-center justify-end border-t border-border pt-4 gap-3">
+              <button
+                onClick={() => setPerfModalOpen(false)}
+                className="px-4 py-2 text-xs font-bold text-text-secondary hover:text-white transition-all cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSavePerfCopy}
+                disabled={isSavingPerf}
+                className="px-5 py-2.5 bg-accent-gradient text-white text-xs font-bold rounded-xl shadow-md hover:brightness-110 transition-all flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
+              >
+                <Save size={15} />
+                <span>{isSavingPerf ? 'Broadcasting...' : 'Save & Broadcast'}</span>
               </button>
             </div>
           </div>

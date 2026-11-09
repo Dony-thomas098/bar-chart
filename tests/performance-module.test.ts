@@ -71,4 +71,28 @@ describe('Performance Module & Live Stage Invariants', () => {
     expect(libCode).toContain('setlists_cache_');
     expect(libCode).toContain('setlist_items_cache_');
   });
+
+  it('guarantees usePerformanceSession supports broadcastChordUpdate and listens to chord-update events', () => {
+    const hookCode = fs.readFileSync(perfHookPath, 'utf-8');
+    expect(hookCode).toContain("event: 'chord-update'");
+    expect(hookCode).toContain('perform-chord-update');
+    expect(hookCode).toContain('broadcastChordUpdate');
+  });
+
+  it('guarantees live stage page supports interactive transposition and real-time chord updates on followers', () => {
+    const pageCode = fs.readFileSync(perfPagePath, 'utf-8');
+    expect(pageCode).toContain('handleTranspose');
+    expect(pageCode).toContain('perform-chord-update');
+    expect(pageCode).toContain('handleOpenPerfEdit');
+    expect(pageCode).toContain('handleSavePerfCopy');
+    expect(pageCode).toContain('live-stage-chart-');
+  });
+
+  it('guarantees setlist perform page broadcasts chord edits and transpositions to follower devices', () => {
+    const setlistCode = fs.readFileSync(setlistPerfPath, 'utf-8');
+    expect(setlistCode).toContain("event: 'chord-update'");
+    expect(setlistCode).toContain('setlist-chord-update');
+    expect(setlistCode).toContain('handleTranspose');
+    expect(setlistCode).toContain('broadcastChordUpdate({');
+  });
 });

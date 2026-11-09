@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
+import { Line } from '@/lib/chart-types';
 
 export type PerformRole = 'leader' | 'follower' | 'loading';
 
@@ -23,6 +24,12 @@ export interface UsePerformanceSessionResult {
   endSession: () => void;
   stopFollowing: () => void;
   resumeFollowing: () => void;
+  broadcastChordUpdate: (payload: {
+    chartId: string;
+    lines?: Line[];
+    semitone_offset?: number;
+    prefer_flats?: boolean;
+  }) => void;
 }
 
 /**
@@ -178,6 +185,15 @@ export function usePerformanceSession(
             window.dispatchEvent(new CustomEvent('perform-navigate', { detail: { index: idx } }));
           }
         })
+        .on('broadcast', { event: 'chord-update' }, ({ payload }) => {
+          if (!isMountedRef.current) return;
+          // Guard against spoofed chord-update from non-leader participants
+          if (!isLeader && leaderInstanceIdRef.current && payload?.senderId && payload.senderId !== leaderInstanceIdRef.current) {
+            console.warn('[PerformSession] Discarded unauthorized chord-update broadcast from:', payload?.senderId);
+            return;
+          }
+          window.dispatchEvent(new CustomEvent('perform-chord-update', { detail: payload }));
+        })
         .on('broadcast', { event: 'session-end' }, ({ payload }) => {
           if (!isMountedRef.current) return;
           // Guard against spoofed session-end from non-leader participants
@@ -324,6 +340,24 @@ export function usePerformanceSession(
     channelRef.current = null;
   }, []);
 
+  const broadcastChordUpdate = useCallback((updatePayload: {
+    chartId: string;
+    lines?: Line[];
+    semitone_offset?: number;
+    prefer_flats?: boolean;
+  }) => {
+    const ch = channelRef.current;
+    if (!ch) return;
+    ch.send({
+      type: 'broadcast',
+      event: 'chord-update',
+      payload: {
+        ...updatePayload,
+        senderId: instanceIdRef.current,
+      },
+    });
+  }, []);
+
   // ── Follower actions ──────────────────────────────────────────────────────
 
   const stopFollowing = useCallback(() => {
@@ -350,5 +384,6 @@ export function usePerformanceSession(
     endSession,
     stopFollowing,
     resumeFollowing,
+    broadcastChordUpdate,
   };
 }
