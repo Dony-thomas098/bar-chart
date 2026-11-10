@@ -22,12 +22,15 @@ import {
 
 function PerformChartWrapper({ 
   chart,
+  showHeader = true,
   onBaseScaleChange,
 }: { 
   chart: ChartData;
+  showHeader?: boolean;
   onBaseScaleChange?: (scale: number) => void;
 }) {
   const { zoomToElement, setTransform, instance } = useControls();
+  const isInitialFitRef = useRef(true);
 
   const fitToScreen = useCallback(() => {
     const cardEl = document.getElementById('perform-chart-card');
@@ -44,8 +47,8 @@ function PerformChartWrapper({
       viewportHeight,
       cardWidth,
       cardHeight,
-      showUI: true,
-      topPadding: 16,
+      showUI: showHeader,
+      topPadding: 8,
     });
 
     if (instance.setup) {
@@ -55,10 +58,14 @@ function PerformChartWrapper({
       onBaseScaleChange(effectiveMinScale);
     }
 
-    setTransform(posX, posY, scale, 0);
-  }, [instance, setTransform, onBaseScaleChange]);
+    const animDuration = isInitialFitRef.current ? 0 : 250;
+    isInitialFitRef.current = false;
+
+    setTransform(posX, posY, scale, animDuration);
+  }, [instance, setTransform, onBaseScaleChange, showHeader]);
 
   useEffect(() => {
+    isInitialFitRef.current = true;
     let t1: any;
     let t2: any;
     let t3: any;
@@ -80,7 +87,7 @@ function PerformChartWrapper({
       window.removeEventListener('resize', runFit);
       window.removeEventListener('orientationchange', runFit);
     };
-  }, [fitToScreen, chart.id]);
+  }, [fitToScreen, chart.id, showHeader]);
 
   // Navigate to section on perform-navigate event (zoom to chart card)
   useEffect(() => {
@@ -96,16 +103,21 @@ function PerformChartWrapper({
 
 function CodeBadge({ code }: { code: string }) {
   const [copied, setCopied] = useState(false);
-  const copy = () => {
-    const url = `${window.location.origin}/perform/stage/?code=${code}`;
-    navigator.clipboard.writeText(url);
+  const copy = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(code);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
   return (
-    <button onClick={copy} className="flex items-center gap-2 px-3 py-1.5 bg-surface-raised border border-border rounded-xl text-xs font-mono font-bold text-text-primary hover:border-accent-solid transition-all">
+    <button
+      onClick={copy}
+      className="flex items-center gap-1.5 px-2.5 py-1.5 bg-surface-raised border border-border rounded-xl text-xs font-mono font-bold text-text-primary hover:border-accent-solid transition-all shrink-0 cursor-pointer"
+      title="Click to copy room code"
+      aria-label="Copy session code"
+    >
       <Radio size={12} className="text-accent-start animate-pulse" />
-      {code}
+      <span>{code}</span>
       {copied ? <Check size={12} className="text-green-400" /> : <Copy size={12} className="text-text-secondary" />}
     </button>
   );
@@ -152,6 +164,9 @@ export default function PerformancePage() {
   // Read leader payload from sessionStorage or localStorage (set by builder page or reader on this device)
   const initialPayload = React.useMemo(() => {
     if (!code || typeof window === 'undefined') return undefined;
+    if (sessionStorage.getItem(`perform-ended-${code}`) === 'true') {
+      return undefined;
+    }
     const raw =
       sessionStorage.getItem(`perform-leader-${code}`) ||
       localStorage.getItem(`perform-leader-${code}`) ||
@@ -167,6 +182,14 @@ export default function PerformancePage() {
     }
     return undefined;
   }, [code]);
+
+  // Back button guard: if session was ended on this device, never re-enter on popstate / back
+  useEffect(() => {
+    if (!code || typeof window === 'undefined') return;
+    if (sessionStorage.getItem(`perform-ended-${code}`) === 'true') {
+      router.replace('/perform');
+    }
+  }, [code, router]);
 
   const {
     mode, currentIndex, chartIds, sessionName, leaderName,
@@ -428,8 +451,24 @@ export default function PerformancePage() {
 
   const handleEndSession = () => {
     endSession();
-    sessionStorage.removeItem(`perform-leader-${code}`);
-    router.push('/perform');
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem(`perform-leader-${code}`);
+      localStorage.removeItem(`perform-leader-${code}`);
+      localStorage.removeItem(`perform-active-session-${code}`);
+      sessionStorage.setItem(`perform-ended-${code}`, 'true');
+    }
+    router.replace('/perform');
+  };
+
+  const handleFollowerLeave = () => {
+    stopFollowing();
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem(`perform-leader-${code}`);
+      localStorage.removeItem(`perform-leader-${code}`);
+      localStorage.removeItem(`perform-active-session-${code}`);
+      sessionStorage.setItem(`perform-ended-${code}`, 'true');
+    }
+    router.replace('/perform');
   };
 
   // ── Auth guard ────────────────────────────────────────────────────────────
@@ -446,6 +485,25 @@ export default function PerformancePage() {
     );
   }
 
+  // ── Missing code guard ───────────────────────────────────────────────────
+  if (!code) {
+    return (
+      <div className="flex h-screen flex-col items-center justify-center bg-bg text-white gap-4 p-6 text-center">
+        <Radio size={36} className="text-text-secondary" />
+        <h2 className="text-xl font-bold">No Active Session Code</h2>
+        <p className="text-text-secondary text-sm max-w-xs">
+          Please join or start a performance session with a valid 6-character room code.
+        </p>
+        <button
+          onClick={() => router.replace('/perform')}
+          className="px-6 py-2.5 bg-accent-gradient text-white font-bold rounded-xl hover:brightness-110 transition-all cursor-pointer"
+        >
+          Back to Performance
+        </button>
+      </div>
+    );
+  }
+
   // ── Session ended overlay ─────────────────────────────────────────────────
   if (sessionEnded) {
     return (
@@ -455,8 +513,16 @@ export default function PerformancePage() {
         </div>
         <h2 className="text-2xl font-bold">Session Ended</h2>
         <p className="text-text-secondary max-w-xs">{leaderName ?? 'The leader'} has ended the performance session.</p>
-        <button onClick={() => router.push('/')} className="px-6 py-3 bg-accent-gradient text-white font-bold rounded-xl hover:brightness-110 transition-all">
-          Back to Charts
+        <button
+          onClick={() => {
+            if (typeof window !== 'undefined') {
+              sessionStorage.setItem(`perform-ended-${code}`, 'true');
+            }
+            router.replace('/perform');
+          }}
+          className="px-6 py-3 bg-accent-gradient text-white font-bold rounded-xl hover:brightness-110 transition-all cursor-pointer"
+        >
+          Back to Performance
         </button>
       </div>
     );
@@ -483,98 +549,87 @@ export default function PerformancePage() {
       onClick={toggleHeader}
     >
       {/* ── Header (auto-hide) ── */}
-      <div className={`fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 py-3 bg-bg/80 backdrop-blur-md border-b border-border/50 transition-all duration-300 ${showHeader ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0'}`}>
-        <div className="flex items-center gap-3 min-w-0">
+      <div className={`fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-3 sm:px-4 py-2.5 sm:py-3 bg-bg/90 backdrop-blur-md border-b border-border/50 transition-all duration-300 gap-2 ${showHeader ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0'}`}>
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
           <button
             onClick={(e) => { 
               e.stopPropagation(); 
               if (isLeader) {
                 setShowEndConfirmModal(true);
               } else {
-                router.push('/perform'); 
+                handleFollowerLeave(); 
               }
             }}
-            className="p-2 text-text-secondary hover:text-white bg-surface border border-border rounded-lg transition-all shrink-0"
-            title="Close performance session"
+            className="p-1.5 sm:p-2 text-text-secondary hover:text-white bg-surface border border-border rounded-lg transition-all shrink-0 cursor-pointer"
+            title={isLeader ? "End performance session" : "Leave performance session"}
           >
-            <X size={18} />
+            <X size={16} />
           </button>
-          <div className="min-w-0">
-            <p className="text-xs font-bold text-text-primary truncate">{sessionName}</p>
-            <p className="text-[10px] text-text-secondary">
-              {isLeader ? (
-                <span className="flex items-center gap-1">
-                  <Users size={10} /> {followerCount} follower{followerCount !== 1 ? 's' : ''}
-                </span>
-              ) : (
-                <span>Following {leaderName}</span>
-              )}
-            </p>
+          
+          <div className="min-w-0 truncate">
+            <p className="text-xs sm:text-sm font-bold text-text-primary truncate">{sessionName}</p>
+            {!isLeader && leaderName && (
+              <p className="text-[10px] text-text-secondary truncate">Leader: {leaderName}</p>
+            )}
           </div>
         </div>
 
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          {/* Follower Count Pill: Always fully visible on phone and desktop */}
+          <div
+            className="flex items-center gap-1 px-2 py-1.5 bg-surface-raised border border-border rounded-xl text-xs font-semibold text-text-primary whitespace-nowrap shrink-0"
+            title={`${followerCount} connected participant${followerCount !== 1 ? 's' : ''}`}
+          >
+            <Users size={12} className="text-accent-start" />
+            <span className="font-mono font-bold">{followerCount}</span>
+            <span className="hidden sm:inline text-text-secondary font-normal">follower{followerCount !== 1 ? 's' : ''}</span>
+          </div>
+
+          {/* Session Code Badge: Tap to copy code */}
           <CodeBadge code={code} />
 
-          {/* Transpose Controls */}
-          {currentChart && (
+          {/* Leader-only controls: Transpose, Live Edit, Full Edit */}
+          {isLeader && currentChart && (
             <div
               onClick={(e) => e.stopPropagation()}
-              className="flex items-center bg-surface border border-border rounded-xl p-0.5 shadow-sm"
+              className="flex items-center bg-surface border border-border rounded-xl p-0.5 shadow-sm shrink-0"
             >
-              {isLeader && (
-                <button
-                  onClick={() => handleTranspose(-1)}
-                  className="w-7 h-7 flex items-center justify-center text-text-secondary hover:text-white hover:bg-surface-raised rounded-lg active:scale-95 transition-all cursor-pointer"
-                  title="Transpose down 1 semitone (-1)"
-                >
-                  <Minus size={13} />
-                </button>
-              )}
-              <span className="text-[11px] font-mono font-bold px-2 text-accent-start select-none whitespace-nowrap">
+              <button
+                onClick={() => handleTranspose(-1)}
+                className="w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center text-text-secondary hover:text-white hover:bg-surface-raised rounded-lg active:scale-95 transition-all cursor-pointer"
+                title="Transpose down 1 semitone (-1)"
+              >
+                <Minus size={12} />
+              </button>
+              <span className="text-[11px] font-mono font-bold px-1.5 sm:px-2 text-accent-start select-none whitespace-nowrap">
                 {currentChart.semitone_offset === 0
                   ? 'Orig'
                   : `${currentChart.semitone_offset > 0 ? '+' : ''}${currentChart.semitone_offset}`}
               </span>
-              {isLeader && (
-                <button
-                  onClick={() => handleTranspose(1)}
-                  className="w-7 h-7 flex items-center justify-center text-text-secondary hover:text-white hover:bg-surface-raised rounded-lg active:scale-95 transition-all cursor-pointer"
-                  title="Transpose up 1 semitone (+1)"
-                >
-                  <Plus size={13} />
-                </button>
-              )}
+              <button
+                onClick={() => handleTranspose(1)}
+                className="w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center text-text-secondary hover:text-white hover:bg-surface-raised rounded-lg active:scale-95 transition-all cursor-pointer"
+                title="Transpose up 1 semitone (+1)"
+              >
+                <Plus size={12} />
+              </button>
             </div>
           )}
 
-          {/* Edit Chords (Live Performance Edit) button */}
           {isLeader && currentChart && (
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 handleOpenPerfEdit();
               }}
-              className="px-2.5 py-1.5 bg-yellow-500/15 text-yellow-300 border border-yellow-500/30 rounded-lg hover:bg-yellow-500/25 transition-all flex items-center gap-1.5 text-xs font-bold shrink-0 cursor-pointer"
+              className="px-2 py-1.5 sm:px-2.5 sm:py-1.5 bg-yellow-500/15 text-yellow-300 border border-yellow-500/30 rounded-lg hover:bg-yellow-500/25 transition-all flex items-center gap-1 text-xs font-bold shrink-0 cursor-pointer"
               title="Edit Chords live in performance"
             >
-              <Pencil size={14} />
-              <span className="hidden sm:inline">Edit Chords</span>
+              <Pencil size={13} />
+              <span className="hidden md:inline">Edit Chords</span>
             </button>
           )}
 
-          {!isLeader && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                loadCurrentSong(true);
-              }}
-              className="p-2 text-text-secondary hover:text-white bg-surface border border-border rounded-lg transition-all"
-              title="Refresh current chart"
-            >
-              <RefreshCw size={16} className={chartLoading ? 'animate-spin' : ''} />
-            </button>
-          )}
           {isLeader && (
             <button
               onClick={(e) => {
@@ -583,18 +638,29 @@ export default function PerformancePage() {
                 router.push(`/chart/edit/?id=${encodeURIComponent(currentChart.id)}&returnTo=/perform/stage?code=${code}`);
               }}
               disabled={!currentChart}
-              className="p-2 bg-accent-gradient text-white rounded-lg hover:brightness-110 transition-all disabled:opacity-40"
+              className="p-1.5 sm:p-2 bg-accent-gradient text-white rounded-lg hover:brightness-110 transition-all disabled:opacity-40 shrink-0 cursor-pointer"
               title="Full Chart Editor"
             >
-              <Edit2 size={16} />
+              <Edit2 size={14} />
             </button>
           )}
-          {isLeader && (
+
+          {/* End / Leave Button: Red button for both Leader and Follower */}
+          {isLeader ? (
             <button
               onClick={(e) => { e.stopPropagation(); setShowEndConfirmModal(true); }}
-              className="px-3 py-2 text-xs font-bold text-red-400 border border-red-500/30 bg-red-500/10 rounded-lg hover:bg-red-500 hover:text-white transition-all"
+              className="px-2.5 py-1.5 sm:px-3 sm:py-2 text-xs font-bold text-red-400 border border-red-500/30 bg-red-500/10 rounded-lg hover:bg-red-500 hover:text-white transition-all shrink-0 cursor-pointer"
+              title="End session for all connected followers"
             >
               End
+            </button>
+          ) : (
+            <button
+              onClick={(e) => { e.stopPropagation(); handleFollowerLeave(); }}
+              className="px-2.5 py-1.5 sm:px-3 sm:py-2 text-xs font-bold text-red-400 border border-red-500/30 bg-red-500/10 rounded-lg hover:bg-red-500 hover:text-white transition-all shrink-0 cursor-pointer"
+              title="Leave live performance session"
+            >
+              Leave
             </button>
           )}
         </div>
@@ -602,7 +668,11 @@ export default function PerformancePage() {
 
       {/* ── Content Canvas ── */}
       <main
-        className="flex-1 w-full h-screen overflow-hidden select-none"
+        className={`flex-1 w-full h-screen overflow-hidden select-none transition-[padding] duration-300 ${
+          showHeader
+            ? 'pt-[calc(4.5rem+env(safe-area-inset-top,0px))] pb-24'
+            : 'pt-[max(1rem,env(safe-area-inset-top,0px))] pb-6'
+        }`}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onClick={toggleHeader}
@@ -641,17 +711,17 @@ export default function PerformancePage() {
             doubleClick={{ disabled: true }}
           >
             <TransformComponent
-              wrapperClass="!w-full !h-screen cursor-pointer"
-              contentClass="w-max flex flex-col items-start justify-start pt-20 pb-36"
+              wrapperClass="!w-full !h-full cursor-pointer"
+              contentClass="w-max flex flex-col items-start justify-start pb-36"
             >
               <div onClick={(e) => { e.stopPropagation(); toggleHeader(); }} className="w-fit max-w-none flex flex-col items-start justify-start">
-                <PerformChartWrapper chart={currentChart} onBaseScaleChange={setPerformMinScale} />
+                <PerformChartWrapper chart={currentChart} showHeader={showHeader} onBaseScaleChange={setPerformMinScale} />
               </div>
             </TransformComponent>
           </TransformWrapper>
         ) : currentLyrics ? (
-          <div className="w-full flex justify-center py-20 px-4 pb-36 overflow-y-auto">
-            <div className="w-full max-w-3xl bg-white text-slate-900 rounded-[24px] p-6 sm:p-12 shadow-2xl border border-slate-200/80">
+          <div className="w-full flex justify-center px-4 pb-36 overflow-y-auto">
+            <div className="w-full max-w-3xl bg-white text-slate-900 rounded-none p-6 sm:p-12 shadow-2xl border border-slate-200/80">
               <h1 className="text-3xl sm:text-4xl font-extrabold mb-6 text-slate-900 tracking-tight">
                 {currentLyrics.title || 'Untitled Lyrics'}
               </h1>

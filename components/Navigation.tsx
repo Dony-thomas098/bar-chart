@@ -67,6 +67,18 @@ export function Navigation() {
   const canCreateLyrics = canModifySection(profile?.profession, 'lyrics');
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [selectionActive, setSelectionActive] = useState(false);
+  const [readerUIHidden, setReaderUIHidden] = useState(false);
+
+  useEffect(() => {
+    const handleUI = (e: Event) => {
+      const ce = e as CustomEvent<{ showUI: boolean }>;
+      if (ce.detail && typeof ce.detail.showUI === 'boolean') {
+        setReaderUIHidden(!ce.detail.showUI);
+      }
+    };
+    window.addEventListener('reader-ui-change', handleUI);
+    return () => window.removeEventListener('reader-ui-change', handleUI);
+  }, []);
 
   const wrapRef = useRef<HTMLDivElement>(null);
   const barSvgRef = useRef<SVGSVGElement>(null);
@@ -435,10 +447,10 @@ export function Navigation() {
     cleanPath.startsWith('/lyrics/view') ||
     cleanPath.includes('/edit') ||
     (cleanPath.startsWith('/lyrics/') && !cleanPath.startsWith('/lyrics/folder'));
-  const isPerformScreen = cleanPath.startsWith('/perform');
+  const isPerformScreen = cleanPath.startsWith('/perform') || cleanPath.includes('/perform');
   const isPrinterScreen = cleanPath.startsWith('/printer');
 
-  if (isAuthScreen || isChartScreen || isLyricsReaderOrEditor || isPerformScreen || isPrinterScreen) {
+  if (isAuthScreen || isChartScreen || isLyricsReaderOrEditor || isPerformScreen || isPrinterScreen || readerUIHidden) {
     return null;
   }
 
@@ -447,7 +459,7 @@ export function Navigation() {
       {/* Floating Water-Jump Bottom Dock */}
       <div
         className={`fixed bottom-0 left-0 right-0 z-40 px-3 pointer-events-none no-print transition-all duration-300 ease-in-out pb-[calc(0.5rem+max(env(safe-area-inset-bottom,0px),var(--safe-area-inset-bottom,0px)))] ${
-          selectionActive ? 'translate-y-28 opacity-0 pointer-events-none' : 'translate-y-0 opacity-100'
+          selectionActive || readerUIHidden ? 'translate-y-28 opacity-0 pointer-events-none' : 'translate-y-0 opacity-100'
         }`}
       >
         <nav className={`pointer-events-auto ${styles.navRoot}`} aria-label="Main Navigation">

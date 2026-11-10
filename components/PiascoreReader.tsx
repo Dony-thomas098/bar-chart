@@ -40,12 +40,14 @@ function ChartContentWrapper({
   selectedFont, 
   chordColor,
   showUI = true,
+  isLocked = false,
   onBaseScaleChange,
 }: { 
   chart: ChartData; 
   selectedFont: string; 
   chordColor: string;
   showUI?: boolean;
+  isLocked?: boolean;
   onBaseScaleChange?: (scale: number) => void;
 }) {
   const { setTransform, instance } = useControls();
@@ -107,7 +109,7 @@ function ChartContentWrapper({
     };
   }, [fitToScreen, chart.id, showUI]);
 
-  return <ChartRenderer chart={chart} selectedFont={selectedFont} chordColor={chordColor} id="piascore-chart-card" />;
+  return <ChartRenderer chart={chart} selectedFont={selectedFont} chordColor={chordColor} isLocked={isLocked} id="piascore-chart-card" />;
 }
 
 export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollowStart }: Props) {
@@ -211,6 +213,12 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
   // ── UI Auto-hide / Header Toggle ────────────────────────────────────────────
   const [showUI, setShowUI] = useState(true);
   const [isStageLocked, setIsStageLocked] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('reader-ui-change', { detail: { showUI } }));
+    }
+  }, [showUI]);
   const [lockToast, setLockToast] = useState<string | null>(null);
   const lockToastTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -609,69 +617,34 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
         }}
       />
 
-      {/* ── FLOATING TOP-RIGHT STAGE CONTROLS (Always accessible even when UI is hidden) ── */}
+      {/* ── FLOATING TOP-RIGHT STAGE LOCK BUTTON (Always accessible, locks chords & screen) ── */}
       <div className="fixed top-[calc(0.65rem+env(safe-area-inset-top,0px))] right-3 sm:right-5 z-[60] flex items-center gap-2 select-none no-print">
-        {/* Quick Transpose Pill: hidden on mobile rotate/landscape mode to avoid blocking chords */}
-        {currentChart && (
-          <div className="phone-rotate-hide-transpose flex items-center bg-[#14141A]/90 backdrop-blur-md border border-[#2A2A31] rounded-full p-0.5 shadow-[0_4px_16px_rgba(0,0,0,0.5)]">
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleTranspose(-1);
-              }}
-              className="w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center font-bold text-xs text-[#8C8A93] hover:text-[#F4F2F0] hover:bg-white/10 active:scale-90 transition-all cursor-pointer"
-              title="Transpose down 1 semitone"
-              aria-label="Transpose down"
-            >
-              ♭
-            </button>
-            <span className="px-1.5 text-[11px] sm:text-xs font-mono font-bold text-[#FF6A1F] min-w-[32px] text-center">
-              {currentChart.semitone_offset === 0
-                ? 'Orig'
-                : `${currentChart.semitone_offset > 0 ? '+' : ''}${currentChart.semitone_offset}`}
-            </span>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleTranspose(1);
-              }}
-              className="w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center font-bold text-xs text-[#8C8A93] hover:text-[#F4F2F0] hover:bg-white/10 active:scale-90 transition-all cursor-pointer"
-              title="Transpose up 1 semitone"
-              aria-label="Transpose up"
-            >
-              ♯
-            </button>
-          </div>
-        )}
-
-        {/* Lock Screen Toggle Button: compact small circular button on mobile/rotate mode */}
+        {/* Lock Chords & Screen Toggle Button */}
         <button
           type="button"
           onClick={toggleStageLock}
           onTouchEnd={toggleStageLock}
-          className={`phone-rotate-compact-lock flex items-center justify-center gap-1.5 p-2 sm:px-3 sm:py-1.5 rounded-full font-bold text-xs shadow-[0_4px_16px_rgba(0,0,0,0.6)] backdrop-blur-md transition-all active:scale-95 cursor-pointer border touch-manipulation min-h-[36px] min-w-[36px] ${
+          className={`phone-rotate-compact-lock flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-full font-bold text-xs shadow-[0_4px_20px_rgba(0,0,0,0.6)] backdrop-blur-md transition-all active:scale-95 cursor-pointer border touch-manipulation min-h-[36px] ${
             isStageLocked
-              ? 'bg-amber-500/20 text-amber-400 border-amber-500/50 shadow-[0_0_16px_rgba(245,158,11,0.35)] ring-1 ring-amber-400/40'
-              : 'bg-[#14141A]/90 text-[#8C8A93] border-[#2A2A31] hover:text-[#F4F2F0] hover:border-[#3E3E48]'
+              ? 'bg-amber-500/25 text-amber-300 border-amber-500/60 shadow-[0_0_16px_rgba(245,158,11,0.4)] ring-1 ring-amber-400/50'
+              : 'bg-[#181820]/90 text-white border-[#3A3A45] hover:bg-[#22222C] hover:border-white/30'
           }`}
           title={
             isStageLocked
-              ? 'Screen Locked: accidental taps and exiting disabled. Tap to unlock.'
-              : 'Lock Screen: prevent accidental taps and back navigation'
+              ? 'Chords & screen locked: accidental taps and exiting disabled. Tap to unlock.'
+              : 'Lock chords & screen: prevent accidental taps and back navigation'
           }
           aria-label={isStageLocked ? 'Unlock screen' : 'Lock screen'}
         >
           {isStageLocked ? (
             <>
-              <Lock size={14} className="text-amber-400 stroke-[2.5]" />
-              <span className="font-semibold text-amber-400 text-xs">Unlock</span>
+              <Lock size={15} className="text-amber-400 stroke-[2.5]" />
+              <span className="font-bold text-amber-300 text-xs">Locked</span>
             </>
           ) : (
             <>
-              <Unlock size={14} className="stroke-[2.2]" />
-              <span className="hidden sm:inline font-semibold text-[#8C8A93]">Lock</span>
+              <Unlock size={15} className="text-white/80 stroke-[2.2]" />
+              <span className="font-bold text-white/90 text-xs">Lock</span>
             </>
           )}
         </button>
@@ -711,7 +684,7 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
               showLockNotification('Screen is locked · Tap lock icon to unlock');
               return;
             }
-            router.push(folderId ? `/folder/${folderId}` : '/');
+            router.push(folderId ? `/folder/?id=${folderId}` : '/');
           }}
           className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg transition-all active:scale-95 shrink-0 ${
             isStageLocked
@@ -904,8 +877,8 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
       <main
         className={`flex-1 w-full h-full relative overflow-hidden flex items-stretch justify-center cursor-pointer select-none transition-[padding] duration-300 ${
           showUI
-            ? 'pt-[calc(6.5rem+env(safe-area-inset-top,0px))]'
-            : 'pt-[max(0.5rem,env(safe-area-inset-top,0px))]'
+            ? 'pt-[calc(7rem+env(safe-area-inset-top,0px))]'
+            : 'pt-[max(1rem,env(safe-area-inset-top,0px))]'
         }`}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
@@ -992,6 +965,7 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
                   selectedFont={selectedFont}
                   chordColor={chordColor}
                   showUI={showUI}
+                  isLocked={isStageLocked}
                   onBaseScaleChange={setMinZoomScale}
                 />
               </div>

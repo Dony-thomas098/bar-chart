@@ -150,7 +150,7 @@ function generateSW() {
   console.log(`[SW Gen] Collected ${allAssets.length} total precache assets (including ${staticFiles.length} static JS/CSS chunks).`);
 
   const swTemplate = `// Chordly Service Worker - Full Offline PWA Cache
-const CACHE_NAME = 'chordly-v13';
+const CACHE_NAME = 'chordly-v14';
 
 const PRECACHE_ASSETS = ${JSON.stringify(allAssets, null, 2)};
 
@@ -735,8 +735,19 @@ self.addEventListener('fetch', (event) => {
           if (rootCached) return rootCached;
         }
 
-        // Safe final fallback: return 204 No Content so browser does not throw "404 (Offline Resource Not Found)"
-        return new Response('', { status: 204, statusText: 'No Content (Offline)' });
+        // JSON fallback
+        if (
+          url.pathname.endsWith('.json') ||
+          (request.headers.get('accept') && request.headers.get('accept').includes('application/json'))
+        ) {
+          return new Response('{}', {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          });
+        }
+
+        // Safe final fallback: return 204 No Content with null body (never pass non-null body to status 204)
+        return new Response(null, { status: 204, statusText: 'No Content (Offline)' });
       }
     })()
   );

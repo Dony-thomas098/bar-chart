@@ -95,4 +95,52 @@ describe('Performance Module & Live Stage Invariants', () => {
     expect(setlistCode).toContain('handleTranspose');
     expect(setlistCode).toContain('broadcastChordUpdate({');
   });
+
+  it('guarantees performance CodeBadge copies only code and header provides dedicated follower badge and leave button', () => {
+    const pageCode = fs.readFileSync(perfPagePath, 'utf-8');
+    // CodeBadge must copy only code
+    expect(pageCode).toContain('navigator.clipboard.writeText(code);');
+    expect(pageCode).not.toContain('navigator.clipboard.writeText(url);');
+
+    // Header must have dedicated follower pill with Users icon and followerCount
+    expect(pageCode).toContain('<Users size={12} className="text-accent-start" />');
+    expect(pageCode).toContain('{followerCount}');
+
+    // Follower must have dedicated Leave button and leader-only controls
+    expect(pageCode).toContain('title="Leave live performance session"');
+    expect(pageCode).toContain('handleFollowerLeave');
+    expect(pageCode).toContain('router.replace(\'/perform\');');
+    expect(pageCode).toContain('sessionStorage.setItem(`perform-ended-${code}`, \'true\');');
+
+    // Missing code guard
+    expect(pageCode).toContain('No Active Session Code');
+  });
+
+  it('guarantees setlist detail page does not have floating rounded View Set button', () => {
+    const setlistDetailPath = path.resolve(__dirname, '../app/setlists/[id]/page.tsx');
+    const setlistDetailCode = fs.readFileSync(setlistDetailPath, 'utf-8');
+    expect(setlistDetailCode).not.toContain('View Set');
+    expect(setlistDetailCode).not.toContain('fixed bottom-20');
+  });
+
+  it('guarantees performance and setlist perform stages avoid top bar collisions and animate clearance when bars hide/show', () => {
+    const pageCode = fs.readFileSync(perfPagePath, 'utf-8');
+    const setlistCode = fs.readFileSync(setlistPerfPath, 'utf-8');
+
+    // Perform stage: header collision prevention & dynamic padding
+    expect(pageCode).toContain('showHeader = true');
+    expect(pageCode).toContain('showUI: showHeader');
+    expect(pageCode).toContain("showHeader");
+    expect(pageCode).toContain("pt-[calc(4.5rem+env(safe-area-inset-top,0px))]");
+    expect(pageCode).toContain("pt-[max(1rem,env(safe-area-inset-top,0px))]");
+    expect(pageCode).toContain('<PerformChartWrapper chart={currentChart} showHeader={showHeader}');
+
+    // Setlist perform: barsVisible dynamic padding and collision prevention
+    expect(setlistCode).toContain('barsVisible = true');
+    expect(setlistCode).toContain('showUI: barsVisible');
+    expect(setlistCode).toContain("barsVisible");
+    expect(setlistCode).toContain("pt-[calc(6.25rem+env(safe-area-inset-top,0px))]");
+    expect(setlistCode).toContain("pt-[max(1rem,env(safe-area-inset-top,0px))]");
+    expect(setlistCode).toContain('barsVisible={barsVisible}');
+  });
 });

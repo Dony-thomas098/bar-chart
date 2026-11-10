@@ -7,8 +7,8 @@ describe('Service Worker Offline Generation and Resilience', () => {
   const swGeneratorPath = path.join(rootDir, 'scripts', 'generate-sw.js');
   const generatorContent = fs.readFileSync(swGeneratorPath, 'utf-8');
 
-  it('uses CACHE_NAME chordly-v13 to bust stale caches across deployments', () => {
-    expect(generatorContent).toContain("const CACHE_NAME = 'chordly-v13'");
+  it('uses CACHE_NAME chordly-v14 to bust stale caches across deployments', () => {
+    expect(generatorContent).toContain("const CACHE_NAME = 'chordly-v14'");
   });
 
   it('includes all critical offline routes in baseRoutes with both slash and non-slash variants', () => {
@@ -66,7 +66,7 @@ describe('Service Worker Offline Generation and Resilience', () => {
     require('../scripts/generate-sw.js');
 
     const publicSw = fs.readFileSync(path.join(rootDir, 'public', 'sw.js'), 'utf-8');
-    expect(publicSw).toContain("const CACHE_NAME = 'chordly-v13'");
+    expect(publicSw).toContain("const CACHE_NAME = 'chordly-v14'");
     expect(publicSw).toContain('/manifest.json');
     expect(publicSw).toContain('/logo-banner.png');
     expect(publicSw).toContain('/trash/index.html');
@@ -79,5 +79,9 @@ describe('Service Worker Offline Generation and Resilience', () => {
     // Never clone responses inside asynchronous caches.open callbacks (avoids "Response body is already used")
     expect(publicSw).not.toContain('cache.put(url.pathname, networkResponse.clone())');
     expect(publicSw).not.toContain('cache.put(trimmed + \'/index.txt\', networkRes.clone())');
+
+    // Never pass non-null body to status 204 (prevents "Response with null body status cannot have body" TypeError)
+    expect(publicSw).not.toContain("new Response('', { status: 204");
+    expect(publicSw).toContain("new Response(null, { status: 204");
   }, 15000);
 });

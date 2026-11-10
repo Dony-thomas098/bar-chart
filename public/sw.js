@@ -1,5 +1,5 @@
 // Chordly Service Worker - Full Offline PWA Cache
-const CACHE_NAME = 'chordly-v13';
+const CACHE_NAME = 'chordly-v14';
 
 const PRECACHE_ASSETS = [
   "/",
@@ -125,13 +125,14 @@ const PRECACHE_ASSETS = [
   "/window.svg",
   "/_not-found/index.html",
   "/_not-found/index.txt",
-  "/_next/static/chunks/1135.7a45d98a0211a06d.js",
+  "/_next/static/chunks/1135.dc2ae85428bda963.js",
   "/_next/static/chunks/1733-9351cf5cf490ee86.js",
   "/_next/static/chunks/1966.b8f83f7ba376c962.js",
-  "/_next/static/chunks/2081-84525a9e9f0b912b.js",
-  "/_next/static/chunks/2104.a8834d45e676d689.js",
+  "/_next/static/chunks/2066-2e7e6ad0a4845c41.js",
+  "/_next/static/chunks/2081-d8dd054fa35e44a2.js",
+  "/_next/static/chunks/2104.a25a1c3ca3c85fa8.js",
   "/_next/static/chunks/2801-f6a3d9c0f1bdf274.js",
-  "/_next/static/chunks/2869.8b2714aeda80460c.js",
+  "/_next/static/chunks/2869.971fdb27db98d576.js",
   "/_next/static/chunks/2963-380856e2146d1ad2.js",
   "/_next/static/chunks/3133-2d5a201bed12bf63.js",
   "/_next/static/chunks/360-0a545e18941c7daa.js",
@@ -143,19 +144,18 @@ const PRECACHE_ASSETS = [
   "/_next/static/chunks/4bd1b696-8cd12253b448cc13.js",
   "/_next/static/chunks/4e0084c3-dd890f23c03dafcc.js",
   "/_next/static/chunks/5276-2ddb3c1a00703749.js",
-  "/_next/static/chunks/5334-f4e9fbe94aff5ac9.js",
+  "/_next/static/chunks/5334-6e3bd9270853acab.js",
   "/_next/static/chunks/561-87632caf4bbea884.js",
-  "/_next/static/chunks/6308-0a158e38156c818b.js",
+  "/_next/static/chunks/6308-0a31eb9f99b75961.js",
   "/_next/static/chunks/6347-281bd97bc965d342.js",
   "/_next/static/chunks/6510-610ff429fb1106a2.js",
   "/_next/static/chunks/6624-1e55d1cb7851904d.js",
   "/_next/static/chunks/6748-43175b2acd6d4958.js",
-  "/_next/static/chunks/6810-e7390911a2a44ad2.js",
+  "/_next/static/chunks/6810-ca65048bad0a86e0.js",
   "/_next/static/chunks/812.8e8f214a433a0a34.js",
   "/_next/static/chunks/8255-aa70eee0870a2b9b.js",
   "/_next/static/chunks/8527-2c06e5d44b61d6ed.js",
   "/_next/static/chunks/8801-3f2192eff057ee18.js",
-  "/_next/static/chunks/8862-086766276deaeb42.js",
   "/_next/static/chunks/9021-5088ca070f361cb3.js",
   "/_next/static/chunks/9535-76c8bbd1c16e6ad3.js",
   "/_next/static/chunks/app/auth/page-6c4245af4554931c.js",
@@ -170,7 +170,7 @@ const PRECACHE_ASSETS = [
   "/_next/static/chunks/app/folder/page-d443447c969a4965.js",
   "/_next/static/chunks/app/folder/[id]/layout-3dc8c8c7b19ce49c.js",
   "/_next/static/chunks/app/folder/[id]/page-ff2ff674ea96d853.js",
-  "/_next/static/chunks/app/layout-41665b722cd5da5e.js",
+  "/_next/static/chunks/app/layout-67b6883d153d16f9.js",
   "/_next/static/chunks/app/loading-51838c9ccfe54024.js",
   "/_next/static/chunks/app/logo-review/page-6fa7211f611ddffa.js",
   "/_next/static/chunks/app/lyrics/edit/page-fa430769529c5b55.js",
@@ -185,9 +185,9 @@ const PRECACHE_ASSETS = [
   "/_next/static/chunks/app/not-found-740ccd64cb7e90a0.js",
   "/_next/static/chunks/app/page-80e83cf5a0b18423.js",
   "/_next/static/chunks/app/perform/page-3cb842ccf79a3eb4.js",
-  "/_next/static/chunks/app/perform/stage/page-1050edf96333ff24.js",
+  "/_next/static/chunks/app/perform/stage/page-97678e2ca62316d7.js",
   "/_next/static/chunks/app/perform/[code]/layout-3dc8c8c7b19ce49c.js",
-  "/_next/static/chunks/app/perform/[code]/page-f0efd9b67fd3177a.js",
+  "/_next/static/chunks/app/perform/[code]/page-8307fec69f4e3a56.js",
   "/_next/static/chunks/app/printer/page-ce4ba1e4b43492c1.js",
   "/_next/static/chunks/app/profile/page-de7a087bd070cd6c.js",
   "/_next/static/chunks/app/setlists/page-5ac95b55e420732c.js",
@@ -208,12 +208,14 @@ const PRECACHE_ASSETS = [
   "/_next/static/chunks/next/dist/client/components/builtin/global-error-c9d4c13f2c41ca7e.js",
   "/_next/static/chunks/next/dist/client/components/builtin/unauthorized-3dc8c8c7b19ce49c.js",
   "/_next/static/chunks/polyfills-42372ed130431b0a.js",
-  "/_next/static/chunks/webpack-6ceaded9bda64db8.js",
+  "/_next/static/chunks/webpack-df3cdd520d6cdde4.js",
   "/_next/static/css/1de9b0b9de0c038b.css",
   "/_next/static/css/604775b3a74dc580.css",
   "/_next/static/css/676caacb685ce77a.css",
   "/_next/static/css/9cdd061e9fa6d1a6.css",
-  "/_next/static/css/f3ecfddd5dc08007.css",
+  "/_next/static/css/b296afab0b1ecc15.css",
+  "/_next/static/IZKkUNeDul9kDPatn5o7g/_buildManifest.js",
+  "/_next/static/IZKkUNeDul9kDPatn5o7g/_ssgManifest.js",
   "/_next/static/media/558ca1a6aa3cb55e-s.p.woff2",
   "/_next/static/media/636a5ac981f94f8b-s.p.woff2",
   "/_next/static/media/64d784ea54a4acde-s.woff2",
@@ -223,9 +225,7 @@ const PRECACHE_ASSETS = [
   "/_next/static/media/9e7b0a821b9dfcb4-s.woff2",
   "/_next/static/media/ac0e76ddaeeb7981-s.woff2",
   "/_next/static/media/edc640959b0c7826-s.woff2",
-  "/_next/static/media/ff71da380fbe67dd-s.woff2",
-  "/_next/static/PehYkNLAkz9-WwjmpZaOP/_buildManifest.js",
-  "/_next/static/PehYkNLAkz9-WwjmpZaOP/_ssgManifest.js"
+  "/_next/static/media/ff71da380fbe67dd-s.woff2"
 ];
 
 // Install: precache critical assets safely without blocking activation
@@ -809,8 +809,19 @@ self.addEventListener('fetch', (event) => {
           if (rootCached) return rootCached;
         }
 
-        // Safe final fallback: return 204 No Content so browser does not throw "404 (Offline Resource Not Found)"
-        return new Response('', { status: 204, statusText: 'No Content (Offline)' });
+        // JSON fallback
+        if (
+          url.pathname.endsWith('.json') ||
+          (request.headers.get('accept') && request.headers.get('accept').includes('application/json'))
+        ) {
+          return new Response('{}', {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          });
+        }
+
+        // Safe final fallback: return 204 No Content with null body (never pass non-null body to status 204)
+        return new Response(null, { status: 204, statusText: 'No Content (Offline)' });
       }
     })()
   );

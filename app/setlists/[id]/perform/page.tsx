@@ -168,13 +168,16 @@ function useSetlistSession(setlistId: string, isLeaderDevice: boolean) {
 function ChartWrapper({ 
   chart, 
   songKey,
+  barsVisible = true,
   onBaseScaleChange,
 }: { 
   chart: ChartData; 
   songKey: string;
+  barsVisible?: boolean;
   onBaseScaleChange?: (scale: number) => void;
 }) {
   const { setTransform, instance } = useControls();
+  const isInitialFitRef = useRef(true);
 
   const fitToScreen = useCallback(() => {
     const cardEl = document.getElementById('perf-chart-card');
@@ -196,8 +199,8 @@ function ChartWrapper({
       viewportHeight,
       cardWidth,
       cardHeight,
-      showUI: true,
-      topPadding: 16,
+      showUI: barsVisible,
+      topPadding: 8,
     });
 
     if (instance.setup) {
@@ -207,10 +210,14 @@ function ChartWrapper({
       onBaseScaleChange(effectiveMinScale);
     }
 
-    setTransform(posX, posY, scale, 0);
-  }, [instance, setTransform, onBaseScaleChange]);
+    const animDuration = isInitialFitRef.current ? 0 : 250;
+    isInitialFitRef.current = false;
+
+    setTransform(posX, posY, scale, animDuration);
+  }, [instance, setTransform, onBaseScaleChange, barsVisible]);
 
   useEffect(() => {
+    isInitialFitRef.current = true;
     let t1: any;
     let t2: any;
     let t3: any;
@@ -235,7 +242,7 @@ function ChartWrapper({
       window.removeEventListener('resize', runFit);
       window.removeEventListener('orientationchange', runFit);
     };
-  }, [fitToScreen, songKey, chart.id]);
+  }, [fitToScreen, songKey, chart.id, barsVisible]);
 
   return <ChartRenderer chart={chart} id="perf-chart-card" />;
 }
@@ -535,6 +542,13 @@ export default function SetlistPerformPage() {
     }
   }, [songPosition, barsVisible]);
 
+  // Sync floating dock visibility with top bars in perform mode
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('reader-ui-change', { detail: { showUI: barsVisible } }));
+    }
+  }, [barsVisible]);
+
   // Session end
   useEffect(() => {
     const handler = () => setSessionEnded(true);
@@ -591,10 +605,10 @@ export default function SetlistPerformPage() {
 
   if (loading || (mode === 'loading' && !isLeaderDevice)) {
     return (
-      <div className="min-h-screen bg-bg flex flex-col items-center justify-center text-text-primary gap-4 p-6 text-center">
+      <div className="min-h-screen bg-bg flex flex-col items-center justify-center text-text-primary gap-4 p-6 text-center" suppressHydrationWarning>
         <div className="w-10 h-10 rounded-full border-2 border-accent-start border-t-transparent animate-spin" />
-        <p className="text-sm text-text-secondary">
-          {mode === 'loading' && !isLeaderDevice ? 'Waiting for leader to join…' : 'Loading…'}
+        <p className="text-sm text-text-secondary" suppressHydrationWarning>
+          {!loading && mode === 'loading' && !isLeaderDevice ? 'Waiting for leader to join…' : 'Loading…'}
         </p>
         <div className="flex items-center gap-3 mt-3">
           {items.length > 0 && (
@@ -781,7 +795,11 @@ export default function SetlistPerformPage() {
 
       {/* ── Content area — full screen, tap to toggle bars ───────────────── */}
       <div
-        className="flex-1 pt-0 w-full h-screen overflow-y-auto select-none"
+        className={`flex-1 w-full h-screen overflow-hidden select-none transition-[padding] duration-300 ${
+          barsVisible
+            ? 'pt-[calc(6.25rem+env(safe-area-inset-top,0px))] pb-24'
+            : 'pt-[max(1rem,env(safe-area-inset-top,0px))] pb-6'
+        }`}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onClick={handleToggleBars}
@@ -824,16 +842,16 @@ export default function SetlistPerformPage() {
           >
             <TransformComponent
               wrapperStyle={{ width: '100vw', height: '100dvh', overflow: 'visible' }}
-              contentStyle={{ padding: '32px 0 120px', overflow: 'visible', width: 'max-content' }}
+              contentStyle={{ padding: '0 0 120px', overflow: 'visible', width: 'max-content' }}
             >
-              <ChartWrapper chart={currentChart} songKey={`${songPosition}`} onBaseScaleChange={setPerfMinScale} />
+              <ChartWrapper chart={currentChart} songKey={`${songPosition}`} barsVisible={barsVisible} onBaseScaleChange={setPerfMinScale} />
             </TransformComponent>
           </TransformWrapper>
         )}
 
         {!contentLoading && currentItem?.item_type === 'lyrics' && currentLyrics && (
-          <div className="w-full flex justify-center py-8 px-4 pb-36 overflow-y-auto">
-            <div className="w-full max-w-3xl bg-white text-slate-900 rounded-[24px] p-6 sm:p-12 shadow-2xl border border-slate-200/80">
+          <div className="w-full flex justify-center px-4 pb-36 overflow-y-auto">
+            <div className="w-full max-w-3xl bg-white text-slate-900 rounded-none p-6 sm:p-12 shadow-2xl border border-slate-200/80">
               <h1 className="text-3xl sm:text-4xl font-extrabold mb-6 text-slate-900 tracking-tight">{currentLyrics.title}</h1>
               {currentItem.notes && <p className="text-sm italic text-slate-500 mb-6 pb-4 border-b border-slate-200">{currentItem.notes}</p>}
               <pre className="font-sans text-lg leading-relaxed whitespace-pre-wrap text-slate-900 font-medium"

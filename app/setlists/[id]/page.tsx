@@ -738,21 +738,6 @@ export default function SetlistDetailPage() {
             </div>
           )}
         </div>
-
-        {/* Floating Dark Gradient Pill "View Set / Perform" pinned above bottom nav */}
-        {items.length > 0 && (
-          <div className="fixed bottom-20 left-0 right-0 z-30 flex justify-center pointer-events-none px-4">
-            <button
-              onClick={() => {
-                sessionStorage.setItem(`setlist-leader-${setlistId}`, '1');
-                router.push(`/setlists/perform/?id=${setlistId}`);
-              }}
-              className="pointer-events-auto px-8 py-3 btn-dark-pill shadow-2xl flex items-center gap-2 text-sm font-extrabold cursor-pointer animate-in fade-in slide-in-from-bottom-2 duration-200"
-            >
-              <Play size={16} className="fill-current" /> View Set
-            </button>
-          </div>
-        )}
       </main>
 
       {/* Modals */}

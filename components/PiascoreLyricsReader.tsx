@@ -47,7 +47,7 @@ function PlainLyricsCard({
   return (
     <div
       id="piascore-lyrics-card"
-      className={`flex flex-col w-[min(94vw,760px)] min-w-[320px] p-6 sm:p-12 md:p-16 bg-white text-slate-900 shadow-2xl rounded-[24px] border border-slate-200/80 relative select-none min-h-[70vh] mx-auto my-0 ${
+      className={`flex flex-col w-[min(94vw,760px)] min-w-[320px] p-6 sm:p-12 md:p-16 bg-white text-slate-900 shadow-2xl rounded-none border border-slate-200/80 relative select-none min-h-[70vh] mx-auto my-0 ${
         textAlign === 'left' ? 'text-left items-start' : textAlign === 'right' ? 'text-right items-end' : 'text-center items-center'
       }`}
       style={{
@@ -254,6 +254,12 @@ export function PiascoreLyricsReader({ initialLyric, folderId }: Props) {
   // ── UI Auto-hide / Popups Handler ──────────────────────────────────────────
   const [showUI, setShowUI] = useState(true);
   const [isStageLocked, setIsStageLocked] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('reader-ui-change', { detail: { showUI } }));
+    }
+  }, [showUI]);
   const isDraggingRef = useRef(false);
   const dragStartPosRef = useRef({ x: 0, y: 0 });
 
@@ -822,8 +828,8 @@ export function PiascoreLyricsReader({ initialLyric, folderId }: Props) {
       <main
         className={`flex-1 w-full h-full relative overflow-hidden flex items-stretch justify-center cursor-pointer transition-[padding] duration-300 ${
           showUI
-            ? 'pt-[calc(5.25rem+env(safe-area-inset-top,0px))] pb-[calc(3.5rem+env(safe-area-inset-bottom,0px))]'
-            : 'pt-[max(0.5rem,env(safe-area-inset-top,0px))] pb-[env(safe-area-inset-bottom,0px)]'
+            ? 'pt-[calc(6.25rem+env(safe-area-inset-top,0px))] pb-[calc(3.5rem+env(safe-area-inset-bottom,0px))]'
+            : 'pt-[max(1rem,env(safe-area-inset-top,0px))] pb-[env(safe-area-inset-bottom,0px)]'
         }`}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}

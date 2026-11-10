@@ -154,6 +154,8 @@ interface ChartRendererProps {
   id?: string;
   /** Index of the currently active section (for follower highlight) */
   activeSectionIndex?: number;
+  /** When true, interaction on chord cells & tooltips is locked */
+  isLocked?: boolean;
 }
 
 export function ChartRenderer({ 
@@ -166,6 +168,7 @@ export function ChartRenderer({
   onClick,
   id = 'chart-card',
   activeSectionIndex,
+  isLocked = false,
 }: ChartRendererProps) {
   // Individual element color overrides
   const [itemColors, setItemColors] = useState<Record<string, string>>({});
@@ -437,20 +440,22 @@ export function ChartRenderer({
                               <React.Fragment key={barIdx}>
                                 <span
                                   onMouseEnter={() => {
-                                    if (typeof window !== 'undefined' && window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
+                                    if (!isLocked && typeof window !== 'undefined' && window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
                                       setActiveNoteTooltipKey(barKey);
                                     }
                                   }}
                                   onMouseLeave={() => {
-                                    if (typeof window !== 'undefined' && window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
+                                    if (!isLocked && typeof window !== 'undefined' && window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
                                       setActiveNoteTooltipKey((prev) => (prev === barKey ? null : prev));
                                     }
                                   }}
                                   onDoubleClick={(e) => {
+                                    if (isLocked) return;
                                     e.stopPropagation();
                                     setActiveNoteTooltipKey((prev) => (prev === barKey ? null : barKey));
                                   }}
                                   onTouchStart={(e) => {
+                                    if (isLocked) return;
                                     const now = Date.now();
                                     const last = lastTouchTimestampRef.current[barKey] || 0;
                                     if (now - last < 350) {
@@ -520,7 +525,7 @@ export function ChartRenderer({
     <div 
       id={id}
       onClick={onClick}
-      className="flex text-left flex-col w-fit p-4 sm:p-6 md:p-8 print:p-0 bg-white print:bg-transparent rounded-[24px] print:rounded-none relative mx-auto my-0 print:min-h-0 print:h-auto print:w-full border border-slate-200/80 shadow-2xl print:border-none print:shadow-none break-inside-avoid print:break-inside-avoid-page print-single-page"
+      className="flex text-left flex-col w-fit p-4 sm:p-6 md:p-8 print:p-0 bg-white print:bg-transparent rounded-none relative mx-auto my-0 print:min-h-0 print:h-auto print:w-full border border-slate-200/80 shadow-2xl print:border-none print:shadow-none break-inside-avoid print:break-inside-avoid-page print-single-page"
     >
       {watermark && (
         <div className="hidden print:grid absolute inset-0 grid-cols-4 gap-y-6 gap-x-4 items-center justify-items-center pointer-events-none overflow-hidden z-[1] opacity-[0.04] rotate-[-30deg] scale-150 select-none">

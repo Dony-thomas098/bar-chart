@@ -399,7 +399,7 @@ describe('Multi-Device Band Synchronization & Profile Field Preservation', () =>
 
     // Must not combine min-w-full or justify-center on TransformComponent contentClass
     expect(performPageCode).not.toContain('min-w-full min-h-screen flex items-start justify-center');
-    expect(performPageCode).toContain('contentClass="w-max flex flex-col items-start justify-start pt-20 pb-36"');
+    expect(performPageCode).toContain('w-max flex flex-col items-start justify-start');
   });
 
   it('guarantees global CapacitorHttp interceptor is disabled to avoid breaking Supabase fetch in mobile WebView', async () => {
@@ -593,6 +593,15 @@ describe('Hydration Invariants and SSR Consistency', () => {
     // Sidebar must have suppressHydrationWarning on the Band Workspace title block
     expect(sidebar).toContain('suppressHydrationWarning');
   });
+
+  it('guarantees SetlistPerformPage suppresses hydration warnings on dynamic leader loading text', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+    const setlistPerform = fs.readFileSync(path.resolve(__dirname, '../app/setlists/[id]/perform/page.tsx'), 'utf-8');
+
+    expect(setlistPerform).toContain('suppressHydrationWarning');
+    expect(setlistPerform).toContain("!loading && mode === 'loading' && !isLeaderDevice ? 'Waiting for leader to join…' : 'Loading…'");
+  });
 });
 
 describe('Print Data Freshness and Realtime Synchronization', () => {
@@ -637,23 +646,36 @@ describe('Print Data Freshness and Realtime Synchronization', () => {
 });
 
 describe('Viewer Stage Lock and Rotate Mode Optimizations', () => {
-  it('hides transpose pill and provides compact lock button in rotate/landscape mode on mobile', async () => {
+  it('provides compact lock button in rotate/landscape mode on mobile and removes rounded transpose pill', async () => {
     const fs = await import('fs');
     const path = await import('path');
 
     const reader = fs.readFileSync(path.resolve(__dirname, '../components/PiascoreReader.tsx'), 'utf-8');
     const lyricsReader = fs.readFileSync(path.resolve(__dirname, '../components/PiascoreLyricsReader.tsx'), 'utf-8');
+    const chartRenderer = fs.readFileSync(path.resolve(__dirname, '../components/ChartRenderer.tsx'), 'utf-8');
+    const nav = fs.readFileSync(path.resolve(__dirname, '../components/Navigation.tsx'), 'utf-8');
     const css = fs.readFileSync(path.resolve(__dirname, '../app/globals.css'), 'utf-8');
 
-    // Transpose pill must have phone-rotate-hide-transpose
-    expect(reader).toContain('phone-rotate-hide-transpose');
+    // Rounded transpose pill removed from top bar
+    expect(reader).not.toContain('phone-rotate-hide-transpose');
 
-    // Lock button must have phone-rotate-compact-lock
+    // Chart paper rendered with square sheet corners (unrounded)
+    expect(chartRenderer).toContain('rounded-none');
+    expect(chartRenderer).not.toContain('rounded-[24px]');
+    expect(lyricsReader).toContain('rounded-none');
+    expect(lyricsReader).not.toContain('rounded-[24px]');
+
+    // Lock button must have phone-rotate-compact-lock and support stage chord locking
     expect(reader).toContain('phone-rotate-compact-lock');
     expect(lyricsReader).toContain('phone-rotate-compact-lock');
+    expect(chartRenderer).toContain('isLocked');
 
-    // CSS must hide transpose and compact the lock button under landscape + max-height 520px
-    expect(css).toContain('.phone-rotate-hide-transpose');
+    // Navigation bar hides when reader top bar is hidden
+    expect(reader).toContain("window.dispatchEvent(new CustomEvent('reader-ui-change', { detail: { showUI } }))");
+    expect(nav).toContain('reader-ui-change');
+    expect(nav).toContain('readerUIHidden');
+
+    // CSS compacts the lock button under landscape + max-height 520px
     expect(css).toContain('.phone-rotate-compact-lock');
     expect(css).toContain('orientation: landscape');
     expect(css).toContain('max-height: 520px');
@@ -719,9 +741,11 @@ describe('Offline Stability & Resource Handling', () => {
     expect(swGen).not.toContain("status: 404, statusText: 'Offline Resource Not Found'");
     expect(publicSw).not.toContain("status: 404, statusText: 'Offline Resource Not Found'");
 
-    // Safe fallbacks exist
-    expect(swGen).toContain("new Response('', { status: 204, statusText: 'No Content (Offline)' })");
-    expect(publicSw).toContain("new Response('', { status: 204, statusText: 'No Content (Offline)' })");
+    // Safe fallbacks exist (status 204 must use null body so it never throws TypeError)
+    expect(swGen).toContain("new Response(null, { status: 204, statusText: 'No Content (Offline)' })");
+    expect(publicSw).toContain("new Response(null, { status: 204, statusText: 'No Content (Offline)' })");
+    expect(swGen).not.toContain("new Response('', { status: 204");
+    expect(publicSw).not.toContain("new Response('', { status: 204");
     expect(swGen).toContain("url.pathname.includes('hot-update')");
     expect(publicSw).toContain("url.pathname.includes('hot-update')");
     expect(swGen).toContain("'/icon.png'");

@@ -42,13 +42,14 @@ export function calculateScoreFit({
 
   let scale = 1;
   let posX = 0;
-  let posY = 24;
+  const topOffset = topPadding !== undefined ? topPadding : (showUI ? 12 : 8);
+  let posY = topOffset;
 
   if (isLaptopOrDesktop) {
     // ON LAPTOPS AND DESKTOP:
     // Scale up to comfortably fill available screen real estate without overflowing
     const availableWidth = Math.max(300, viewportWidth - (showUI ? 48 : 28));
-    const availableHeight = Math.max(200, viewportHeight - (showUI ? 36 : 24));
+    const availableHeight = Math.max(200, viewportHeight - topOffset - (showUI ? 24 : 16));
 
     const scaleX = (availableWidth / cardWidth) * 0.98;
     const scaleY = cardHeight > 0 ? (availableHeight / cardHeight) * 0.98 : 1;
@@ -68,11 +69,11 @@ export function calculateScoreFit({
     const scaledWidth = cardWidth * scale;
     // Exactly center horizontally
     posX = Math.max(0, (viewportWidth - scaledWidth) / 2);
-    posY = topPadding !== undefined ? topPadding : (showUI ? 12 : 8);
+    posY = topOffset;
   } else if (isPhoneRotate) {
     // IN PHONE ROTATE / LANDSCAPE MODE:
     const availableWidth = Math.max(260, viewportWidth - 24);
-    const availableHeight = Math.max(160, viewportHeight - 16);
+    const availableHeight = Math.max(160, viewportHeight - topOffset - 16);
     const scaleX = (availableWidth / cardWidth) * 0.98;
     const scaleY = cardHeight > 0 ? (availableHeight / cardHeight) * 0.98 : 1;
     scale = Math.min(1, scaleX, scaleY);
@@ -80,7 +81,7 @@ export function calculateScoreFit({
     const scaledWidth = cardWidth * scale;
     const scaledHeight = cardHeight * scale;
     posX = Math.max(0, (viewportWidth - scaledWidth) / 2);
-    posY = scaledHeight < viewportHeight ? Math.max(0, (viewportHeight - scaledHeight) / 2) : 16;
+    posY = scaledHeight < viewportHeight ? Math.max(topOffset, (viewportHeight - scaledHeight) / 2) : topOffset;
   } else {
     // IN PORTRAIT PHONE / SMALL TABLET:
     const availableWidth = Math.max(260, viewportWidth - 24);
@@ -91,9 +92,8 @@ export function calculateScoreFit({
     }
 
     const scaledWidth = cardWidth * scale;
-    const scaledHeight = cardHeight * scale;
     posX = Math.max(0, (viewportWidth - scaledWidth) / 2);
-    posY = scaledHeight < viewportHeight ? Math.max(0, (viewportHeight - scaledHeight) / 2) : 24;
+    posY = topOffset;
   }
 
   // Allow zooming out comfortably
