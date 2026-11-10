@@ -136,7 +136,7 @@ function PerformContent() {
             .from('setlists')
             .select('name')
             .eq('id', incomingSetlistId)
-            .single();
+            .maybeSingle();
           if (!isCancelled && setlistData?.name) {
             setSetlistName(setlistData.name);
           }

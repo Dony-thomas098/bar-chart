@@ -1174,7 +1174,7 @@ export async function readChart(id: string, bypassCache = false): Promise<Chart 
                 const pending = await db.get('pending_saves', id);
                 if (pending) return; // Do not overwrite with stale cloud data if we have pending local changes
               }
-              const { data } = await supabase.from('charts').select('*').eq('id', id).single();
+              const { data } = await supabase.from('charts').select('*').eq('id', id).maybeSingle();
               if (data) {
                 const cloudTime = new Date(data.updated_at || 0).getTime();
                 const cachedTime = new Date(cached.updated_at || 0).getTime();
@@ -1193,7 +1193,12 @@ export async function readChart(id: string, bypassCache = false): Promise<Chart 
   // 2. If not cached locally or bypassCache, fetch online with timeout
   if (isOnline()) {
     try {
-      const fetchPromise = supabase.from('charts').select('*').eq('id', id).single();
+      // Ensure Supabase has restored the active session before querying RLS-protected tables
+      try {
+        await supabase.auth.getSession();
+      } catch {}
+
+      const fetchPromise = supabase.from('charts').select('*').eq('id', id).maybeSingle();
       const timeoutPromise = new Promise<any>((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000));
       const { data, error } = await Promise.race([fetchPromise, timeoutPromise]);
       if (!error && data) {
@@ -1260,7 +1265,7 @@ export async function getAllFolders(kind?: 'chart' | 'lyrics', bandId?: string |
 
 export async function getFolder(id: string): Promise<Folder | null> {
   if (isOnline()) {
-    const { data } = await supabase.from('folders').select('*').eq('id', id).single();
+    const { data } = await supabase.from('folders').select('*').eq('id', id).maybeSingle();
     if (data && dbPromise) {
       const db = await dbPromise;
       await db.put('folders', data);
@@ -1529,7 +1534,10 @@ export async function saveLyrics(lyrics: Lyric) {
 
 export async function readLyrics(id: string): Promise<any | null> {
   if (isOnline()) {
-    const { data } = await supabase.from('lyrics').select('*').eq('id', id).single();
+    try {
+      await supabase.auth.getSession();
+    } catch {}
+    const { data } = await supabase.from('lyrics').select('*').eq('id', id).maybeSingle();
     if (data && dbPromise) {
       const db = await dbPromise;
       await db.put('lyrics', data);

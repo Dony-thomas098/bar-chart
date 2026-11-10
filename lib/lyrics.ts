@@ -70,7 +70,7 @@ export async function readLyrics(id: string): Promise<Lyric | null> {
         if (isOnline()) {
           (async () => {
             try {
-              const { data } = await supabase.from('lyrics').select('*').eq('id', id).single();
+              const { data } = await supabase.from('lyrics').select('*').eq('id', id).maybeSingle();
               if (data) await cacheLyric(data);
             } catch {}
           })();
@@ -83,7 +83,12 @@ export async function readLyrics(id: string): Promise<Lyric | null> {
   // 2. Fetch from cloud with timeout
   if (isOnline()) {
     try {
-      const fetchPromise = supabase.from('lyrics').select('*').eq('id', id).single();
+      // Ensure active auth session is restored before querying RLS-protected tables
+      try {
+        await supabase.auth.getSession();
+      } catch {}
+
+      const fetchPromise = supabase.from('lyrics').select('*').eq('id', id).maybeSingle();
       const timeoutPromise = new Promise<any>((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000));
       const { data, error } = await Promise.race([fetchPromise, timeoutPromise]);
       if (!error && data) {

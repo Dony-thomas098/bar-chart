@@ -26,6 +26,7 @@ function ChartViewerContent() {
   const params = useParams();
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
 
   const getInitialChartId = () => {
     if (params?.id && params.id !== 'edit') return params.id as string;
@@ -65,7 +66,7 @@ function ChartViewerContent() {
     return null;
   }
 
-  if (chartLoading || !resolvedChartId) {
+  if (chartLoading || authLoading || !resolvedChartId) {
     return (
       <div className="flex h-screen items-center justify-center bg-[#121214] text-white">
         <div className="flex items-center gap-3">
@@ -80,12 +81,22 @@ function ChartViewerContent() {
     return (
       <div className="flex h-screen flex-col items-center justify-center bg-[#121214] text-white gap-4">
         <p className="text-slate-400 text-sm">Chart not found or access denied.</p>
-        <button
-          onClick={() => router.push('/')}
-          className="px-5 py-2.5 bg-[#007aff] font-bold rounded-xl text-white hover:bg-[#0066cc] transition-all"
-        >
-          Go to Catalog
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => router.push('/')}
+            className="px-5 py-2.5 bg-[#007aff] font-bold rounded-xl text-white hover:bg-[#0066cc] transition-all"
+          >
+            Go to Catalog
+          </button>
+          {!user && (
+            <button
+              onClick={() => router.push('/auth')}
+              className="px-5 py-2.5 bg-white/10 hover:bg-white/20 font-bold rounded-xl text-white transition-all"
+            >
+              Sign In
+            </button>
+          )}
+        </div>
       </div>
     );
   }

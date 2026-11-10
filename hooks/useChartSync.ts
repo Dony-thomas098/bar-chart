@@ -36,11 +36,31 @@ export function useChartSync(chartId: string) {
     }, 8000);
 
     readChart(chartId)
-      .then(data => {
-        if (isMounted) {
+      .then(async (data) => {
+        if (!isMounted) return;
+        if (data) {
           clearTimeout(safetyTimer);
           setChart(data as ChartData | null);
           setLoading(false);
+        } else {
+          // If null on cold mount, retry if auth session was still restoring in background
+          try {
+            const { data: authData } = await supabase.auth.getSession();
+            if (authData?.session?.user && isMounted) {
+              const retried = await readChart(chartId);
+              if (isMounted && retried) {
+                clearTimeout(safetyTimer);
+                setChart(retried as ChartData);
+                setLoading(false);
+                return;
+              }
+            }
+          } catch {}
+          if (isMounted) {
+            clearTimeout(safetyTimer);
+            setChart(null);
+            setLoading(false);
+          }
         }
       })
       .catch(err => {
@@ -50,6 +70,19 @@ export function useChartSync(chartId: string) {
           setLoading(false);
         }
       });
+
+    // Re-attempt fetch when Supabase auth session initializes or changes (fixes cold-load RLS race condition)
+    const { data: { subscription: authSub } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user && isMounted && !latestChartRef.current) {
+        readChart(chartId).then(data => {
+          if (isMounted && data) {
+            clearTimeout(safetyTimer);
+            setChart(data as ChartData);
+            setLoading(false);
+          }
+        }).catch(() => {});
+      }
+    });
 
     const channel = supabase.channel(`chart-${chartId}`);
     channelRef.current = channel;
@@ -124,6 +157,7 @@ export function useChartSync(chartId: string) {
       isMounted = false;
       window.removeEventListener('beforeunload', handleBeforeUnload);
       supabase.removeChannel(channel);
+      authSub.unsubscribe();
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
       
       if (hasPendingChanges.current && latestChartRef.current) {

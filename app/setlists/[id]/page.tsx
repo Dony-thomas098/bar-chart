@@ -416,7 +416,7 @@ export default function SetlistDetailPage() {
     setLoading(true);
     try {
       const { supabase } = await import('@/lib/supabase');
-      const { data: sl, error } = await supabase.from('setlists').select('*').eq('id', setlistId).single();
+      const { data: sl, error } = await supabase.from('setlists').select('*').eq('id', setlistId).maybeSingle();
       if (error || !sl) {
         console.warn('[Setlist] Error loading setlist:', error);
         router.push('/setlists/');

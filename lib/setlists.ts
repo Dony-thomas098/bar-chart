@@ -118,7 +118,7 @@ export async function duplicateSetlist(id: string): Promise<Setlist> {
     .from('setlists')
     .select('*')
     .eq('id', id)
-    .single();
+    .maybeSingle();
   if (fetchErr || !original) throw fetchErr || new Error('Not found');
 
   // Fetch items

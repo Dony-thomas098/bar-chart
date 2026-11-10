@@ -34,11 +34,31 @@ export function useLyricsSync(lyricId: string) {
     }, 8000);
 
     readLyrics(lyricId)
-      .then(data => {
-        if (isMounted) {
+      .then(async (data) => {
+        if (!isMounted) return;
+        if (data) {
           clearTimeout(safetyTimer);
           setLyric(data as Lyric | null);
           setLoading(false);
+        } else {
+          // If null on cold mount, retry if auth session was still restoring in background
+          try {
+            const { data: authData } = await supabase.auth.getSession();
+            if (authData?.session?.user && isMounted) {
+              const retried = await readLyrics(lyricId);
+              if (isMounted && retried) {
+                clearTimeout(safetyTimer);
+                setLyric(retried as Lyric);
+                setLoading(false);
+                return;
+              }
+            }
+          } catch {}
+          if (isMounted) {
+            clearTimeout(safetyTimer);
+            setLyric(null);
+            setLoading(false);
+          }
         }
       })
       .catch(err => {
@@ -48,6 +68,19 @@ export function useLyricsSync(lyricId: string) {
           setLoading(false);
         }
       });
+
+    // Re-attempt fetch when Supabase auth session initializes or changes (fixes cold-load RLS race condition)
+    const { data: { subscription: authSub } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user && isMounted && !latestLyricRef.current) {
+        readLyrics(lyricId).then(data => {
+          if (isMounted && data) {
+            clearTimeout(safetyTimer);
+            setLyric(data as Lyric);
+            setLoading(false);
+          }
+        }).catch(() => {});
+      }
+    });
 
     const channel = supabase.channel(`lyrics-${lyricId}`);
     channelRef.current = channel;
@@ -110,6 +143,7 @@ export function useLyricsSync(lyricId: string) {
       isMounted = false;
       window.removeEventListener('beforeunload', handleBeforeUnload);
       supabase.removeChannel(channel);
+      authSub.unsubscribe();
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
       
       if (hasPendingChanges.current && latestLyricRef.current) {

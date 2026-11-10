@@ -337,7 +337,7 @@ export default function SetlistPerformPage() {
     (async () => {
       setLoading(true);
       const { supabase: sb } = await import('@/lib/supabase');
-      const { data: sl } = await sb.from('setlists').select('name').eq('id', setlistId).single();
+      const { data: sl } = await sb.from('setlists').select('name').eq('id', setlistId).maybeSingle();
       if (sl) setSetlistName(sl.name);
       const loaded = await listSetlistItems(setlistId);
       setItems(loaded);

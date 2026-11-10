@@ -120,4 +120,50 @@ describe('Group 2: High Logic Bugs & Strict Typing Verification', () => {
       expect(storageCode).toContain("!f.name.startsWith('__TRASH__:')");
     });
   });
+
+  describe('PostgREST 406 (Not Acceptable) & Cold-Mount Auth Hydration Prevention', () => {
+    it('verifies storage.ts and lyrics.ts use maybeSingle() to prevent HTTP 406 on missing/protected charts', async () => {
+      const fs = await import('fs');
+      const path = await import('path');
+
+      const storageCode = fs.readFileSync(path.resolve(__dirname, '../lib/storage.ts'), 'utf-8');
+      const lyricsCode = fs.readFileSync(path.resolve(__dirname, '../lib/lyrics.ts'), 'utf-8');
+
+      // readChart and readLyrics must use maybeSingle
+      expect(storageCode).toContain(".from('charts').select('*').eq('id', id).maybeSingle()");
+      expect(storageCode).toContain(".from('folders').select('*').eq('id', id).maybeSingle()");
+      expect(storageCode).toContain(".from('lyrics').select('*').eq('id', id).maybeSingle()");
+      expect(lyricsCode).toContain(".from('lyrics').select('*').eq('id', id).maybeSingle()");
+
+      // Must not use raw .single() in readChart or readLyrics
+      expect(storageCode).not.toContain(".from('charts').select('*').eq('id', id).single()");
+      expect(lyricsCode).not.toContain(".from('lyrics').select('*').eq('id', id).single()");
+    });
+
+    it('verifies useChartSync and useLyricsSync listen for auth state changes to re-fetch on cold load', async () => {
+      const fs = await import('fs');
+      const path = await import('path');
+
+      const chartSyncCode = fs.readFileSync(path.resolve(__dirname, '../hooks/useChartSync.ts'), 'utf-8');
+      const lyricsSyncCode = fs.readFileSync(path.resolve(__dirname, '../hooks/useLyricsSync.ts'), 'utf-8');
+
+      expect(chartSyncCode).toContain('supabase.auth.onAuthStateChange');
+      expect(chartSyncCode).toContain('authSub.unsubscribe()');
+      expect(lyricsSyncCode).toContain('supabase.auth.onAuthStateChange');
+      expect(lyricsSyncCode).toContain('authSub.unsubscribe()');
+    });
+
+    it('verifies chart viewer pages await authLoading before showing access denied', async () => {
+      const fs = await import('fs');
+      const path = await import('path');
+
+      const chartPage = fs.readFileSync(path.resolve(__dirname, '../app/chart/page.tsx'), 'utf-8');
+      const chartDetailPage = fs.readFileSync(path.resolve(__dirname, '../app/chart/[id]/page.tsx'), 'utf-8');
+
+      expect(chartPage).toContain('authLoading');
+      expect(chartPage).toContain('if (chartLoading || authLoading || !resolvedChartId)');
+      expect(chartDetailPage).toContain('authLoading');
+      expect(chartDetailPage).toContain('if (chartLoading || authLoading || !chartId)');
+    });
+  });
 });
