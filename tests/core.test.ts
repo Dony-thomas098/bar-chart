@@ -504,11 +504,11 @@ describe('Multi-Device Band Synchronization & Profile Field Preservation', () =>
     expect(setlistPerformPage).toContain('centerZoomedOut={false}');
   });
 
-  it('guarantees calculateScoreFit centers short charts vertically when isLocked is true', async () => {
+  it('guarantees calculateScoreFit centers short charts vertically in phones and tablets', async () => {
     const { calculateScoreFit } = await import('../lib/score-fit');
 
     // 1. Mobile Portrait: short chart (350px tall in 844px viewport)
-    // When unlocked: stays at topOffset (8px)
+    // Vertically centered in viewport across both unlocked and locked states
     const unlocked = calculateScoreFit({
       viewportWidth: 390,
       viewportHeight: 844,
@@ -517,9 +517,12 @@ describe('Multi-Device Band Synchronization & Profile Field Preservation', () =>
       showUI: false,
       isLocked: false,
     });
-    expect(unlocked.posY).toBe(8);
+    const scaledHeightUnlocked = 350 * unlocked.scale;
+    const expectedPosYUnlocked = (844 - scaledHeightUnlocked) / 2;
+    expect(unlocked.posY).toBeCloseTo(expectedPosYUnlocked, 1);
+    expect(unlocked.posY).toBeGreaterThan(8);
 
-    // When locked: perfectly centered vertically in the viewport
+    // When locked: also centered vertically in the viewport
     const locked = calculateScoreFit({
       viewportWidth: 390,
       viewportHeight: 844,
@@ -533,8 +536,8 @@ describe('Multi-Device Band Synchronization & Profile Field Preservation', () =>
     expect(locked.posY).toBeCloseTo(expectedPosY, 1);
     expect(locked.posY).toBeGreaterThan(8);
 
-    // 2. Mobile Portrait: tall chart (1200px tall in 844px viewport)
-    // When locked: must stay at topOffset so the top is not clipped
+    // 2. Mobile Portrait: tall chart (1800px tall in 844px viewport)
+    // Must stay at topOffset so the top measures are never clipped
     const tallLocked = calculateScoreFit({
       viewportWidth: 390,
       viewportHeight: 844,
@@ -545,7 +548,7 @@ describe('Multi-Device Band Synchronization & Profile Field Preservation', () =>
     });
     expect(tallLocked.posY).toBe(8);
 
-    // 3. iPad Pro 13" (1032x1376) and Tablet/Desktop: short/medium chart
+    // 3. iPad Pro 13" (1032x1376) and Tablet: short/medium chart
     const ipadUnlocked = calculateScoreFit({
       viewportWidth: 1032,
       viewportHeight: 1376,
@@ -554,7 +557,10 @@ describe('Multi-Device Band Synchronization & Profile Field Preservation', () =>
       showUI: false,
       isLocked: false,
     });
-    expect(ipadUnlocked.posY).toBe(8);
+    const ipadScaledHeightUnlocked = 600 * ipadUnlocked.scale;
+    const ipadExpectedPosYUnlocked = (1376 - ipadScaledHeightUnlocked) / 2;
+    expect(ipadUnlocked.posY).toBeCloseTo(ipadExpectedPosYUnlocked, 1);
+    expect(ipadUnlocked.posY).toBeGreaterThan(8);
 
     const ipadLocked = calculateScoreFit({
       viewportWidth: 1032,

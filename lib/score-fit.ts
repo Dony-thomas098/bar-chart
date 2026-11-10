@@ -72,7 +72,8 @@ export function calculateScoreFit({
     const scaledHeight = cardHeight * scale;
     // Exactly center horizontally
     posX = Math.max(0, (viewportWidth - scaledWidth) / 2);
-    posY = (isLocked && scaledHeight < viewportHeight)
+    // Center vertically whenever chart fits comfortably in viewport
+    posY = scaledHeight < viewportHeight
       ? Math.max(topOffset, (viewportHeight - scaledHeight) / 2)
       : topOffset;
   } else if (isPhoneRotate) {
@@ -99,7 +100,7 @@ export function calculateScoreFit({
     const scaledWidth = cardWidth * scale;
     const scaledHeight = cardHeight * scale;
     posX = Math.max(0, (viewportWidth - scaledWidth) / 2);
-    posY = (isLocked && scaledHeight < viewportHeight)
+    posY = scaledHeight < viewportHeight
       ? Math.max(topOffset, (viewportHeight - scaledHeight) / 2)
       : topOffset;
   }

@@ -53,13 +53,23 @@ function useSetlistSession(setlistId: string, isLeaderDevice: boolean) {
 
   useEffect(() => {
     if (!setlistId) return;
+    let cancelled = false;
     isMountedRef.current = true;
     const isLdr = isLeaderRef.current || isLeaderDevice;
 
     const init = async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!isMountedRef.current) return;
+      if (cancelled || !isMountedRef.current) return;
       if (user) myNameRef.current = user.email?.split('@')[0] ?? 'Anonymous';
+
+      // Clean up any existing channel with this topic before creating a new one
+      const existing = supabase.getChannels().find(
+        ch => ch.topic === `realtime:setlist-${setlistId}` || ch.topic === `setlist-${setlistId}`
+      );
+      if (existing) {
+        await supabase.removeChannel(existing).catch(() => {});
+      }
+      if (cancelled || !isMountedRef.current) return;
 
       const instanceId = Math.random().toString(36).slice(2, 8);
       const channel = supabase.channel(`setlist-${setlistId}`, {
@@ -99,7 +109,7 @@ function useSetlistSession(setlistId: string, isLeaderDevice: boolean) {
           setFollowerCount(presences.filter(p => p.role === 'follower').length);
         })
         .subscribe(async (status) => {
-          if (status !== 'SUBSCRIBED' || !isMountedRef.current) return;
+          if (status !== 'SUBSCRIBED' || !isMountedRef.current || cancelled) return;
           if (isLeaderRef.current || isLeaderDevice) {
             await channel.track({ role: 'leader', name: myNameRef.current, songPosition: positionRef.current });
             setMode('leader');
@@ -111,8 +121,12 @@ function useSetlistSession(setlistId: string, isLeaderDevice: boolean) {
     };
     init();
     return () => {
+      cancelled = true;
       isMountedRef.current = false;
-      if (channelRef.current) supabase.removeChannel(channelRef.current);
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current).catch(() => {});
+        channelRef.current = null;
+      }
     };
   }, [setlistId]);
 

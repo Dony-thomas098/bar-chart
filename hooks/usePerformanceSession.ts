@@ -122,6 +122,13 @@ export function usePerformanceSession(
       // Clean up any existing channel before subscribing
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current).catch((err: unknown) => console.warn('[PerformSession] removeChannel cleanup error:', err));
+        channelRef.current = null;
+      }
+      const existing = supabase.getChannels().find(
+        ch => ch.topic === `realtime:session-${code}` || ch.topic === `session-${code}`
+      );
+      if (existing) {
+        await supabase.removeChannel(existing).catch((err: unknown) => console.warn('[PerformSession] remove existing channel error:', err));
       }
 
       // Shared channel name for everyone joining this session code

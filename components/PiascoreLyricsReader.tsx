@@ -106,8 +106,8 @@ function LyricsContentWrapper({
     const wrapper = instance.wrapperComponent;
     if (!cardEl || !wrapper) return;
 
-    const viewportWidth = wrapper.clientWidth;
-    const viewportHeight = wrapper.clientHeight;
+    const viewportWidth = wrapper.clientWidth || (typeof window !== 'undefined' ? window.innerWidth : 0);
+    const viewportHeight = wrapper.clientHeight || (typeof window !== 'undefined' ? window.innerHeight : 0);
     const cardWidth = Math.max(cardEl.scrollWidth, cardEl.offsetWidth);
     const cardHeight = Math.max(cardEl.scrollHeight, cardEl.offsetHeight);
 

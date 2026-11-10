@@ -92,6 +92,10 @@ describe('Chart and Lyrics Editor Navigation & Routing Fixes', () => {
     expect(setlistPerformCode).toContain('supabase.channel(`setlist-${setlistId}`');
     expect(setlistPerformCode).not.toContain('supabase.channel(`setlist-${setlistId}-${instanceId}`)');
     expect(setlistPerformCode).toContain('presence: { key: instanceId }');
+
+    // Prevents "cannot add presence callbacks after subscribe" by cleaning up existing channel and guarding race conditions
+    expect(setlistPerformCode).toContain('supabase.getChannels().find');
+    expect(setlistPerformCode).toContain('if (cancelled || !isMountedRef.current) return;');
   });
 
   it('guarantees Setlist and Live Stage routes use canonical trailing slashes', () => {
