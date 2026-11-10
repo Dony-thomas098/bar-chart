@@ -1,5 +1,5 @@
 // Chordly Service Worker - Full Offline PWA Cache
-const CACHE_NAME = 'chordly-v12';
+const CACHE_NAME = 'chordly-v13';
 
 const PRECACHE_ASSETS = [
   "/",
@@ -214,8 +214,6 @@ const PRECACHE_ASSETS = [
   "/_next/static/css/676caacb685ce77a.css",
   "/_next/static/css/9cdd061e9fa6d1a6.css",
   "/_next/static/css/f3ecfddd5dc08007.css",
-  "/_next/static/fW5Oz0BU2iNwly_v3QQPb/_buildManifest.js",
-  "/_next/static/fW5Oz0BU2iNwly_v3QQPb/_ssgManifest.js",
   "/_next/static/media/558ca1a6aa3cb55e-s.p.woff2",
   "/_next/static/media/636a5ac981f94f8b-s.p.woff2",
   "/_next/static/media/64d784ea54a4acde-s.woff2",
@@ -225,7 +223,9 @@ const PRECACHE_ASSETS = [
   "/_next/static/media/9e7b0a821b9dfcb4-s.woff2",
   "/_next/static/media/ac0e76ddaeeb7981-s.woff2",
   "/_next/static/media/edc640959b0c7826-s.woff2",
-  "/_next/static/media/ff71da380fbe67dd-s.woff2"
+  "/_next/static/media/ff71da380fbe67dd-s.woff2",
+  "/_next/static/PehYkNLAkz9-WwjmpZaOP/_buildManifest.js",
+  "/_next/static/PehYkNLAkz9-WwjmpZaOP/_ssgManifest.js"
 ];
 
 // Install: precache critical assets safely without blocking activation
@@ -369,7 +369,7 @@ self.addEventListener('fetch', (event) => {
             const cc = response.headers.get('Cache-Control') || '';
             if (!cc.includes('no-store') && !cc.includes('private')) {
               const responseClone = response.clone();
-              caches.open(CACHE_NAME).then((cache) => cache.put(request, responseClone));
+              caches.open(CACHE_NAME).then((cache) => cache.put(request, responseClone).catch(() => {})).catch(() => {});
             }
           }
           return response;
@@ -624,11 +624,16 @@ self.addEventListener('fetch', (event) => {
         try {
           const networkRes = await fetch(request);
           if (networkRes && networkRes.status === 200) {
-            const clone = networkRes.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(request, clone);
-              cache.put(trimmed + '/index.txt', networkRes.clone());
-            });
+            try {
+              const clone1 = networkRes.clone();
+              const clone2 = networkRes.clone();
+              caches.open(CACHE_NAME).then(async (cache) => {
+                try {
+                  await cache.put(request, clone1);
+                  await cache.put(trimmed + '/index.txt', clone2);
+                } catch (e) {}
+              }).catch(() => {});
+            } catch (e) {}
           }
           return networkRes;
         } catch (e) {
@@ -656,11 +661,18 @@ self.addEventListener('fetch', (event) => {
               if (networkResponse && networkResponse.status === 200) {
                 const cc = networkResponse.headers.get('Cache-Control') || '';
                 if (!cc.includes('no-store') && !cc.includes('private')) {
-                  const responseClone = networkResponse.clone();
-                  caches.open(CACHE_NAME).then((cache) => {
-                    cache.put(request, responseClone);
-                    cache.put(url.pathname, networkResponse.clone());
-                  });
+                  try {
+                    const clone1 = networkResponse.clone();
+                    const clone2 = networkResponse.clone();
+                    caches.open(CACHE_NAME).then(async (cache) => {
+                      try {
+                        await cache.put(request, clone1);
+                        if (url.pathname && url.pathname !== request.url) {
+                          await cache.put(url.pathname, clone2);
+                        }
+                      } catch (e) {}
+                    }).catch(() => {});
+                  } catch (e) {}
                 }
               }
             })
@@ -694,11 +706,18 @@ self.addEventListener('fetch', (event) => {
         if (networkResponse && networkResponse.status === 200) {
           const cc = networkResponse.headers.get('Cache-Control') || '';
           if (!cc.includes('no-store') && !cc.includes('private')) {
-            const responseClone = networkResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(request, responseClone);
-              cache.put(url.pathname, networkResponse.clone());
-            });
+            try {
+              const clone1 = networkResponse.clone();
+              const clone2 = networkResponse.clone();
+              caches.open(CACHE_NAME).then(async (cache) => {
+                try {
+                  await cache.put(request, clone1);
+                  if (url.pathname && url.pathname !== request.url) {
+                    await cache.put(url.pathname, clone2);
+                  }
+                } catch (e) {}
+              }).catch(() => {});
+            } catch (e) {}
           }
         }
         return networkResponse;

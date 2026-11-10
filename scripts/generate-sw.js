@@ -150,7 +150,7 @@ function generateSW() {
   console.log(`[SW Gen] Collected ${allAssets.length} total precache assets (including ${staticFiles.length} static JS/CSS chunks).`);
 
   const swTemplate = `// Chordly Service Worker - Full Offline PWA Cache
-const CACHE_NAME = 'chordly-v12';
+const CACHE_NAME = 'chordly-v13';
 
 const PRECACHE_ASSETS = ${JSON.stringify(allAssets, null, 2)};
 
@@ -295,7 +295,7 @@ self.addEventListener('fetch', (event) => {
             const cc = response.headers.get('Cache-Control') || '';
             if (!cc.includes('no-store') && !cc.includes('private')) {
               const responseClone = response.clone();
-              caches.open(CACHE_NAME).then((cache) => cache.put(request, responseClone));
+              caches.open(CACHE_NAME).then((cache) => cache.put(request, responseClone).catch(() => {})).catch(() => {});
             }
           }
           return response;
@@ -550,11 +550,16 @@ self.addEventListener('fetch', (event) => {
         try {
           const networkRes = await fetch(request);
           if (networkRes && networkRes.status === 200) {
-            const clone = networkRes.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(request, clone);
-              cache.put(trimmed + '/index.txt', networkRes.clone());
-            });
+            try {
+              const clone1 = networkRes.clone();
+              const clone2 = networkRes.clone();
+              caches.open(CACHE_NAME).then(async (cache) => {
+                try {
+                  await cache.put(request, clone1);
+                  await cache.put(trimmed + '/index.txt', clone2);
+                } catch (e) {}
+              }).catch(() => {});
+            } catch (e) {}
           }
           return networkRes;
         } catch (e) {
@@ -582,11 +587,18 @@ self.addEventListener('fetch', (event) => {
               if (networkResponse && networkResponse.status === 200) {
                 const cc = networkResponse.headers.get('Cache-Control') || '';
                 if (!cc.includes('no-store') && !cc.includes('private')) {
-                  const responseClone = networkResponse.clone();
-                  caches.open(CACHE_NAME).then((cache) => {
-                    cache.put(request, responseClone);
-                    cache.put(url.pathname, networkResponse.clone());
-                  });
+                  try {
+                    const clone1 = networkResponse.clone();
+                    const clone2 = networkResponse.clone();
+                    caches.open(CACHE_NAME).then(async (cache) => {
+                      try {
+                        await cache.put(request, clone1);
+                        if (url.pathname && url.pathname !== request.url) {
+                          await cache.put(url.pathname, clone2);
+                        }
+                      } catch (e) {}
+                    }).catch(() => {});
+                  } catch (e) {}
                 }
               }
             })
@@ -620,11 +632,18 @@ self.addEventListener('fetch', (event) => {
         if (networkResponse && networkResponse.status === 200) {
           const cc = networkResponse.headers.get('Cache-Control') || '';
           if (!cc.includes('no-store') && !cc.includes('private')) {
-            const responseClone = networkResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(request, responseClone);
-              cache.put(url.pathname, networkResponse.clone());
-            });
+            try {
+              const clone1 = networkResponse.clone();
+              const clone2 = networkResponse.clone();
+              caches.open(CACHE_NAME).then(async (cache) => {
+                try {
+                  await cache.put(request, clone1);
+                  if (url.pathname && url.pathname !== request.url) {
+                    await cache.put(url.pathname, clone2);
+                  }
+                } catch (e) {}
+              }).catch(() => {});
+            } catch (e) {}
           }
         }
         return networkResponse;
