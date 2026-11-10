@@ -136,6 +136,32 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
     activeTab?.chart || initialChart
   );
 
+  // Synchronize tabs, activeTabId, and currentChart whenever initialChart prop changes
+  useEffect(() => {
+    if (!initialChart?.id) return;
+    setTabs((prev) => {
+      const existing = prev.find((t) => t.id === initialChart.id);
+      if (existing) {
+        return prev.map((t) =>
+          t.id === initialChart.id
+            ? { ...t, chart: initialChart, title: initialChart.title || t.title }
+            : t
+        );
+      }
+      return [
+        ...prev,
+        {
+          id: initialChart.id,
+          title: initialChart.title || 'Untitled',
+          artist: initialChart.custom_text || 'Composer',
+          chart: initialChart,
+        },
+      ];
+    });
+    setActiveTabId(initialChart.id);
+    setCurrentChart(initialChart);
+  }, [initialChart]);
+
   // Load chart when active tab changes
   useEffect(() => {
     if (!activeTab) {

@@ -166,4 +166,26 @@ describe('Chart and Lyrics Editor Navigation & Routing Fixes', () => {
     expect(rscViewPos).toBeGreaterThan(-1);
     expect(rscCatalogPos).toBeLessThan(rscViewPos);
   });
+
+  it('guarantees viewer pages bind key={id} to PiascoreReader and PiascoreLyricsReader to prevent stale chart lock', () => {
+    const chartPage = fs.readFileSync(path.resolve(__dirname, '../app/chart/page.tsx'), 'utf-8');
+    const chartDetailPage = fs.readFileSync(path.resolve(__dirname, '../app/chart/[id]/page.tsx'), 'utf-8');
+    const lyricsViewPage = fs.readFileSync(path.resolve(__dirname, '../app/lyrics/view/page.tsx'), 'utf-8');
+    const lyricsDetailPage = fs.readFileSync(path.resolve(__dirname, '../app/lyrics/[id]/page.tsx'), 'utf-8');
+
+    expect(chartPage).toContain('<PiascoreReader\n      key={chart.id}');
+    expect(chartDetailPage).toContain('<PiascoreReader\n      key={chart.id}');
+    expect(lyricsViewPage).toContain('<PiascoreLyricsReader\n      key={lyric.id}');
+    expect(lyricsDetailPage).toContain('<PiascoreLyricsReader\n      key={lyric.id}');
+  });
+
+  it('guarantees PiascoreReader and PiascoreLyricsReader synchronize tabs, activeTabId, and current item when initial props change', () => {
+    const readerCode = fs.readFileSync(path.resolve(__dirname, '../components/PiascoreReader.tsx'), 'utf-8');
+    const lyricsReaderCode = fs.readFileSync(path.resolve(__dirname, '../components/PiascoreLyricsReader.tsx'), 'utf-8');
+
+    expect(readerCode).toContain('setActiveTabId(initialChart.id);');
+    expect(readerCode).toContain('setCurrentChart(initialChart);');
+    expect(lyricsReaderCode).toContain('setActiveTabId(initialLyric.id);');
+    expect(lyricsReaderCode).toContain('setCurrentLyric(initialLyric);');
+  });
 });

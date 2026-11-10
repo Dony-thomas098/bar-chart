@@ -183,6 +183,31 @@ export function PiascoreLyricsReader({ initialLyric, folderId }: Props) {
     activeTab?.lyric || initialLyric
   );
 
+  // Synchronize tabs, activeTabId, and currentLyric whenever initialLyric prop changes
+  useEffect(() => {
+    if (!initialLyric?.id) return;
+    setTabs((prev) => {
+      const existing = prev.find((t) => t.id === initialLyric.id);
+      if (existing) {
+        return prev.map((t) =>
+          t.id === initialLyric.id
+            ? { ...t, lyric: initialLyric, title: initialLyric.title || t.title }
+            : t
+        );
+      }
+      return [
+        ...prev,
+        {
+          id: initialLyric.id,
+          title: initialLyric.title || 'Untitled',
+          lyric: initialLyric,
+        },
+      ];
+    });
+    setActiveTabId(initialLyric.id);
+    setCurrentLyric(initialLyric);
+  }, [initialLyric]);
+
   // Load lyric when active tab changes
   useEffect(() => {
     if (!activeTab) return;

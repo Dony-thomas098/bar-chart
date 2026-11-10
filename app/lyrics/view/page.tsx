@@ -92,6 +92,7 @@ function LyricsViewerContent() {
 
   return (
     <PiascoreLyricsReader
+      key={lyric.id}
       initialLyric={lyric as Lyric}
       folderId={lyric.folder_id}
     />

@@ -93,6 +93,7 @@ function ChartViewerDetailContent() {
 
   return (
     <PiascoreReader
+      key={chart.id}
       initialChart={chart as ChartData}
       folderId={chart.folder_id}
     />
