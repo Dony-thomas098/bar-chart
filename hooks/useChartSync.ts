@@ -47,7 +47,11 @@ export function useChartSync(chartId: string) {
           try {
             const { data: authData } = await supabase.auth.getSession();
             if (authData?.session?.user && isMounted) {
-              const retried = await readChart(chartId);
+              try {
+                const { syncBandForUser } = await import('@/lib/band');
+                await syncBandForUser(authData.session.user);
+              } catch {}
+              const retried = await readChart(chartId, true);
               if (isMounted && retried) {
                 clearTimeout(safetyTimer);
                 setChart(retried as ChartData);
@@ -72,9 +76,13 @@ export function useChartSync(chartId: string) {
       });
 
     // Re-attempt fetch when Supabase auth session initializes or changes (fixes cold-load RLS race condition)
-    const { data: { subscription: authSub } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription: authSub } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session?.user && isMounted && !latestChartRef.current) {
-        readChart(chartId).then(data => {
+        try {
+          const { syncBandForUser } = await import('@/lib/band');
+          await syncBandForUser(session.user);
+        } catch {}
+        readChart(chartId, true).then(data => {
           if (isMounted && data) {
             clearTimeout(safetyTimer);
             setChart(data as ChartData);

@@ -139,38 +139,38 @@ const PRECACHE_ASSETS = [
   "/_next/static/chunks/3794-e6b880ea1810fa3e.js",
   "/_next/static/chunks/3899.d4d0ae202f418161.js",
   "/_next/static/chunks/44530001-0393003bbddf7a02.js",
-  "/_next/static/chunks/4548-c87a0216fbea20f8.js",
+  "/_next/static/chunks/4548-1783bb95680da6e3.js",
   "/_next/static/chunks/463-493b55cddcec22f6.js",
   "/_next/static/chunks/4bd1b696-8cd12253b448cc13.js",
   "/_next/static/chunks/4e0084c3-dd890f23c03dafcc.js",
   "/_next/static/chunks/5276-2ddb3c1a00703749.js",
   "/_next/static/chunks/5334-6e3bd9270853acab.js",
-  "/_next/static/chunks/561-b3705a58fe1fe198.js",
+  "/_next/static/chunks/561-623c3b8ae85b882b.js",
   "/_next/static/chunks/6308-38ebc18f1f0a948d.js",
   "/_next/static/chunks/6347-281bd97bc965d342.js",
   "/_next/static/chunks/6510-610ff429fb1106a2.js",
-  "/_next/static/chunks/6624-ff4987bccffc36da.js",
+  "/_next/static/chunks/6624-0ee2db662c80a6f1.js",
   "/_next/static/chunks/6748-43175b2acd6d4958.js",
   "/_next/static/chunks/6810-527ba1fb70bc9e49.js",
   "/_next/static/chunks/812.8e8f214a433a0a34.js",
   "/_next/static/chunks/8255-aa70eee0870a2b9b.js",
-  "/_next/static/chunks/8527-7e7d03f004378ca5.js",
-  "/_next/static/chunks/8801-54d152bdc91864e3.js",
+  "/_next/static/chunks/8527-63c0c771c19fda0d.js",
+  "/_next/static/chunks/8801-a484ac91fa05d948.js",
   "/_next/static/chunks/9021-5088ca070f361cb3.js",
   "/_next/static/chunks/9535-76c8bbd1c16e6ad3.js",
-  "/_next/static/chunks/app/auth/page-6c4245af4554931c.js",
+  "/_next/static/chunks/app/auth/page-384785183214cd21.js",
   "/_next/static/chunks/app/bookmarks/page-afb3dc00bc23db64.js",
   "/_next/static/chunks/app/chart/edit/page-36556c41c16d74d5.js",
   "/_next/static/chunks/app/chart/layout-3dc8c8c7b19ce49c.js",
-  "/_next/static/chunks/app/chart/page-3cfab003a23e463a.js",
+  "/_next/static/chunks/app/chart/page-301c552522d354e2.js",
   "/_next/static/chunks/app/chart/[id]/edit/page-f6cafeb11d753515.js",
   "/_next/static/chunks/app/chart/[id]/layout-3dc8c8c7b19ce49c.js",
-  "/_next/static/chunks/app/chart/[id]/page-8865ccbac2ec6afa.js",
+  "/_next/static/chunks/app/chart/[id]/page-26fea956fdd85c97.js",
   "/_next/static/chunks/app/chords/page-fb70f700dc073783.js",
   "/_next/static/chunks/app/folder/page-d443447c969a4965.js",
   "/_next/static/chunks/app/folder/[id]/layout-3dc8c8c7b19ce49c.js",
   "/_next/static/chunks/app/folder/[id]/page-ff2ff674ea96d853.js",
-  "/_next/static/chunks/app/layout-abc8dda2d8d95ff1.js",
+  "/_next/static/chunks/app/layout-caa33d3dbba39997.js",
   "/_next/static/chunks/app/loading-51838c9ccfe54024.js",
   "/_next/static/chunks/app/logo-review/page-6fa7211f611ddffa.js",
   "/_next/static/chunks/app/lyrics/edit/page-fa430769529c5b55.js",
@@ -178,10 +178,10 @@ const PRECACHE_ASSETS = [
   "/_next/static/chunks/app/lyrics/folder/[id]/layout-3dc8c8c7b19ce49c.js",
   "/_next/static/chunks/app/lyrics/folder/[id]/page-bf30c143af92d67b.js",
   "/_next/static/chunks/app/lyrics/page-516b4c451d45933f.js",
-  "/_next/static/chunks/app/lyrics/view/page-216aad06445e1215.js",
+  "/_next/static/chunks/app/lyrics/view/page-937431641f892f94.js",
   "/_next/static/chunks/app/lyrics/[id]/edit/page-809b81226ae4f5a5.js",
   "/_next/static/chunks/app/lyrics/[id]/layout-3dc8c8c7b19ce49c.js",
-  "/_next/static/chunks/app/lyrics/[id]/page-692bac29385ab29c.js",
+  "/_next/static/chunks/app/lyrics/[id]/page-9d4300ecb32e7dda.js",
   "/_next/static/chunks/app/not-found-740ccd64cb7e90a0.js",
   "/_next/static/chunks/app/page-80e83cf5a0b18423.js",
   "/_next/static/chunks/app/perform/page-3cb842ccf79a3eb4.js",
@@ -224,8 +224,8 @@ const PRECACHE_ASSETS = [
   "/_next/static/media/ac0e76ddaeeb7981-s.woff2",
   "/_next/static/media/edc640959b0c7826-s.woff2",
   "/_next/static/media/ff71da380fbe67dd-s.woff2",
-  "/_next/static/taRUG_UddxXUyu6Mf975W/_buildManifest.js",
-  "/_next/static/taRUG_UddxXUyu6Mf975W/_ssgManifest.js"
+  "/_next/static/oSUec4J9INhJBKyScm2Zn/_buildManifest.js",
+  "/_next/static/oSUec4J9INhJBKyScm2Zn/_ssgManifest.js"
 ];
 
 // Install: precache critical assets safely without blocking activation
@@ -623,14 +623,15 @@ self.addEventListener('fetch', (event) => {
         // If online, fetch from network and update cache
         try {
           const networkRes = await fetch(request);
-          if (networkRes && networkRes.status === 200) {
+          if (networkRes && networkRes.status === 200 && !networkRes.bodyUsed) {
             try {
               const clone1 = networkRes.clone();
-              const clone2 = networkRes.clone();
               caches.open(CACHE_NAME).then(async (cache) => {
                 try {
                   await cache.put(request, clone1);
-                  await cache.put(trimmed + '/index.txt', clone2);
+                  if (!clone1.bodyUsed) {
+                    await cache.put(trimmed + '/index.txt', clone1.clone());
+                  }
                 } catch (e) {}
               }).catch(() => {});
             } catch (e) {}
@@ -658,17 +659,16 @@ self.addEventListener('fetch', (event) => {
         if (navigator.onLine) {
           fetch(request)
             .then((networkResponse) => {
-              if (networkResponse && networkResponse.status === 200) {
+              if (networkResponse && networkResponse.status === 200 && !networkResponse.bodyUsed) {
                 const cc = networkResponse.headers.get('Cache-Control') || '';
                 if (!cc.includes('no-store') && !cc.includes('private')) {
                   try {
                     const clone1 = networkResponse.clone();
-                    const clone2 = networkResponse.clone();
                     caches.open(CACHE_NAME).then(async (cache) => {
                       try {
                         await cache.put(request, clone1);
-                        if (url.pathname && url.pathname !== request.url) {
-                          await cache.put(url.pathname, clone2);
+                        if (url.pathname && url.pathname !== request.url && !clone1.bodyUsed) {
+                          await cache.put(url.pathname, clone1.clone());
                         }
                       } catch (e) {}
                     }).catch(() => {});
@@ -703,17 +703,16 @@ self.addEventListener('fetch', (event) => {
       // If online, fetch from network with cache update
       try {
         const networkResponse = await fetch(request);
-        if (networkResponse && networkResponse.status === 200) {
+        if (networkResponse && networkResponse.status === 200 && !networkResponse.bodyUsed) {
           const cc = networkResponse.headers.get('Cache-Control') || '';
           if (!cc.includes('no-store') && !cc.includes('private')) {
             try {
               const clone1 = networkResponse.clone();
-              const clone2 = networkResponse.clone();
               caches.open(CACHE_NAME).then(async (cache) => {
                 try {
                   await cache.put(request, clone1);
-                  if (url.pathname && url.pathname !== request.url) {
-                    await cache.put(url.pathname, clone2);
+                  if (url.pathname && url.pathname !== request.url && !clone1.bodyUsed) {
+                    await cache.put(url.pathname, clone1.clone());
                   }
                 } catch (e) {}
               }).catch(() => {});

@@ -165,5 +165,33 @@ describe('Group 2: High Logic Bugs & Strict Typing Verification', () => {
       expect(chartDetailPage).toContain('authLoading');
       expect(chartDetailPage).toContain('if (chartLoading || authLoading || !chartId)');
     });
+
+    it('verifies mobile resilience: band upsert, self-healing retry on readChart/readLyrics, and sw safe cloning', async () => {
+      const fs = await import('fs');
+      const path = await import('path');
+
+      const storageCode = fs.readFileSync(path.resolve(__dirname, '../lib/storage.ts'), 'utf-8');
+      const lyricsCode = fs.readFileSync(path.resolve(__dirname, '../lib/lyrics.ts'), 'utf-8');
+      const bandCode = fs.readFileSync(path.resolve(__dirname, '../lib/band.ts'), 'utf-8');
+      const authCode = fs.readFileSync(path.resolve(__dirname, '../app/auth/page.tsx'), 'utf-8');
+      const swGenCode = fs.readFileSync(path.resolve(__dirname, '../scripts/generate-sw.js'), 'utf-8');
+      const chartPage = fs.readFileSync(path.resolve(__dirname, '../app/chart/page.tsx'), 'utf-8');
+
+      // 1. readChart and readLyrics retry after syncBandForUser when data is null/error
+      expect(storageCode).toContain('syncBandForUser(sessionUser)');
+      expect(lyricsCode).toContain('syncBandForUser(sessionUser)');
+
+      // 2. band.ts uses upsert on profiles to prevent missing row no-ops
+      expect(bandCode).toContain(".from('profiles').upsert(");
+
+      // 3. auth/page.tsx ensures DEFAULT_CHURCH_BAND_ID on account sign-in/creation
+      expect(authCode).toContain('DEFAULT_CHURCH_BAND_ID');
+
+      // 4. sw.js protects clone with !bodyUsed check
+      expect(swGenCode).toContain('!networkResponse.bodyUsed');
+
+      // 5. Chart viewer page offers a Retry button
+      expect(chartPage).toContain('Retry');
+    });
   });
 });

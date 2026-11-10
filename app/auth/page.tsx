@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
+import { DEFAULT_CHURCH_BAND_ID } from '@/lib/storage';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/AuthProvider';
 import { 
@@ -121,8 +122,8 @@ export default function AuthPage() {
               display_name: userMeta.full_name || userMeta.name || fallbackUsername,
               role: (userMeta.profession as string) || 'instrument',
               instrument: (userMeta.instrument as string) || null,
-              band_id: (userMeta.band_id as string) || null,
-              band_name: (userMeta.band_name as string) || null,
+              band_id: (userMeta.band_id as string) || (typeof window !== 'undefined' ? localStorage.getItem('chord-grid-band-id') : null) || DEFAULT_CHURCH_BAND_ID,
+              band_name: (userMeta.band_name as string) || (typeof window !== 'undefined' ? localStorage.getItem('chord-grid-band-name') : null) || 'Infant Jesus Church',
             });
           } else {
             const profileUpdates: Record<string, string> = {};
@@ -131,6 +132,10 @@ export default function AuthPage() {
             }
             if (!existingProfile.display_name && (userMeta.full_name || userMeta.name || fallbackUsername)) {
               profileUpdates.display_name = userMeta.full_name || userMeta.name || fallbackUsername;
+            }
+            if (!existingProfile.band_id) {
+              profileUpdates.band_id = (typeof window !== 'undefined' ? localStorage.getItem('chord-grid-band-id') : null) || (userMeta.band_id as string) || DEFAULT_CHURCH_BAND_ID;
+              profileUpdates.band_name = (typeof window !== 'undefined' ? localStorage.getItem('chord-grid-band-name') : null) || (userMeta.band_name as string) || 'Infant Jesus Church';
             }
             if (Object.keys(profileUpdates).length > 0) {
               await supabase.from('profiles').update(profileUpdates).eq('id', session.user.id);
@@ -516,6 +521,8 @@ export default function AuthPage() {
               username: cleanUsername,
               display_name: cleanUsername,
               role: 'instrument',
+              band_id: DEFAULT_CHURCH_BAND_ID,
+              band_name: 'Infant Jesus Church',
             });
             if (typeof window !== 'undefined') {
               localStorage.setItem(`${data.user.id}_username`, cleanUsername);

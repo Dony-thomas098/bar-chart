@@ -220,11 +220,15 @@ export async function syncBandForUser(user: { id: string; email?: string | null;
         // Ensure user's profile has this band populated if missing
         try {
           if (profile?.band_id !== band.id) {
-            await supabase.from('profiles').update({
+            await supabase.from('profiles').upsert({
+              id: user.id,
+              email: user.email || null,
               band_id: band.id,
               band_name: band.name,
+              role: profile?.role || 'instrument',
+              instrument: profile?.instrument || null,
               updated_at: new Date().toISOString(),
-            }).eq('id', user.id);
+            }, { onConflict: 'id' });
           }
         } catch {}
 
@@ -245,11 +249,15 @@ export async function syncBandForUser(user: { id: string; email?: string | null;
 
       try {
         if (profile?.band_id !== band.id) {
-          await supabase.from('profiles').update({
+          await supabase.from('profiles').upsert({
+            id: user.id,
+            email: user.email || null,
             band_id: band.id,
             band_name: band.name,
+            role: profile?.role || 'instrument',
+            instrument: profile?.instrument || null,
             updated_at: new Date().toISOString(),
-          }).eq('id', user.id);
+          }, { onConflict: 'id' });
         }
       } catch {}
 
@@ -269,11 +277,15 @@ export async function syncBandForUser(user: { id: string; email?: string | null;
         saveBandLocally(metaBand, user.email);
         try {
           if (profile?.band_id !== metaBand.id) {
-            await supabase.from('profiles').update({
+            await supabase.from('profiles').upsert({
+              id: user.id,
+              email: user.email || null,
               band_id: metaBand.id,
               band_name: metaBand.name,
+              role: profile?.role || 'instrument',
+              instrument: profile?.instrument || null,
               updated_at: new Date().toISOString(),
-            }).eq('id', user.id);
+            }, { onConflict: 'id' });
           }
         } catch {}
         return metaBand;
@@ -292,11 +304,15 @@ export async function syncBandForUser(user: { id: string; email?: string | null;
       saveBandLocally(band, user.email);
       try {
         if (profile?.band_id !== band.id) {
-          await supabase.from('profiles').update({
+          await supabase.from('profiles').upsert({
+            id: user.id,
+            email: user.email || null,
             band_id: band.id,
             band_name: band.name,
+            role: profile?.role || 'instrument',
+            instrument: profile?.instrument || null,
             updated_at: new Date().toISOString(),
-          }).eq('id', user.id);
+          }, { onConflict: 'id' });
         }
       } catch {}
       return band;
@@ -313,8 +329,8 @@ export async function syncBandForUser(user: { id: string; email?: string | null;
         .from('bands')
         .select('*')
         .or('code.ilike.INFANTJESUS,code.ilike.1234')
-        .maybeSingle();
-      churchBand = data;
+        .limit(1);
+      churchBand = data?.[0] || null;
     } catch {}
 
     const defaultBand = churchBand || {

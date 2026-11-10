@@ -88,12 +88,37 @@ export async function readLyrics(id: string): Promise<Lyric | null> {
         await supabase.auth.getSession();
       } catch {}
 
+      let sessionUser: any = null;
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        sessionUser = sessionData?.session?.user || null;
+      } catch {}
+
       const fetchPromise = supabase.from('lyrics').select('*').eq('id', id).maybeSingle();
       const timeoutPromise = new Promise<any>((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000));
       const { data, error } = await Promise.race([fetchPromise, timeoutPromise]);
       if (!error && data) {
         await cacheLyric(data);
         return data;
+      }
+
+      // If query failed or returned null and user is logged in, sync band & retry (fixes cold-mount RLS isolation on mobile)
+      if ((!data || error) && sessionUser) {
+        try {
+          const { syncBandForUser } = await import('./band');
+          await syncBandForUser(sessionUser);
+          const { data: retryData, error: retryError } = await supabase
+            .from('lyrics')
+            .select('*')
+            .eq('id', id)
+            .maybeSingle();
+          if (!retryError && retryData) {
+            await cacheLyric(retryData);
+            return retryData;
+          }
+        } catch (syncErr) {
+          console.warn('[Lyrics] Retrying lyrics read after band sync failed:', syncErr);
+        }
       }
     } catch (err) {
       console.warn('[Lyrics] Network error reading lyrics, falling back to local storage:', err);

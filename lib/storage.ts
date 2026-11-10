@@ -1198,12 +1198,37 @@ export async function readChart(id: string, bypassCache = false): Promise<Chart 
         await supabase.auth.getSession();
       } catch {}
 
+      let sessionUser: any = null;
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        sessionUser = sessionData?.session?.user || null;
+      } catch {}
+
       const fetchPromise = supabase.from('charts').select('*').eq('id', id).maybeSingle();
       const timeoutPromise = new Promise<any>((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000));
       const { data, error } = await Promise.race([fetchPromise, timeoutPromise]);
       if (!error && data) {
         await cacheChart(data);
         return data;
+      }
+
+      // If query failed or returned null and user is logged in, sync band & retry (fixes cold-mount RLS isolation on mobile)
+      if ((!data || error) && sessionUser) {
+        try {
+          const { syncBandForUser } = await import('./band');
+          await syncBandForUser(sessionUser);
+          const { data: retryData, error: retryError } = await supabase
+            .from('charts')
+            .select('*')
+            .eq('id', id)
+            .maybeSingle();
+          if (!retryError && retryData) {
+            await cacheChart(retryData);
+            return retryData;
+          }
+        } catch (syncErr) {
+          console.warn('[Storage] Retrying chart read after band sync failed:', syncErr);
+        }
       }
     } catch (err) {
       console.warn('[Storage] Network error reading chart, falling back to local storage:', err);
@@ -1534,15 +1559,39 @@ export async function saveLyrics(lyrics: Lyric) {
 
 export async function readLyrics(id: string): Promise<any | null> {
   if (isOnline()) {
+    let sessionUser: any = null;
     try {
-      await supabase.auth.getSession();
+      const { data: sessionData } = await supabase.auth.getSession();
+      sessionUser = sessionData?.session?.user || null;
     } catch {}
-    const { data } = await supabase.from('lyrics').select('*').eq('id', id).maybeSingle();
-    if (data && dbPromise) {
-      const db = await dbPromise;
-      await db.put('lyrics', data);
+    const { data, error } = await supabase.from('lyrics').select('*').eq('id', id).maybeSingle();
+    if (!error && data) {
+      if (dbPromise) {
+        const db = await dbPromise;
+        await db.put('lyrics', data);
+      }
+      return data;
     }
-    return data;
+    if ((!data || error) && sessionUser) {
+      try {
+        const { syncBandForUser } = await import('./band');
+        await syncBandForUser(sessionUser);
+        const { data: retryData, error: retryError } = await supabase
+          .from('lyrics')
+          .select('*')
+          .eq('id', id)
+          .maybeSingle();
+        if (!retryError && retryData) {
+          if (dbPromise) {
+            const db = await dbPromise;
+            await db.put('lyrics', retryData);
+          }
+          return retryData;
+        }
+      } catch (syncErr) {
+        console.warn('[Storage] Retrying lyrics read after band sync failed:', syncErr);
+      }
+    }
   } else if (dbPromise) {
     const db = await dbPromise;
     return (await db.get('lyrics', id)) || null;

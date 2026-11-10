@@ -89,6 +89,12 @@ function LyricsViewerDetailContent() {
           >
             Go to Lyrics Catalog
           </button>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-5 py-2.5 bg-white/10 hover:bg-white/20 font-bold rounded-xl text-white transition-all"
+          >
+            Retry
+          </button>
           {!user && (
             <button
               onClick={() => router.push('/auth')}

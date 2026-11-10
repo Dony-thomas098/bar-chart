@@ -45,6 +45,10 @@ export function useLyricsSync(lyricId: string) {
           try {
             const { data: authData } = await supabase.auth.getSession();
             if (authData?.session?.user && isMounted) {
+              try {
+                const { syncBandForUser } = await import('@/lib/band');
+                await syncBandForUser(authData.session.user);
+              } catch {}
               const retried = await readLyrics(lyricId);
               if (isMounted && retried) {
                 clearTimeout(safetyTimer);
@@ -70,8 +74,12 @@ export function useLyricsSync(lyricId: string) {
       });
 
     // Re-attempt fetch when Supabase auth session initializes or changes (fixes cold-load RLS race condition)
-    const { data: { subscription: authSub } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription: authSub } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session?.user && isMounted && !latestLyricRef.current) {
+        try {
+          const { syncBandForUser } = await import('@/lib/band');
+          await syncBandForUser(session.user);
+        } catch {}
         readLyrics(lyricId).then(data => {
           if (isMounted && data) {
             clearTimeout(safetyTimer);

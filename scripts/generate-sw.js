@@ -549,14 +549,15 @@ self.addEventListener('fetch', (event) => {
         // If online, fetch from network and update cache
         try {
           const networkRes = await fetch(request);
-          if (networkRes && networkRes.status === 200) {
+          if (networkRes && networkRes.status === 200 && !networkRes.bodyUsed) {
             try {
               const clone1 = networkRes.clone();
-              const clone2 = networkRes.clone();
               caches.open(CACHE_NAME).then(async (cache) => {
                 try {
                   await cache.put(request, clone1);
-                  await cache.put(trimmed + '/index.txt', clone2);
+                  if (!clone1.bodyUsed) {
+                    await cache.put(trimmed + '/index.txt', clone1.clone());
+                  }
                 } catch (e) {}
               }).catch(() => {});
             } catch (e) {}
@@ -584,17 +585,16 @@ self.addEventListener('fetch', (event) => {
         if (navigator.onLine) {
           fetch(request)
             .then((networkResponse) => {
-              if (networkResponse && networkResponse.status === 200) {
+              if (networkResponse && networkResponse.status === 200 && !networkResponse.bodyUsed) {
                 const cc = networkResponse.headers.get('Cache-Control') || '';
                 if (!cc.includes('no-store') && !cc.includes('private')) {
                   try {
                     const clone1 = networkResponse.clone();
-                    const clone2 = networkResponse.clone();
                     caches.open(CACHE_NAME).then(async (cache) => {
                       try {
                         await cache.put(request, clone1);
-                        if (url.pathname && url.pathname !== request.url) {
-                          await cache.put(url.pathname, clone2);
+                        if (url.pathname && url.pathname !== request.url && !clone1.bodyUsed) {
+                          await cache.put(url.pathname, clone1.clone());
                         }
                       } catch (e) {}
                     }).catch(() => {});
@@ -629,17 +629,16 @@ self.addEventListener('fetch', (event) => {
       // If online, fetch from network with cache update
       try {
         const networkResponse = await fetch(request);
-        if (networkResponse && networkResponse.status === 200) {
+        if (networkResponse && networkResponse.status === 200 && !networkResponse.bodyUsed) {
           const cc = networkResponse.headers.get('Cache-Control') || '';
           if (!cc.includes('no-store') && !cc.includes('private')) {
             try {
               const clone1 = networkResponse.clone();
-              const clone2 = networkResponse.clone();
               caches.open(CACHE_NAME).then(async (cache) => {
                 try {
                   await cache.put(request, clone1);
-                  if (url.pathname && url.pathname !== request.url) {
-                    await cache.put(url.pathname, clone2);
+                  if (url.pathname && url.pathname !== request.url && !clone1.bodyUsed) {
+                    await cache.put(url.pathname, clone1.clone());
                   }
                 } catch (e) {}
               }).catch(() => {});
