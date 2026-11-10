@@ -5,6 +5,7 @@ export interface FitOptions {
   cardHeight: number;
   showUI?: boolean;
   topPadding?: number;
+  isLocked?: boolean;
 }
 
 export interface FitResult {
@@ -26,6 +27,7 @@ export function calculateScoreFit({
   cardHeight,
   showUI = true,
   topPadding,
+  isLocked = false,
 }: FitOptions): FitResult {
   if (viewportWidth <= 0 || cardWidth <= 0) {
     return { scale: 1, posX: 0, posY: 24, effectiveMinScale: 1 };
@@ -67,9 +69,12 @@ export function calculateScoreFit({
     }
 
     const scaledWidth = cardWidth * scale;
+    const scaledHeight = cardHeight * scale;
     // Exactly center horizontally
     posX = Math.max(0, (viewportWidth - scaledWidth) / 2);
-    posY = topOffset;
+    posY = (isLocked && scaledHeight < viewportHeight)
+      ? Math.max(topOffset, (viewportHeight - scaledHeight) / 2)
+      : topOffset;
   } else if (isPhoneRotate) {
     // IN PHONE ROTATE / LANDSCAPE MODE:
     const availableWidth = Math.max(260, viewportWidth - 24);
@@ -92,8 +97,11 @@ export function calculateScoreFit({
     }
 
     const scaledWidth = cardWidth * scale;
+    const scaledHeight = cardHeight * scale;
     posX = Math.max(0, (viewportWidth - scaledWidth) / 2);
-    posY = topOffset;
+    posY = (isLocked && scaledHeight < viewportHeight)
+      ? Math.max(topOffset, (viewportHeight - scaledHeight) / 2)
+      : topOffset;
   }
 
   // Allow zooming out comfortably

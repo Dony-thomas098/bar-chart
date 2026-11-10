@@ -70,6 +70,7 @@ function ChartContentWrapper({
       cardWidth,
       cardHeight,
       showUI,
+      isLocked,
     });
 
     if (instance.setup) {
@@ -83,16 +84,19 @@ function ChartContentWrapper({
     isInitialFitRef.current = false;
 
     setTransform(posX, posY, scale, animDuration);
-  }, [instance, setTransform, onBaseScaleChange, showUI]);
+  }, [instance, setTransform, onBaseScaleChange, showUI, isLocked]);
 
   useEffect(() => {
     let t1: any;
     let t2: any;
+    let t3: any;
     const runFit = () => {
       clearTimeout(t1);
       clearTimeout(t2);
+      clearTimeout(t3);
       t1 = setTimeout(fitToScreen, 50);
       t2 = setTimeout(fitToScreen, 200);
+      t3 = setTimeout(fitToScreen, 350);
     };
     runFit();
     window.addEventListener('resize', runFit);
@@ -102,12 +106,13 @@ function ChartContentWrapper({
     return () => {
       clearTimeout(t1);
       clearTimeout(t2);
+      clearTimeout(t3);
       window.removeEventListener('resize', runFit);
       window.removeEventListener('orientationchange', runFit);
       window.removeEventListener('piascore-fit-screen', runFit);
       window.removeEventListener('chord-grid-font-change', runFit);
     };
-  }, [fitToScreen, chart.id, showUI]);
+  }, [fitToScreen, chart.id, showUI, isLocked]);
 
   return <ChartRenderer chart={chart} selectedFont={selectedFont} chordColor={chordColor} isLocked={isLocked} id="piascore-chart-card" />;
 }
@@ -213,6 +218,17 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
   // ── UI Auto-hide / Header Toggle ────────────────────────────────────────────
   const [showUI, setShowUI] = useState(true);
   const [isStageLocked, setIsStageLocked] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      (window as any).__chordly_viewing_chords = true;
+    }
+    return () => {
+      if (typeof window !== 'undefined') {
+        (window as any).__chordly_viewing_chords = false;
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -578,6 +594,21 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
   const showLockNotificationRef = useRef(showLockNotification);
   showLockNotificationRef.current = showLockNotification;
 
+  useEffect(() => {
+    (window as any).__chordly_stage_locked = isStageLocked;
+    return () => {
+      (window as any).__chordly_stage_locked = false;
+    };
+  }, [isStageLocked]);
+
+  useEffect(() => {
+    const handleAlert = () => {
+      showLockNotification('Screen is locked · Tap lock icon to unlock');
+    };
+    window.addEventListener('chordly-stage-lock-alert', handleAlert);
+    return () => window.removeEventListener('chordly-stage-lock-alert', handleAlert);
+  }, [showLockNotification]);
+
   // ── Block going back to menu screen when screen lock is enabled ───────────
   useEffect(() => {
     if (!isStageLocked || typeof window === 'undefined') return;
@@ -608,7 +639,7 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
   }, [isStageLocked]);
 
   return (
-    <div className="fixed inset-0 w-screen h-screen bg-[#0F1015] text-[#F4F2F0] flex flex-col overflow-hidden select-none font-sans relative">
+    <div data-viewing-chords="true" className="fixed inset-0 w-screen h-screen bg-[#0F1015] text-[#F4F2F0] flex flex-col overflow-hidden select-none font-sans relative">
       {/* ── Soft warm radial glow in top-left corner ──────────────────────── */}
       <div 
         className="absolute top-0 left-0 w-[500px] h-[500px] sm:w-[700px] sm:h-[700px] pointer-events-none z-0"

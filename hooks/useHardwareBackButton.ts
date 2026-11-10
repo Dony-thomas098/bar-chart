@@ -27,17 +27,21 @@ export function useHardwareBackButton({
   useEffect(() => {
     if (!enabled || typeof window === 'undefined') return;
 
+    (window as any).__chordly_modal_open = true;
+
     // Push state so Android back pops this state rather than leaving page
     window.history.pushState({ [stateKey]: true }, '');
     pushedRef.current = true;
 
     const handlePopState = () => {
       pushedRef.current = false;
+      (window as any).__chordly_modal_open = false;
       onBackRef.current();
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
+        (window as any).__chordly_modal_open = false;
         if (pushedRef.current) {
           pushedRef.current = false;
           window.history.back();
@@ -51,6 +55,7 @@ export function useHardwareBackButton({
     window.addEventListener('keydown', handleKeyDown);
 
     return () => {
+      (window as any).__chordly_modal_open = false;
       window.removeEventListener('popstate', handlePopState);
       window.removeEventListener('keydown', handleKeyDown);
       pushedRef.current = false;

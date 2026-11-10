@@ -119,6 +119,9 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
   const selectedItemsRef = useRef(selectedItems);
   useEffect(() => {
     selectedItemsRef.current = selectedItems;
+    if (typeof window !== 'undefined') {
+      (window as any).__chordly_selection_active = selectedItems.length > 0;
+    }
   }, [selectedItems]);
 
   // Track if any modal is currently active
@@ -134,7 +137,19 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
   const isModalActiveRef = useRef(isModalActive);
   useEffect(() => {
     isModalActiveRef.current = isModalActive;
+    if (typeof window !== 'undefined') {
+      (window as any).__chordly_modal_open = isModalActive;
+    }
   }, [isModalActive]);
+
+  useEffect(() => {
+    return () => {
+      if (typeof window !== 'undefined') {
+        (window as any).__chordly_modal_open = false;
+        (window as any).__chordly_selection_active = false;
+      }
+    };
+  }, []);
 
   // Exit toast state for double-back to exit on phone
   const [showExitToast, setShowExitToast] = useState(false);
@@ -189,11 +204,32 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
         return;
       }
 
-      // 4. If at ROOT with nothing selected and no modals open:
+      // Check whether we are currently on the actual root home screen ('/' or '')
+      const currentPath = (typeof window !== 'undefined' ? window.location.pathname : '').replace(/\/+$/, '') || '/';
+      const isActualHome = currentPath === '/';
+
+      if (!isActualHome) {
+        // On another module (e.g. /chords or /lyrics):
+        // Back button must navigate to the home screen ('/'), NEVER exit!
+        try {
+          window.history.pushState({ chordCraftTrap: true }, '', window.location.href);
+        } catch {}
+        router.push('/');
+        return;
+      }
+
+      // 4. ONLY if at true ROOT HOME SCREEN ('/') with nothing selected and no modals open:
       // Double-back within 2 seconds exits the app, single back shows toast
       const now = Date.now();
       if (now - lastBackPressTime < 2000) {
-        // Confirmed double-back: allow app to close
+        // Confirmed double-back on homescreen: allow app to close
+        try {
+          const cap = (window as any).Capacitor;
+          if (cap?.Plugins?.App?.exitApp) {
+            cap.Plugins.App.exitApp();
+            return;
+          }
+        } catch {}
         window.history.back();
       } else {
         lastBackPressTime = now;
@@ -208,9 +244,19 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
       }
     };
 
+    const handleExitToastEvent = () => {
+      setShowExitToast(true);
+      if (exitToastTimer.current) clearTimeout(exitToastTimer.current);
+      exitToastTimer.current = setTimeout(() => {
+        setShowExitToast(false);
+      }, 2000);
+    };
+
     window.addEventListener('popstate', handlePopState);
+    window.addEventListener('chordly-show-exit-toast', handleExitToastEvent);
     return () => {
       window.removeEventListener('popstate', handlePopState);
+      window.removeEventListener('chordly-show-exit-toast', handleExitToastEvent);
       if (exitToastTimer.current) clearTimeout(exitToastTimer.current);
     };
   }, [folderId, kind, router]);

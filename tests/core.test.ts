@@ -503,6 +503,80 @@ describe('Multi-Device Band Synchronization & Profile Field Preservation', () =>
     expect(setlistPerformPage).toContain('centerOnInit={false}');
     expect(setlistPerformPage).toContain('centerZoomedOut={false}');
   });
+
+  it('guarantees calculateScoreFit centers short charts vertically when isLocked is true', async () => {
+    const { calculateScoreFit } = await import('../lib/score-fit');
+
+    // 1. Mobile Portrait: short chart (350px tall in 844px viewport)
+    // When unlocked: stays at topOffset (8px)
+    const unlocked = calculateScoreFit({
+      viewportWidth: 390,
+      viewportHeight: 844,
+      cardWidth: 700,
+      cardHeight: 350,
+      showUI: false,
+      isLocked: false,
+    });
+    expect(unlocked.posY).toBe(8);
+
+    // When locked: perfectly centered vertically in the viewport
+    const locked = calculateScoreFit({
+      viewportWidth: 390,
+      viewportHeight: 844,
+      cardWidth: 700,
+      cardHeight: 350,
+      showUI: false,
+      isLocked: true,
+    });
+    const scaledHeight = 350 * locked.scale;
+    const expectedPosY = (844 - scaledHeight) / 2;
+    expect(locked.posY).toBeCloseTo(expectedPosY, 1);
+    expect(locked.posY).toBeGreaterThan(8);
+
+    // 2. Mobile Portrait: tall chart (1200px tall in 844px viewport)
+    // When locked: must stay at topOffset so the top is not clipped
+    const tallLocked = calculateScoreFit({
+      viewportWidth: 390,
+      viewportHeight: 844,
+      cardWidth: 700,
+      cardHeight: 1800,
+      showUI: false,
+      isLocked: true,
+    });
+    expect(tallLocked.posY).toBe(8);
+
+    // 3. iPad Pro 13" (1032x1376) and Tablet/Desktop: short/medium chart
+    const ipadUnlocked = calculateScoreFit({
+      viewportWidth: 1032,
+      viewportHeight: 1376,
+      cardWidth: 700,
+      cardHeight: 600,
+      showUI: false,
+      isLocked: false,
+    });
+    expect(ipadUnlocked.posY).toBe(8);
+
+    const ipadLocked = calculateScoreFit({
+      viewportWidth: 1032,
+      viewportHeight: 1376,
+      cardWidth: 700,
+      cardHeight: 600,
+      showUI: false,
+      isLocked: true,
+    });
+    const ipadScaledHeight = 600 * ipadLocked.scale;
+    const ipadExpectedPosY = (1376 - ipadScaledHeight) / 2;
+    expect(ipadLocked.posY).toBeCloseTo(ipadExpectedPosY, 1);
+    expect(ipadLocked.posY).toBeGreaterThan(8);
+
+    // 4. Component wiring: Ensure readers pass isLocked to calculateScoreFit
+    const piascoreReader = fs.readFileSync('components/PiascoreReader.tsx', 'utf8');
+    expect(piascoreReader).toContain('isLocked,');
+    expect(piascoreReader).toContain('calculateScoreFit({\n      viewportWidth,\n      viewportHeight,\n      cardWidth,\n      cardHeight,\n      showUI,\n      isLocked,'.replace(/\n/g, piascoreReader.includes('\r\n') ? '\r\n' : '\n'));
+
+    const lyricsReader = fs.readFileSync('components/PiascoreLyricsReader.tsx', 'utf8');
+    expect(lyricsReader).toContain('isLocked={isStageLocked}');
+  });
 });
 
 
@@ -600,6 +674,7 @@ describe('Hydration Invariants and SSR Consistency', () => {
     const setlistPerform = fs.readFileSync(path.resolve(__dirname, '../app/setlists/[id]/perform/page.tsx'), 'utf-8');
 
     expect(setlistPerform).toContain('suppressHydrationWarning');
+    expect(setlistPerform).toContain("mounted && !loading && mode === 'loading' && !isLeaderDevice ? 'Waiting for leader to join…' : 'Loading…'");
     expect(setlistPerform).toContain("!loading && mode === 'loading' && !isLeaderDevice ? 'Waiting for leader to join…' : 'Loading…'");
   });
 });
@@ -770,5 +845,93 @@ describe('Offline Stability & Resource Handling', () => {
 
     expect(syncContext).toContain('!navigator.onLine');
     expect(syncContext).toContain("window.addEventListener('offline', handleOffline)");
+  });
+});
+
+
+describe('Application Exit and Back Button Navigation Rules', () => {
+  it('guarantees FolderBrowser only allows exit when pathname is the root home screen', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+    const folderBrowser = fs.readFileSync(path.resolve(__dirname, '../components/FolderBrowser.tsx'), 'utf-8');
+
+    // Must check for root home screen before triggering exit toast or back exit
+    expect(folderBrowser).toContain('const isActualHome = currentPath === \'/\'');
+    expect(folderBrowser).toContain('if (!isActualHome)');
+    expect(folderBrowser).toContain("router.push('/')");
+
+    // Exit toast event listener wired up
+    expect(folderBrowser).toContain('chordly-show-exit-toast');
+    // Native exitApp fallback wired up
+    expect(folderBrowser).toContain('cap.Plugins.App.exitApp()');
+  });
+
+  it('guarantees CapacitorInit navigates to home on non-home modules and exits only from home', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+    const capInit = fs.readFileSync(path.resolve(__dirname, '../components/CapacitorInit.tsx'), 'utf-8');
+
+    // On non-home routes, back button navigates to home ('/')
+    expect(capInit).toContain("const isHomeScreen = normalizedPath === '/'");
+    expect(capInit).toContain('chordly_module_trap');
+    expect(capInit).toContain("router.push('/')");
+
+    // On native back button, non-home routes always return to home screen
+    expect(capInit).toContain('if (!atHome)');
+    expect(capInit).toContain('exitApp');
+
+    // Stage lock and modal priority checks exist before exit
+    expect(capInit).toContain('__chordly_stage_locked');
+    expect(capInit).toContain('__chordly_modal_open');
+    expect(capInit).toContain('chordly-stage-lock-alert');
+  });
+
+  it('guarantees stage lock signals are integrated into Piascore readers', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+    const reader = fs.readFileSync(path.resolve(__dirname, '../components/PiascoreReader.tsx'), 'utf-8');
+    const lyricsReader = fs.readFileSync(path.resolve(__dirname, '../components/PiascoreLyricsReader.tsx'), 'utf-8');
+
+    expect(reader).toContain('(window as any).__chordly_stage_locked = isStageLocked');
+    expect(lyricsReader).toContain('(window as any).__chordly_stage_locked = isStageLocked');
+    expect(reader).toContain('chordly-stage-lock-alert');
+    expect(lyricsReader).toContain('chordly-stage-lock-alert');
+  });
+});
+
+
+describe('Navigation Bar Visibility Rules', () => {
+  it('strictly hides the rounded navigation bar on setlist detail and perform screens', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+    const navCode = fs.readFileSync(path.resolve(__dirname, '../components/Navigation.tsx'), 'utf-8');
+    const setlistDetail = fs.readFileSync(path.resolve(__dirname, '../app/setlists/[id]/page.tsx'), 'utf-8');
+    const setlistPerform = fs.readFileSync(path.resolve(__dirname, '../app/setlists/[id]/perform/page.tsx'), 'utf-8');
+    const css = fs.readFileSync(path.resolve(__dirname, '../app/globals.css'), 'utf-8');
+
+    // Navigation.tsx must detect setlist detail and perform routes and return null
+    expect(navCode).toContain('isSetlistDetailOrPerform');
+    expect(navCode).toContain("cleanPath.startsWith('/setlists/')");
+    expect(navCode).toContain("cleanPath !== '/setlists'");
+
+    // Setlist perform & detail mark data attributes and suppress showUI
+    expect(setlistPerform).toContain('data-viewing-setlist="true"');
+    expect(setlistPerform).toContain('data-viewing-chords="true"');
+    expect(setlistDetail).toContain('data-viewing-setlist="true"');
+
+    // CSS guarantees hiding the dock via :has attribute selectors
+    expect(css).toContain('data-viewing-setlist');
+    expect(css).toContain('data-viewing-chords');
+  });
+
+  it('strictly hides the rounded navigation bar when viewing chord charts', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+    const navCode = fs.readFileSync(path.resolve(__dirname, '../components/Navigation.tsx'), 'utf-8');
+    const reader = fs.readFileSync(path.resolve(__dirname, '../components/PiascoreReader.tsx'), 'utf-8');
+
+    expect(navCode).toContain('isChartScreen');
+    expect(navCode).toContain('__chordly_viewing_chords');
+    expect(reader).toContain('data-viewing-chords="true"');
   });
 });

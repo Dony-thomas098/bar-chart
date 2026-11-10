@@ -87,6 +87,7 @@ function LyricsContentWrapper({
   textColor,
   textAlign = 'center',
   showUI = true,
+  isLocked = false,
   onBaseScaleChange,
 }: {
   lyric: Lyric;
@@ -94,6 +95,7 @@ function LyricsContentWrapper({
   textColor: string;
   textAlign?: 'center' | 'left' | 'right';
   showUI?: boolean;
+  isLocked?: boolean;
   onBaseScaleChange?: (scale: number) => void;
 }) {
   const { setTransform, instance } = useControls();
@@ -115,6 +117,7 @@ function LyricsContentWrapper({
       cardWidth,
       cardHeight,
       showUI,
+      isLocked,
     });
 
     if (instance.setup) {
@@ -128,16 +131,19 @@ function LyricsContentWrapper({
     isInitialFitRef.current = false;
 
     setTransform(posX, posY, scale, animDuration);
-  }, [instance, setTransform, onBaseScaleChange, showUI]);
+  }, [instance, setTransform, onBaseScaleChange, showUI, isLocked]);
 
   useEffect(() => {
     let t1: any;
     let t2: any;
+    let t3: any;
     const runFit = () => {
       clearTimeout(t1);
       clearTimeout(t2);
+      clearTimeout(t3);
       t1 = setTimeout(fitLyrics, 50);
       t2 = setTimeout(fitLyrics, 200);
+      t3 = setTimeout(fitLyrics, 350);
     };
     runFit();
     window.addEventListener('resize', runFit);
@@ -145,10 +151,11 @@ function LyricsContentWrapper({
     return () => {
       clearTimeout(t1);
       clearTimeout(t2);
+      clearTimeout(t3);
       window.removeEventListener('resize', runFit);
       window.removeEventListener('orientationchange', runFit);
     };
-  }, [fitLyrics, lyric.id, showUI]);
+  }, [fitLyrics, lyric.id, showUI, isLocked]);
 
   return (
     <PlainLyricsCard
@@ -541,6 +548,21 @@ export function PiascoreLyricsReader({ initialLyric, folderId }: Props) {
   const showLockNotificationRef = useRef(showLockNotification);
   showLockNotificationRef.current = showLockNotification;
 
+  useEffect(() => {
+    (window as any).__chordly_stage_locked = isStageLocked;
+    return () => {
+      (window as any).__chordly_stage_locked = false;
+    };
+  }, [isStageLocked]);
+
+  useEffect(() => {
+    const handleAlert = () => {
+      showLockNotification('Screen is locked · Tap lock icon to unlock');
+    };
+    window.addEventListener('chordly-stage-lock-alert', handleAlert);
+    return () => window.removeEventListener('chordly-stage-lock-alert', handleAlert);
+  }, [showLockNotification]);
+
   // ── Block going back to menu screen when screen lock is enabled ───────────
   useEffect(() => {
     if (!isStageLocked || typeof window === 'undefined') return;
@@ -880,6 +902,7 @@ export function PiascoreLyricsReader({ initialLyric, folderId }: Props) {
                 textColor={textColor}
                 textAlign={textAlign}
                 showUI={showUI}
+                isLocked={isStageLocked}
                 onBaseScaleChange={setMinZoomScale}
               />
             </div>

@@ -435,22 +435,52 @@ export function Navigation() {
   }
 
   const cleanPath = (pathname || '').replace(/\/+$/, '') || '/';
+  const browserPath = typeof window !== 'undefined' ? (window.location.pathname || '').replace(/\/+$/, '') : '';
 
   // NEVER show main navigation bar on:
   // - Chord charts reader or editor (/chart, /chart/*)
   // - Lyrics reader or editor (/lyrics/view, /lyrics/* except /lyrics and /lyrics/folder)
+  // - Setlist viewing or performance screens (/setlists/view, /setlists/perform, /setlists/* except /setlists catalog)
   // - Live performance screens (/perform, /perform/*)
   // - Printer screen (/printer, /printer/*)
-  const isAuthScreen = cleanPath === '/auth';
-  const isChartScreen = cleanPath === '/chart' || cleanPath.startsWith('/chart/');
+  const isAuthScreen = cleanPath === '/auth' || browserPath === '/auth';
+  const isChartScreen =
+    cleanPath === '/chart' ||
+    cleanPath.startsWith('/chart/') ||
+    cleanPath.startsWith('/chart') ||
+    browserPath === '/chart' ||
+    browserPath.startsWith('/chart/');
   const isLyricsReaderOrEditor =
     cleanPath.startsWith('/lyrics/view') ||
     cleanPath.includes('/edit') ||
-    (cleanPath.startsWith('/lyrics/') && !cleanPath.startsWith('/lyrics/folder'));
-  const isPerformScreen = cleanPath.startsWith('/perform') || cleanPath.includes('/perform');
-  const isPrinterScreen = cleanPath.startsWith('/printer');
+    (cleanPath.startsWith('/lyrics/') && !cleanPath.startsWith('/lyrics/folder')) ||
+    browserPath.startsWith('/lyrics/view') ||
+    (browserPath.startsWith('/lyrics/') && !browserPath.startsWith('/lyrics/folder'));
+  const isSetlistDetailOrPerform =
+    cleanPath.startsWith('/setlists/') ||
+    (cleanPath.startsWith('/setlists') && cleanPath !== '/setlists') ||
+    browserPath.startsWith('/setlists/') ||
+    (browserPath.startsWith('/setlists') && browserPath !== '/setlists');
+  const isPerformScreen =
+    cleanPath.startsWith('/perform') ||
+    cleanPath.includes('/perform') ||
+    browserPath.startsWith('/perform') ||
+    browserPath.includes('/perform');
+  const isPrinterScreen = cleanPath === '/printer' || cleanPath.startsWith('/printer/') || browserPath.startsWith('/printer');
+  const isDynamicViewingActive =
+    typeof window !== 'undefined' &&
+    Boolean((window as any).__chordly_viewing_chords || (window as any).__chordly_viewing_setlist);
 
-  if (isAuthScreen || isChartScreen || isLyricsReaderOrEditor || isPerformScreen || isPrinterScreen || readerUIHidden) {
+  if (
+    isAuthScreen ||
+    isChartScreen ||
+    isLyricsReaderOrEditor ||
+    isSetlistDetailOrPerform ||
+    isPerformScreen ||
+    isPrinterScreen ||
+    isDynamicViewingActive ||
+    readerUIHidden
+  ) {
     return null;
   }
 

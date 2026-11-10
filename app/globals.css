@@ -656,3 +656,16 @@ body {
     display: none !important;
   }
 }
+
+
+/* Automatically hide floating navigation dock when viewing chords, lyrics, or setlists */
+body:has([data-viewing-chords="true"]) nav[aria-label="Main Navigation"],
+body:has([data-viewing-setlist="true"]) nav[aria-label="Main Navigation"],
+body:has([data-viewing-lyrics="true"]) nav[aria-label="Main Navigation"],
+body:has([data-viewing-chords="true"]) .fixed.bottom-0.z-40:has(nav[aria-label="Main Navigation"]),
+body:has([data-viewing-setlist="true"]) .fixed.bottom-0.z-40:has(nav[aria-label="Main Navigation"]),
+body:has([data-viewing-lyrics="true"]) .fixed.bottom-0.z-40:has(nav[aria-label="Main Navigation"]) {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}

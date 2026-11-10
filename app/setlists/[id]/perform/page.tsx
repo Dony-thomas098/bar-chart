@@ -329,9 +329,20 @@ export default function SetlistPerformPage() {
   const [selectedFont, setSelectedFont] = useState('system');
   useEffect(() => { const f = localStorage.getItem('chord-grid-font'); if (f) setSelectedFont(f); }, []);
 
-  const isLeaderDevice = typeof window !== 'undefined'
-    ? (sessionStorage.getItem(`setlist-leader-${setlistId}`) === '1' || localStorage.getItem(`setlist-leader-${setlistId}`) === '1')
-    : false;
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const [isLeaderDevice, setIsLeaderDevice] = useState(false);
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const isLdr =
+        sessionStorage.getItem(`setlist-leader-${setlistId}`) === '1' ||
+        localStorage.getItem(`setlist-leader-${setlistId}`) === '1';
+      if (isLdr) setIsLeaderDevice(true);
+    }
+  }, [setlistId]);
 
   const { mode, songPosition, leaderName, followerCount, isFollowing, goTo, endSession, stopFollowing, resumeFollowing, takeLead, broadcastChordUpdate } =
     useSetlistSession(setlistId, isLeaderDevice);
@@ -542,12 +553,20 @@ export default function SetlistPerformPage() {
     }
   }, [songPosition, barsVisible]);
 
-  // Sync floating dock visibility with top bars in perform mode
+  // Floating dock is strictly hidden during setlist perform mode
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('reader-ui-change', { detail: { showUI: barsVisible } }));
+      (window as any).__chordly_viewing_setlist = true;
+      (window as any).__chordly_viewing_chords = true;
+      window.dispatchEvent(new CustomEvent('reader-ui-change', { detail: { showUI: false } }));
     }
-  }, [barsVisible]);
+    return () => {
+      if (typeof window !== 'undefined') {
+        (window as any).__chordly_viewing_setlist = false;
+        (window as any).__chordly_viewing_chords = false;
+      }
+    };
+  }, []);
 
   // Session end
   useEffect(() => {
@@ -608,7 +627,7 @@ export default function SetlistPerformPage() {
       <div className="min-h-screen bg-bg flex flex-col items-center justify-center text-text-primary gap-4 p-6 text-center" suppressHydrationWarning>
         <div className="w-10 h-10 rounded-full border-2 border-accent-start border-t-transparent animate-spin" />
         <p className="text-sm text-text-secondary" suppressHydrationWarning>
-          {!loading && mode === 'loading' && !isLeaderDevice ? 'Waiting for leader to join…' : 'Loading…'}
+          {mounted && !loading && mode === 'loading' && !isLeaderDevice ? 'Waiting for leader to join…' : 'Loading…'}
         </p>
         <div className="flex items-center gap-3 mt-3">
           {items.length > 0 && (
@@ -617,6 +636,7 @@ export default function SetlistPerformPage() {
                 if (typeof window !== 'undefined') {
                   sessionStorage.setItem(`setlist-leader-${setlistId}`, '1');
                 }
+                setIsLeaderDevice(true);
                 takeLead();
               }}
               className="px-5 py-2.5 bg-accent-gradient text-white font-bold rounded-xl text-xs uppercase tracking-wider shadow-lg"
@@ -633,7 +653,11 @@ export default function SetlistPerformPage() {
   // ── Main layout ───────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-bg flex flex-col text-text-primary relative">
+    <div
+      data-viewing-chords="true"
+      data-viewing-setlist="true"
+      className="min-h-screen bg-bg flex flex-col text-text-primary relative"
+    >
 
       {/* ── Fixed top bar — slides in from top ──────────────────────────── */}
       <div

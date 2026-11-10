@@ -447,6 +447,19 @@ export default function SetlistDetailPage() {
     return () => window.removeEventListener('refresh-setlists', handleRefresh);
   }, [load]);
 
+  // Ensure navigation dock is hidden when viewing this setlist
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      (window as any).__chordly_viewing_setlist = true;
+      window.dispatchEvent(new CustomEvent('reader-ui-change', { detail: { showUI: false } }));
+    }
+    return () => {
+      if (typeof window !== 'undefined') {
+        (window as any).__chordly_viewing_setlist = false;
+      }
+    };
+  }, []);
+
   // Reusable function to refresh print data with latest saved charts & lyrics
   const refreshPrintData = useCallback(async () => {
     const chartItems = items.filter(i => i.item_type === 'chart');
@@ -581,7 +594,10 @@ export default function SetlistDetailPage() {
   if (!setlist) return null;
 
   return (
-    <div className="min-h-screen flex flex-col safe-area-screen print:min-h-0 print:block w-full print:w-full print:m-0 print:p-0">
+    <div
+      data-viewing-setlist="true"
+      className="min-h-screen flex flex-col safe-area-screen print:min-h-0 print:block w-full print:w-full print:m-0 print:p-0"
+    >
       <div className="no-print print:!hidden">
         <Header />
       </div>
