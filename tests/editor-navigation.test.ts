@@ -241,4 +241,89 @@ describe('Chart and Lyrics Editor Navigation & Routing Fixes', () => {
     expect(capInit).toContain('window.history.length > 1');
     expect(capInit).toContain('router.back();');
   });
+
+  it('guarantees desktop-only Back buttons exist across Header, Piascore readers, perform views, and auth', () => {
+    const header = fs.readFileSync(path.resolve(__dirname, '../components/Header.tsx'), 'utf-8');
+    const piascoreReader = fs.readFileSync(path.resolve(__dirname, '../components/PiascoreReader.tsx'), 'utf-8');
+    const lyricsReader = fs.readFileSync(path.resolve(__dirname, '../components/PiascoreLyricsReader.tsx'), 'utf-8');
+    const setlistPerform = fs.readFileSync(path.resolve(__dirname, '../app/setlists/[id]/perform/page.tsx'), 'utf-8');
+    const stagePerform = fs.readFileSync(path.resolve(__dirname, '../app/perform/[code]/page.tsx'), 'utf-8');
+    const authPage = fs.readFileSync(path.resolve(__dirname, '../app/auth/page.tsx'), 'utf-8');
+
+    expect(header).toContain('hidden md:inline-flex');
+    expect(header).toContain('<span>Back</span>');
+
+    expect(piascoreReader).toContain('hidden md:inline-flex');
+    expect(piascoreReader).toContain('<span>Back</span>');
+
+    expect(lyricsReader).toContain('hidden md:inline-flex');
+    expect(lyricsReader).toContain('<span>Back</span>');
+
+    expect(setlistPerform).toContain('hidden md:inline-flex');
+    expect(setlistPerform).toContain('<span>Back</span>');
+
+    expect(stagePerform).toContain('hidden md:inline-flex');
+    expect(stagePerform).toContain('<span>Back</span>');
+
+    expect(authPage).toContain('hidden md:inline-flex');
+    expect(authPage).toContain('<span>Back</span>');
+  });
+
+  it('guarantees score fit centers medium and tall charts on tablets and phones without pinning to top', async () => {
+    const { calculateScoreFit } = await import('../lib/score-fit');
+
+    // Tablet: 12-line chart (850x900 on iPad portrait 820x1180)
+    const tabletFit = calculateScoreFit({
+      viewportWidth: 820,
+      viewportHeight: 1180,
+      cardWidth: 850,
+      cardHeight: 900,
+      showUI: false,
+      isLocked: true,
+    });
+    expect(tabletFit.posY).toBeGreaterThan(8);
+    const scaledHeight = 900 * tabletFit.scale;
+    const expectedPosY = (1180 - scaledHeight) / 2;
+    expect(tabletFit.posY).toBeCloseTo(expectedPosY, 1);
+
+    // Phone: short/medium chart (600x450 on phone 390x844)
+    const phoneFit = calculateScoreFit({
+      viewportWidth: 390,
+      viewportHeight: 844,
+      cardWidth: 600,
+      cardHeight: 450,
+      showUI: false,
+      isLocked: true,
+    });
+    expect(phoneFit.posY).toBeGreaterThan(8);
+    const scaledHeightPhone = 450 * phoneFit.scale;
+    const expectedPosYPhone = (844 - scaledHeightPhone) / 2;
+    expect(phoneFit.posY).toBeCloseTo(expectedPosYPhone, 1);
+  });
+
+  it('guarantees FolderBrowser and Navigation implement safeNavigate with timeout fallback for card clicks and creation', () => {
+    const folderCode = fs.readFileSync(path.resolve(__dirname, '../components/FolderBrowser.tsx'), 'utf-8');
+    const navCode = fs.readFileSync(path.resolve(__dirname, '../components/Navigation.tsx'), 'utf-8');
+
+    // safeNavigate definition and usage in FolderBrowser
+    expect(folderCode).toContain('const safeNavigate = useCallback((targetUrl: string) =>');
+    expect(folderCode).toContain('window.location.assign(targetUrl);');
+    expect(folderCode).toContain("handleCardClick(chart.id, kind, e, () => safeNavigate");
+    expect(folderCode).toContain("handleCardClick(folder.id, 'folder', e, () => safeNavigate");
+    expect(folderCode).toContain("safeNavigate(chartUrl);");
+    expect(folderCode).toContain("safeNavigate(lyricsUrl);");
+
+    // Mouse pointer events never trigger long press
+    expect(folderCode).toContain("if (e.pointerType === 'mouse') return;");
+
+    // Navigation.tsx resilient navigation timeout fallback
+    expect(navCode).toContain('window.location.assign(chartUrl);');
+    expect(navCode).toContain('window.location.assign(lyricsUrl);');
+  });
+
+  it('guarantees Supabase setlist realtime cleans up subscribed channel instances from client', () => {
+    const setlistPerformCode = fs.readFileSync(path.resolve(__dirname, '../app/setlists/[id]/perform/page.tsx'), 'utf-8');
+    expect(setlistPerformCode).toContain('(supabase as any).realtime?.channels');
+    expect(setlistPerformCode).toContain('channels.filter');
+  });
 });

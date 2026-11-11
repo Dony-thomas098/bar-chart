@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Folder, Chart, listFolder, listFolderFromCache, createFolder, renameEntry,
@@ -15,7 +15,7 @@ import { BandConnectModal } from './BandConnectModal';
 import { hasJoinedBand, syncBandForUser } from '@/lib/band';
 import {
   Folder as FolderIcon, FileText, MoreVertical, Search,
-  Plus, CornerLeftUp, Trash2, Edit2, Edit3, CornerRightDown, Download, X,
+  Plus, CornerLeftUp, Trash2, Edit2, Edit3, CornerRightDown, Download, X, ArrowLeft,
   FolderPlus, FilePlus, Printer, Star, LayoutGrid, List, Sparkles, Check, Music
 } from 'lucide-react';
 import './ios-tiles.css';
@@ -164,7 +164,8 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
 
     // Pad the history stack so Android back gesture never closes the app on initial back
     try {
-      window.history.pushState({ chordCraftTrap: true }, '', window.location.href);
+      const currentState = (typeof window !== 'undefined' && window.history.state) || {};
+      window.history.pushState({ ...currentState, chordCraftTrap: true }, '', window.location.href);
     } catch (e) {
       console.warn('Failed to pad history stack', e);
     }
@@ -175,7 +176,8 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
       // 1. If in SELECTION MODE -> Deselect all items immediately and prevent app close!
       if (selectedItemsRef.current.length > 0) {
         try {
-          window.history.pushState({ chordCraftTrap: true }, '', window.location.href);
+          const currentState = (typeof window !== 'undefined' && window.history.state) || {};
+          window.history.pushState({ ...currentState, chordCraftTrap: true }, '', window.location.href);
         } catch {}
         setSelectedItems([]);
         return;
@@ -184,7 +186,8 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
       // 2. If any MODAL is open -> Close modal immediately and prevent app close!
       if (isModalActiveRef.current) {
         try {
-          window.history.pushState({ chordCraftTrap: true }, '', window.location.href);
+          const currentState = (typeof window !== 'undefined' && window.history.state) || {};
+          window.history.pushState({ ...currentState, chordCraftTrap: true }, '', window.location.href);
         } catch {}
         setCreateFolderModal(false);
         setBulkDeleteModal(false);
@@ -198,7 +201,8 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
       // 3. If inside a SUBFOLDER -> Navigate up to parent folder!
       if (folderId) {
         try {
-          window.history.pushState({ chordCraftTrap: true }, '', window.location.href);
+          const currentState = (typeof window !== 'undefined' && window.history.state) || {};
+          window.history.pushState({ ...currentState, chordCraftTrap: true }, '', window.location.href);
         } catch {}
         router.push(kind === 'lyrics' ? '/lyrics/' : '/');
         return;
@@ -212,7 +216,8 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
         // On another module (e.g. /chords or /lyrics):
         // Back button must navigate to the home screen ('/'), NEVER exit!
         try {
-          window.history.pushState({ chordCraftTrap: true }, '', window.location.href);
+          const currentState = (typeof window !== 'undefined' && window.history.state) || {};
+          window.history.pushState({ ...currentState, chordCraftTrap: true }, '', window.location.href);
         } catch {}
         router.push('/');
         return;
@@ -234,7 +239,8 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
       } else {
         lastBackPressTime = now;
         try {
-          window.history.pushState({ chordCraftTrap: true }, '', window.location.href);
+          const currentState = (typeof window !== 'undefined' && window.history.state) || {};
+          window.history.pushState({ ...currentState, chordCraftTrap: true }, '', window.location.href);
         } catch {}
         setShowExitToast(true);
         if (exitToastTimer.current) clearTimeout(exitToastTimer.current);
@@ -281,8 +287,8 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
   const startPos = useRef<{ x: number; y: number } | null>(null);
 
   const handlePointerDown = (id: string, type: 'folder' | 'chart' | 'lyrics', e: React.PointerEvent) => {
-    // Only respond to primary touch or left click
-    if (e.button !== 0 && e.pointerType === 'mouse') return;
+    // Only respond to touch pointers. Desktop mouse clicks never trigger long-press!
+    if (e.pointerType === 'mouse') return;
     startPos.current = { x: e.clientX, y: e.clientY };
     if (longPressTimer.current) clearTimeout(longPressTimer.current);
 
@@ -294,7 +300,7 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
           try { navigator.vibrate(50); } catch (err) {}
         }
         setSelectedItems([{ id, type }]);
-      }, 400);
+      }, 500);
     }
   };
 
@@ -340,6 +346,26 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
   };
 
   const catalogReturnPath = folderId ? `/folder/?id=${folderId}` : (kind === 'lyrics' ? '/lyrics' : '/chords');
+
+  const safeNavigate = useCallback((targetUrl: string) => {
+    try {
+      router.push(targetUrl);
+    } catch {
+      if (typeof window !== 'undefined') {
+        window.location.assign(targetUrl);
+        return;
+      }
+    }
+    if (typeof window !== 'undefined') {
+      const startPath = window.location.pathname + window.location.search;
+      setTimeout(() => {
+        const currentPath = window.location.pathname + window.location.search;
+        if (currentPath === startPath && currentPath !== targetUrl) {
+          window.location.assign(targetUrl);
+        }
+      }, 120);
+    }
+  }, [router]);
 
 
 
@@ -429,13 +455,7 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
       const { saveLyrics } = await import('@/lib/lyrics');
       await saveLyrics(lyrics);
       const lyricsUrl = `/lyrics/edit/?id=${lyrics.id}&returnTo=${encodeURIComponent(returnPath)}`;
-      try {
-        router.push(lyricsUrl);
-      } catch {
-        if (typeof window !== 'undefined') {
-          window.location.href = lyricsUrl;
-        }
-      }
+      safeNavigate(lyricsUrl);
     } else {
       const chart = {
         id: crypto.randomUUID(),
@@ -451,13 +471,7 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
       };
       await saveChart(chart);
       const chartUrl = `/chart/edit/?id=${chart.id}&returnTo=${encodeURIComponent(returnPath)}`;
-      try {
-        router.push(chartUrl);
-      } catch {
-        if (typeof window !== 'undefined') {
-          window.location.href = chartUrl;
-        }
-      }
+      safeNavigate(chartUrl);
     }
   };
 
@@ -669,7 +683,7 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
                   setActiveDropdown(null);
                   const returnPath = folderId ? `/folder/?id=${folderId}` : (type === 'lyrics' ? '/lyrics' : '/chords');
                   const targetUrl = type === 'lyrics' ? `/lyrics/edit/?id=${id}&returnTo=${encodeURIComponent(returnPath)}` : `/chart/edit/?id=${id}&returnTo=${encodeURIComponent(returnPath)}`;
-                  router.push(targetUrl);
+                  safeNavigate(targetUrl);
                 }}
                 className="flex items-center w-full px-4 py-2 text-xs font-semibold text-slate-800 dark:text-slate-100 hover:bg-orange-500/10 hover:text-orange-600 dark:hover:text-orange-400 transition-colors cursor-pointer"
               >
@@ -770,11 +784,19 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
       {folderId && (
         <div className="mb-4 flex items-center gap-3">
           <button
-            onClick={() => router.push(kind === 'lyrics' ? '/lyrics/' : '/')}
-            className="hidden lg:flex w-10 h-10 rounded-full glass-card items-center justify-center text-text-primary hover:bg-white/80 active:scale-95 transition-all shadow-sm"
-            title="Back to root"
+            onClick={() => {
+              if (typeof window !== 'undefined' && window.history.length > 1) {
+                router.back();
+              } else {
+                router.push(kind === 'lyrics' ? '/lyrics/' : '/');
+              }
+            }}
+            className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-full bg-white/70 dark:bg-white/10 hover:bg-white dark:hover:bg-white/20 text-text-primary border border-black/5 dark:border-white/10 shadow-xs transition-all active:scale-95 cursor-pointer select-none"
+            title="Go back"
+            aria-label="Go back"
           >
-            <CornerLeftUp size={18} />
+            <ArrowLeft size={15} />
+            <span>Back</span>
           </button>
           {folderName && (
             <h2 className="text-xl font-bold text-text-primary tracking-tight truncate">
@@ -933,7 +955,7 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
                             onPointerMove={handlePointerMove}
                             onPointerUp={handlePointerUp}
                             onPointerCancel={handlePointerUp}
-                            onClick={(e) => handleCardClick(folder.id, 'folder', e, () => router.push(kind === 'lyrics' ? `/lyrics/folder/?id=${folder.id}` : `/folder/?id=${folder.id}`))}
+                            onClick={(e) => handleCardClick(folder.id, 'folder', e, () => safeNavigate(kind === 'lyrics' ? `/lyrics/folder/?id=${folder.id}` : `/folder/?id=${folder.id}`))}
                             onContextMenu={(e) => {
                               e.preventDefault();
                               if (Date.now() - lastLongPressTime.current > 600) {
@@ -972,7 +994,7 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
                             onPointerMove={handlePointerMove}
                             onPointerUp={handlePointerUp}
                             onPointerCancel={handlePointerUp}
-                            onClick={(e) => handleCardClick(folder.id, 'folder', e, () => router.push(kind === 'lyrics' ? `/lyrics/folder/?id=${folder.id}` : `/folder/?id=${folder.id}`))}
+                            onClick={(e) => handleCardClick(folder.id, 'folder', e, () => safeNavigate(kind === 'lyrics' ? `/lyrics/folder/?id=${folder.id}` : `/folder/?id=${folder.id}`))}
                             onContextMenu={(e) => {
                               e.preventDefault();
                               if (Date.now() - lastLongPressTime.current > 600) {
@@ -1032,7 +1054,7 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
                             onPointerMove={handlePointerMove}
                             onPointerUp={handlePointerUp}
                             onPointerCancel={handlePointerUp}
-                            onClick={(e) => handleCardClick(chart.id, kind, e, () => router.push(kind === 'lyrics' ? `/lyrics/view/?id=${chart.id}&returnTo=${encodeURIComponent(catalogReturnPath)}` : `/chart/?id=${chart.id}&returnTo=${encodeURIComponent(catalogReturnPath)}`))}
+                            onClick={(e) => handleCardClick(chart.id, kind, e, () => safeNavigate(kind === 'lyrics' ? `/lyrics/view/?id=${chart.id}&returnTo=${encodeURIComponent(catalogReturnPath)}` : `/chart/?id=${chart.id}&returnTo=${encodeURIComponent(catalogReturnPath)}`))}
                             onContextMenu={(e) => {
                               e.preventDefault();
                               if (Date.now() - lastLongPressTime.current > 600) {
@@ -1093,7 +1115,7 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
                             onPointerMove={handlePointerMove}
                             onPointerUp={handlePointerUp}
                             onPointerCancel={handlePointerUp}
-                            onClick={(e) => handleCardClick(chart.id, kind, e, () => router.push(kind === 'lyrics' ? `/lyrics/view/?id=${chart.id}&returnTo=${encodeURIComponent(catalogReturnPath)}` : `/chart/?id=${chart.id}&returnTo=${encodeURIComponent(catalogReturnPath)}`))}
+                            onClick={(e) => handleCardClick(chart.id, kind, e, () => safeNavigate(kind === 'lyrics' ? `/lyrics/view/?id=${chart.id}&returnTo=${encodeURIComponent(catalogReturnPath)}` : `/chart/?id=${chart.id}&returnTo=${encodeURIComponent(catalogReturnPath)}`))}
                             onContextMenu={(e) => {
                               e.preventDefault();
                               if (Date.now() - lastLongPressTime.current > 600) {
@@ -1189,7 +1211,7 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
                       onPointerMove={handlePointerMove}
                       onPointerUp={handlePointerUp}
                       onPointerCancel={handlePointerUp}
-                      onClick={(e) => handleCardClick(folder.id, 'folder', e, () => router.push(kind === 'lyrics' ? `/lyrics/folder/?id=${folder.id}` : `/folder/?id=${folder.id}`))}
+                      onClick={(e) => handleCardClick(folder.id, 'folder', e, () => safeNavigate(kind === 'lyrics' ? `/lyrics/folder/?id=${folder.id}` : `/folder/?id=${folder.id}`))}
                       onContextMenu={(e) => {
                         e.preventDefault();
                         if (Date.now() - lastLongPressTime.current > 600) {
@@ -1226,7 +1248,7 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
                       onPointerMove={handlePointerMove}
                       onPointerUp={handlePointerUp}
                       onPointerCancel={handlePointerUp}
-                      onClick={(e) => handleCardClick(folder.id, 'folder', e, () => router.push(kind === 'lyrics' ? `/lyrics/folder/?id=${folder.id}` : `/folder/?id=${folder.id}`))}
+                      onClick={(e) => handleCardClick(folder.id, 'folder', e, () => safeNavigate(kind === 'lyrics' ? `/lyrics/folder/?id=${folder.id}` : `/folder/?id=${folder.id}`))}
                       onContextMenu={(e) => {
                         e.preventDefault();
                         if (Date.now() - lastLongPressTime.current > 600) {
@@ -1270,7 +1292,7 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
                       onPointerMove={handlePointerMove}
                       onPointerUp={handlePointerUp}
                       onPointerCancel={handlePointerUp}
-                      onClick={(e) => handleCardClick(chart.id, kind, e, () => router.push(kind === 'lyrics' ? `/lyrics/view/?id=${chart.id}&returnTo=${encodeURIComponent(catalogReturnPath)}` : `/chart/?id=${chart.id}&returnTo=${encodeURIComponent(catalogReturnPath)}`))}
+                      onClick={(e) => handleCardClick(chart.id, kind, e, () => safeNavigate(kind === 'lyrics' ? `/lyrics/view/?id=${chart.id}&returnTo=${encodeURIComponent(catalogReturnPath)}` : `/chart/?id=${chart.id}&returnTo=${encodeURIComponent(catalogReturnPath)}`))}
                       onContextMenu={(e) => {
                         e.preventDefault();
                         if (Date.now() - lastLongPressTime.current > 600) {
@@ -1319,7 +1341,7 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
                       onPointerMove={handlePointerMove}
                       onPointerUp={handlePointerUp}
                       onPointerCancel={handlePointerUp}
-                      onClick={(e) => handleCardClick(chart.id, kind, e, () => router.push(kind === 'lyrics' ? `/lyrics/view/?id=${chart.id}&returnTo=${encodeURIComponent(catalogReturnPath)}` : `/chart/?id=${chart.id}&returnTo=${encodeURIComponent(catalogReturnPath)}`))}
+                      onClick={(e) => handleCardClick(chart.id, kind, e, () => safeNavigate(kind === 'lyrics' ? `/lyrics/view/?id=${chart.id}&returnTo=${encodeURIComponent(catalogReturnPath)}` : `/chart/?id=${chart.id}&returnTo=${encodeURIComponent(catalogReturnPath)}`))}
                       onContextMenu={(e) => {
                         e.preventDefault();
                         if (Date.now() - lastLongPressTime.current > 600) {

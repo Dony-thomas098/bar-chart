@@ -13,7 +13,7 @@ import {
   FolderOpen, Smile, X, Plus, Play, Pause, Bookmark as BookmarkIcon,
   Crop, LayoutGrid, Info, Edit3, ArrowUpDown, BookOpen, Volume2,
   ChevronRight, Type, AlignLeft, AlignCenter, AlignRight, ScrollText,
-  Lock, Unlock
+  Lock, Unlock, ArrowLeft
 } from 'lucide-react';
 import { useScreenWakeLock } from '@/hooks/useScreenWakeLock';
 import { useHardwareBackButton } from '@/hooks/useHardwareBackButton';
@@ -137,23 +137,29 @@ function LyricsContentWrapper({
     let t1: any;
     let t2: any;
     let t3: any;
+    let t4: any;
     const runFit = () => {
       clearTimeout(t1);
       clearTimeout(t2);
       clearTimeout(t3);
+      clearTimeout(t4);
       t1 = setTimeout(fitLyrics, 50);
       t2 = setTimeout(fitLyrics, 200);
       t3 = setTimeout(fitLyrics, 350);
+      t4 = setTimeout(fitLyrics, 500);
     };
     runFit();
     window.addEventListener('resize', runFit);
     window.addEventListener('orientationchange', runFit);
+    window.addEventListener('piascore-fit-screen', runFit);
     return () => {
       clearTimeout(t1);
       clearTimeout(t2);
       clearTimeout(t3);
+      clearTimeout(t4);
       window.removeEventListener('resize', runFit);
       window.removeEventListener('orientationchange', runFit);
+      window.removeEventListener('piascore-fit-screen', runFit);
     };
   }, [fitLyrics, lyric.id, showUI, isLocked]);
 
@@ -324,6 +330,9 @@ export function PiascoreLyricsReader({ initialLyric, folderId }: Props) {
         showLockNotification('Stage Lock ON · Back & accidental taps blocked');
       } else {
         showLockNotification('Stage Lock OFF · Screen unlocked');
+      }
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('piascore-fit-screen'));
       }
       return next;
     });
@@ -653,7 +662,43 @@ export function PiascoreLyricsReader({ initialLyric, folderId }: Props) {
           showUI ? 'translate-y-0' : '-translate-y-full'
         }`}
       >
-        {/* Left: Catalog Button (Blocked when Stage Locked) */}
+        {/* Left: Desktop Back button + Mobile Catalog button */}
+        <div className="flex items-center gap-2">
+          {/* Desktop Back button */}
+          <button
+            type="button"
+            disabled={isStageLocked}
+            onClick={() => {
+              if (isStageLocked) {
+                showLockNotification('Screen is locked · Tap lock icon to unlock');
+                return;
+              }
+              const returnTo = searchParams?.get('returnTo');
+              if (returnTo) {
+                router.push(returnTo);
+                return;
+              }
+              if (folderId) {
+                router.push(`/lyrics/folder/?id=${folderId}`);
+                return;
+              }
+              if (typeof window !== 'undefined' && window.history.length > 1) {
+                router.back();
+              } else {
+                router.push('/lyrics');
+              }
+            }}
+            className={`hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-full transition-all active:scale-95 border cursor-pointer select-none ${
+              isStageLocked
+                ? 'opacity-30 cursor-not-allowed text-[#8C8A93] border-white/5 bg-white/5'
+                : 'bg-white/70 dark:bg-white/10 hover:bg-white dark:hover:bg-white/20 text-slate-800 dark:text-white border-black/10 dark:border-white/15 shadow-xs'
+            }`}
+            title={isStageLocked ? 'Back disabled while screen is locked' : 'Go back'}
+            aria-label="Go back"
+          >
+            <ArrowLeft size={15} />
+            <span>Back</span>
+          </button>
         <button
           disabled={isStageLocked}
           onClick={() => {
@@ -676,7 +721,7 @@ export function PiascoreLyricsReader({ initialLyric, folderId }: Props) {
               router.push('/lyrics');
             }
           }}
-          className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg transition-all active:scale-95 ${
+          className={`md:hidden flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg transition-all active:scale-95 ${
             isStageLocked
               ? 'opacity-30 cursor-not-allowed text-[#8C8A93]'
               : 'text-accent-start hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer'
@@ -687,6 +732,7 @@ export function PiascoreLyricsReader({ initialLyric, folderId }: Props) {
           <FolderOpen size={16} className="text-accent-start" />
           <span>Catalog</span>
         </button>
+        </div>
 
         {/* Center: Song Title & Subtitle */}
         <div className="flex flex-col items-center justify-center text-center max-w-[45vw] sm:max-w-[55vw]">

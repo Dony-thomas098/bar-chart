@@ -60,8 +60,8 @@ export function calculateScoreFit({
       // Entire score/page fits vertically when scaled to available width.
       // Allow scale below 1.0 so very wide charts shrink to fit rather than clip.
       scale = Math.min(1.85, Math.max(0.15, scaleX));
-    } else if (scaleY >= 1.0) {
-      // Fits vertically at 1.0+
+    } else if (scaleY >= 0.4) {
+      // Fits vertically and horizontally across tablet and desktop viewports
       scale = Math.min(1.85, Math.min(scaleX, scaleY));
     } else {
       // Tall chart: scale to available width for readability; allow below 1.0 for wide charts.
@@ -93,10 +93,16 @@ export function calculateScoreFit({
   } else {
     // IN PORTRAIT PHONE / SMALL TABLET:
     const availableWidth = Math.max(260, viewportWidth - 24);
-    if (availableWidth < cardWidth) {
-      scale = Math.max(0.15, (availableWidth / cardWidth) * 0.98);
+    const availableHeight = Math.max(200, viewportHeight - topOffset - (showUI ? 24 : 16));
+    const scaleX = (availableWidth / cardWidth) * 0.98;
+    const scaleY = cardHeight > 0 ? (availableHeight / cardHeight) * 0.98 : 1;
+
+    if (cardHeight > 0 && cardHeight * scaleX <= availableHeight) {
+      scale = Math.min(1.2, Math.max(0.15, scaleX));
+    } else if (scaleY >= 0.45) {
+      scale = Math.min(1.2, Math.min(scaleX, scaleY));
     } else {
-      scale = 1;
+      scale = Math.min(1.0, Math.max(0.15, scaleX));
     }
 
     const scaledWidth = cardWidth * scale;

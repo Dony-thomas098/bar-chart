@@ -90,13 +90,16 @@ function ChartContentWrapper({
     let t1: any;
     let t2: any;
     let t3: any;
+    let t4: any;
     const runFit = () => {
       clearTimeout(t1);
       clearTimeout(t2);
       clearTimeout(t3);
+      clearTimeout(t4);
       t1 = setTimeout(fitToScreen, 50);
       t2 = setTimeout(fitToScreen, 200);
       t3 = setTimeout(fitToScreen, 350);
+      t4 = setTimeout(fitToScreen, 500);
     };
     runFit();
     window.addEventListener('resize', runFit);
@@ -107,6 +110,7 @@ function ChartContentWrapper({
       clearTimeout(t1);
       clearTimeout(t2);
       clearTimeout(t3);
+      clearTimeout(t4);
       window.removeEventListener('resize', runFit);
       window.removeEventListener('orientationchange', runFit);
       window.removeEventListener('piascore-fit-screen', runFit);
@@ -292,6 +296,9 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
         showLockNotification('Stage Lock ON · Back & accidental taps blocked');
       } else {
         showLockNotification('Stage Lock OFF · Screen unlocked');
+      }
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('piascore-fit-screen'));
       }
       return next;
     });
@@ -707,41 +714,80 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
           showUI ? 'translate-y-0' : '-translate-y-full'
         }`}
       >
-        {/* Left: Catalog Button (Blocked when Stage Locked) */}
-        <button
-          type="button"
-          disabled={isStageLocked}
-          onClick={() => {
-            if (isStageLocked) {
-              showLockNotification('Screen is locked · Tap lock icon to unlock');
-              return;
-            }
-            const returnTo = searchParams?.get('returnTo');
-            if (returnTo) {
-              router.push(returnTo);
-              return;
-            }
-            if (folderId) {
-              router.push(`/folder/?id=${folderId}`);
-              return;
-            }
-            if (typeof window !== 'undefined' && window.history.length > 1) {
-              router.back();
-            } else {
-              router.push('/chords');
-            }
-          }}
-          className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg transition-all active:scale-95 shrink-0 ${
-            isStageLocked
-              ? 'opacity-30 cursor-not-allowed text-[#8C8A93]'
-              : 'text-[#FF6A1F] hover:bg-white/5 cursor-pointer'
-          }`}
-          title={isStageLocked ? 'Catalog navigation disabled while screen is locked' : 'Back to Catalog'}
-          aria-label="Back to Catalog"
-        >
-          <FolderOpen size={16} className={isStageLocked ? 'text-[#8C8A93]' : 'text-[#FF6A1F]'} />
-          <span className="hidden sm:inline">Catalog</span>
-        </button>
+        {/* Left: Desktop Back button + Mobile Catalog button */}
+        <div className="flex items-center gap-2">
+          {/* Desktop Back button */}
+          <button
+            type="button"
+            disabled={isStageLocked}
+            onClick={() => {
+              if (isStageLocked) {
+                showLockNotification('Screen is locked · Tap lock icon to unlock');
+                return;
+              }
+              const returnTo = searchParams?.get('returnTo');
+              if (returnTo) {
+                router.push(returnTo);
+                return;
+              }
+              if (folderId) {
+                router.push(`/folder/?id=${folderId}`);
+                return;
+              }
+              if (typeof window !== 'undefined' && window.history.length > 1) {
+                router.back();
+              } else {
+                router.push('/chords');
+              }
+            }}
+            className={`hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-full transition-all active:scale-95 border cursor-pointer select-none ${
+              isStageLocked
+                ? 'opacity-30 cursor-not-allowed text-[#8C8A93] border-white/5 bg-white/5'
+                : 'bg-[#181820] hover:bg-[#22222C] text-[#F4F2F0] border-[#2A2A31] hover:border-white/20 shadow-xs'
+            }`}
+            title={isStageLocked ? 'Back disabled while screen is locked' : 'Go back'}
+            aria-label="Go back"
+          >
+            <ArrowLeft size={15} />
+            <span>Back</span>
+          </button>
+
+          {/* Mobile Catalog button */}
+          <button
+            type="button"
+            disabled={isStageLocked}
+            onClick={() => {
+              if (isStageLocked) {
+                showLockNotification('Screen is locked · Tap lock icon to unlock');
+                return;
+              }
+              const returnTo = searchParams?.get('returnTo');
+              if (returnTo) {
+                router.push(returnTo);
+                return;
+              }
+              if (folderId) {
+                router.push(`/folder/?id=${folderId}`);
+                return;
+              }
+              if (typeof window !== 'undefined' && window.history.length > 1) {
+                router.back();
+              } else {
+                router.push('/chords');
+              }
+            }}
+            className={`md:hidden flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg transition-all active:scale-95 shrink-0 ${
+              isStageLocked
+                ? 'opacity-30 cursor-not-allowed text-[#8C8A93]'
+                : 'text-[#FF6A1F] hover:bg-white/5 cursor-pointer'
+            }`}
+            title={isStageLocked ? 'Catalog navigation disabled while screen is locked' : 'Back to Catalog'}
+            aria-label="Back to Catalog"
+          >
+            <FolderOpen size={16} className={isStageLocked ? 'text-[#8C8A93]' : 'text-[#FF6A1F]'} />
+            <span className="hidden sm:inline">Catalog</span>
+          </button>
+        </div>
 
         {/* Center: Song Title & Composer / Subtitle */}
         <div className="flex flex-col items-center justify-center text-center max-w-[55vw] sm:max-w-[65vw]">

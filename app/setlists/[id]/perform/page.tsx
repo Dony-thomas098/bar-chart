@@ -13,7 +13,7 @@ import { useSetlistPrefetch } from '@/hooks/useSetlistPrefetch';
 import { TransformWrapper, TransformComponent, useControls } from 'react-zoom-pan-pinch';
 import { calculateScoreFit } from '@/lib/score-fit';
 import {
-  X, ChevronLeft, ChevronRight, Users, Radio, RefreshCw, FileText, Music,
+  X, ChevronLeft, ChevronRight, Users, Radio, RefreshCw, FileText, Music, ArrowLeft,
   Pencil, Plus, Minus, Trash2, RotateCcw, Check, Zap, Save, AlertCircle
 } from 'lucide-react';
 
@@ -68,6 +68,14 @@ function useSetlistSession(setlistId: string, isLeaderDevice: boolean) {
       );
       if (existing) {
         await supabase.removeChannel(existing).catch(() => {});
+        try {
+          const channels = (supabase as any).realtime?.channels;
+          if (Array.isArray(channels)) {
+            (supabase as any).realtime.channels = channels.filter(
+              (c: any) => c.topic !== `realtime:setlist-${setlistId}` && c.topic !== `setlist-${setlistId}`
+            );
+          }
+        } catch {}
       }
       if (cancelled || !isMountedRef.current) return;
 
@@ -124,8 +132,15 @@ function useSetlistSession(setlistId: string, isLeaderDevice: boolean) {
       cancelled = true;
       isMountedRef.current = false;
       if (channelRef.current) {
-        supabase.removeChannel(channelRef.current).catch(() => {});
+        const ch = channelRef.current;
         channelRef.current = null;
+        supabase.removeChannel(ch).catch(() => {});
+        try {
+          const channels = (supabase as any).realtime?.channels;
+          if (Array.isArray(channels)) {
+            (supabase as any).realtime.channels = channels.filter((c: any) => c !== ch);
+          }
+        } catch {}
       }
     };
   }, [setlistId]);
@@ -683,6 +698,18 @@ export default function SetlistPerformPage() {
       >
         {/* Row 1: setlist name + controls */}
         <div className="flex items-center gap-3 px-3 py-2.5">
+          {/* Desktop Back button */}
+          <button
+            type="button"
+            onClick={() => isLeader ? setShowEndConfirmModal(true) : (typeof window !== 'undefined' && window.history.length > 1 ? router.back() : router.push(`/setlists/view/?id=${setlistId}`))}
+            className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-full bg-white/10 hover:bg-white/20 text-white border border-white/15 transition-all active:scale-95 cursor-pointer select-none shrink-0"
+            title="Go back"
+            aria-label="Go back"
+          >
+            <ArrowLeft size={14} />
+            <span>Back</span>
+          </button>
+
           <button
             onClick={() => isLeader ? setShowEndConfirmModal(true) : router.push(`/setlists/view/?id=${setlistId}`)}
             className="p-2 text-text-secondary hover:text-white bg-surface-raised border border-border rounded-lg transition-all shrink-0"

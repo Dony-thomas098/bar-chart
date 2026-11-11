@@ -1,15 +1,39 @@
 'use client';
 
-import { Menu } from 'lucide-react';
-import { useState } from 'react';
+import { Menu, ArrowLeft } from 'lucide-react';
+import { useState, useCallback } from 'react';
 import Link from 'next/link';
 import { Sidebar } from './Sidebar';
 import { ChordlyLogo } from './ChordlyLogo';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 
 export function Header() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const pathname = usePathname();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const handleBack = useCallback(() => {
+    const returnTo = searchParams?.get('returnTo');
+    if (returnTo) {
+      router.push(returnTo);
+      return;
+    }
+    if (typeof window !== 'undefined' && window.history.length > 1) {
+      router.back();
+      return;
+    }
+    // Context-sensitive fallback
+    if (pathname.startsWith('/lyrics')) {
+      router.push('/lyrics/');
+    } else if (pathname.startsWith('/setlists')) {
+      router.push('/setlists/');
+    } else if (pathname.startsWith('/folder')) {
+      router.push('/folder/');
+    } else {
+      router.push('/');
+    }
+  }, [router, searchParams, pathname]);
 
   // Hide on auth / login page or full-screen performance screens
   if (
@@ -35,7 +59,7 @@ export function Header() {
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6">
           <div className="relative flex items-center justify-between min-h-[56px] h-14">
             
-            {/* Left: Hamburger menu + Brand Logo (both mobile & desktop) */}
+            {/* Left: Hamburger menu + Brand Logo (both mobile & desktop) + Desktop Back Button */}
             <div className="flex items-center gap-2 sm:gap-3 z-10">
               <button
                 onClick={() => setSidebarOpen(true)}
@@ -49,6 +73,18 @@ export function Header() {
               <Link href="/" aria-label="Chordly home" className="flex items-center select-none cursor-pointer">
                 <ChordlyLogo variant="full" className="h-7 sm:h-9 w-auto aspect-[1239/302]" />
               </Link>
+
+              {/* Desktop-only in-app Back button */}
+              <button
+                type="button"
+                onClick={handleBack}
+                className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-full bg-white/70 dark:bg-white/10 hover:bg-white dark:hover:bg-white/20 text-text-primary border border-black/5 dark:border-white/10 shadow-xs transition-all active:scale-95 cursor-pointer select-none"
+                title="Go back"
+                aria-label="Go back"
+              >
+                <ArrowLeft size={15} />
+                <span>Back</span>
+              </button>
             </div>
 
           </div>

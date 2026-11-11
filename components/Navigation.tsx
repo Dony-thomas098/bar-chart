@@ -403,8 +403,17 @@ export function Navigation() {
       router.push(chartUrl);
     } catch {
       if (typeof window !== 'undefined') {
-        window.location.href = chartUrl;
+        window.location.assign(chartUrl);
       }
+    }
+    if (typeof window !== 'undefined') {
+      const startPath = window.location.pathname + window.location.search;
+      setTimeout(() => {
+        const currentPath = window.location.pathname + window.location.search;
+        if (currentPath === startPath && currentPath !== chartUrl) {
+          window.location.assign(chartUrl);
+        }
+      }, 120);
     }
   };
 
@@ -426,8 +435,17 @@ export function Navigation() {
       router.push(lyricsUrl);
     } catch {
       if (typeof window !== 'undefined') {
-        window.location.href = lyricsUrl;
+        window.location.assign(lyricsUrl);
       }
+    }
+    if (typeof window !== 'undefined') {
+      const startPath = window.location.pathname + window.location.search;
+      setTimeout(() => {
+        const currentPath = window.location.pathname + window.location.search;
+        if (currentPath === startPath && currentPath !== lyricsUrl) {
+          window.location.assign(lyricsUrl);
+        }
+      }, 120);
     }
   };
 

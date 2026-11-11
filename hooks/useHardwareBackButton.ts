@@ -30,8 +30,13 @@ export function useHardwareBackButton({
     (window as any).__chordly_modal_open = true;
 
     // Push state so Android back pops this state rather than leaving page
-    window.history.pushState({ [stateKey]: true }, '');
-    pushedRef.current = true;
+    try {
+      const currentState = window.history.state || {};
+      window.history.pushState({ ...currentState, [stateKey]: true }, '');
+      pushedRef.current = true;
+    } catch (e) {
+      console.warn('Failed to push hardware back button state:', e);
+    }
 
     const handlePopState = () => {
       pushedRef.current = false;

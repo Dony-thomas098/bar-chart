@@ -633,6 +633,24 @@ export default function AuthPage() {
         backgroundImage: 'radial-gradient(circle at 12% 8%, rgba(255, 90, 0, 0.22) 0%, rgba(43, 23, 16, 0.48) 32%, transparent 65%)'
       }}
     >
+      {/* Desktop-only back button */}
+      <button
+        type="button"
+        onClick={() => {
+          if (typeof window !== 'undefined' && window.history.length > 1) {
+            router.back();
+          } else {
+            router.push('/');
+          }
+        }}
+        className="hidden md:inline-flex fixed top-5 left-5 z-50 items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-full bg-[#17171C]/80 hover:bg-[#23232A] text-white border border-[#2C2C34] hover:border-white/20 shadow-md backdrop-blur-md transition-all active:scale-95 cursor-pointer select-none"
+        title="Go back"
+        aria-label="Go back"
+      >
+        <ArrowLeft size={15} />
+        <span>Back</span>
+      </button>
+
       {/* Centered Main Card */}
       <div className="w-full max-w-[440px] my-auto rounded-[32px] bg-[#17171C] border border-[#2C2C34] p-6 sm:p-8 shadow-[0_24px_64px_rgba(0,0,0,0.65),0_1px_0_rgba(255,255,255,0.05)_inset] select-auto transition-all">
         {/* 1. App Logo, Title, Subtitle */}

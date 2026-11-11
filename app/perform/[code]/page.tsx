@@ -13,7 +13,7 @@ import { calculateScoreFit } from '@/lib/score-fit';
 import { transposeChart } from '@/lib/transpose';
 import { supabase } from '@/lib/supabase';
 import {
-  ChevronLeft, ChevronRight, X, Edit2, Copy, Check,
+  ChevronLeft, ChevronRight, X, Edit2, Copy, Check, ArrowLeft,
   Users, Radio, StopCircle, WifiOff, RefreshCw, ScrollText, Play, Pause, Crop,
   Minus, Plus, Pencil, Trash2, Save
 } from 'lucide-react';
@@ -551,6 +551,25 @@ export default function PerformancePage() {
       {/* ── Header (auto-hide) ── */}
       <div className={`fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-3 sm:px-4 py-2.5 sm:py-3 bg-bg/90 backdrop-blur-md border-b border-border/50 transition-all duration-300 gap-2 ${showHeader ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0'}`}>
         <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+          {/* Desktop Back button */}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (isLeader) {
+                setShowEndConfirmModal(true);
+              } else {
+                handleFollowerLeave();
+              }
+            }}
+            className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-full bg-white/10 hover:bg-white/20 text-white border border-white/15 transition-all active:scale-95 cursor-pointer select-none shrink-0"
+            title="Go back"
+            aria-label="Go back"
+          >
+            <ArrowLeft size={14} />
+            <span>Back</span>
+          </button>
+
           <button
             onClick={(e) => { 
               e.stopPropagation(); 

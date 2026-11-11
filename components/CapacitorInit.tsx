@@ -21,7 +21,8 @@ export function CapacitorInit(): null {
     // On the home screen ('/'), FolderBrowser handles the trap and double-back exit.
     if (!isHomeScreen) {
       try {
-        window.history.pushState({ chordly_module_trap: true }, '', window.location.href);
+        const currentState = window.history.state || {};
+        window.history.pushState({ ...currentState, chordly_module_trap: true }, '', window.location.href);
       } catch {}
 
       const handleWebPopState = (e: PopStateEvent) => {
