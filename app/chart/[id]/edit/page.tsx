@@ -10,6 +10,7 @@ import { parseChord, parseChordToText, normalizeChordInput } from '@/lib/chord-p
 import { getChordNotes } from '@/lib/chord-notes';
 import { moveEntry, saveChart } from '@/lib/storage';
 import { FolderPickerModal } from '@/components/FolderPickerModal';
+import { useHardwareBackButton } from '@/hooks/useHardwareBackButton';
 import { X, Plus, LogOut, Download, Copy, RefreshCw, Cloud, CloudOff, Edit2, Folder as FolderIcon, CornerLeftUp, ChevronLeft, ChevronRight, Check, Keyboard, Music } from 'lucide-react';
 import { ChartData } from '@/lib/chart-types';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
@@ -83,6 +84,33 @@ export default function ChartEditor() {
   const [isFolderPickerOpen, setIsFolderPickerOpen] = useState(false);
   const isTypingText = useRef(false);
   const lastEnterPress = useRef<number>(0);
+
+  const handleBack = useCallback(async () => {
+    try {
+      await forceSave();
+    } catch (err) {
+      console.warn('[ChartEditor] Error saving before navigation:', err);
+    }
+    if (returnTo) {
+      router.push(returnTo);
+      return;
+    }
+    if (chartRef.current?.folder_id) {
+      router.push(`/folder/?id=${chartRef.current.folder_id}`);
+      return;
+    }
+    if (typeof window !== 'undefined' && window.history.length > 1) {
+      router.back();
+    } else {
+      router.push('/chords');
+    }
+  }, [forceSave, returnTo, router]);
+
+  useHardwareBackButton({
+    enabled: !isFolderPickerOpen,
+    onBack: handleBack,
+    stateKey: 'chordly_chart_editor',
+  });
 
   // Mobile Keypad & Active Selection State
   const [activeMobileSelection, setActiveMobileSelection] = useState<{
@@ -833,7 +861,7 @@ export default function ChartEditor() {
   const activeBlock = activeLine?.blocks?.find(b => b.id === activeMobileSelection?.blockId);
 
   return (
-    <div className={`min-h-screen bg-bg flex flex-col text-text-primary relative ${activeMobileSelection ? 'pb-80 sm:pb-32' : 'pb-32'}`}>
+    <div className={`min-h-screen bg-bg flex flex-col text-text-primary relative ${activeMobileSelection ? 'pb-80 xl:pb-32' : 'pb-32'}`}>
       
       {/* Editor Main Content */}
       <main className="flex-1 overflow-x-hidden p-3 sm:p-8">
@@ -845,13 +873,13 @@ export default function ChartEditor() {
             {/* Top Bar for buttons */}
             <div className="w-full flex justify-between items-center gap-2 sm:gap-4 mb-4 sm:mb-8">
               <button 
-                onClick={async () => {
-                  await forceSave();
-                  router.push(returnTo ?? `/chart/?id=${chart.id}`);
-                }}
-                className="flex px-3 sm:px-4 py-2 sm:py-2.5 text-xs font-bold tracking-wider uppercase text-text-primary bg-white/70 dark:bg-white/10 border border-glass shadow-sm rounded-full hover:bg-white items-center transition-all active:scale-95"
+                type="button"
+                onClick={handleBack}
+                className="flex px-3 sm:px-4 py-2 sm:py-2.5 text-xs font-bold tracking-wider uppercase text-text-primary bg-white/70 dark:bg-white/10 border border-glass shadow-sm rounded-full hover:bg-white items-center transition-all active:scale-95 cursor-pointer"
+                aria-label="Back"
               >
-                <CornerLeftUp size={15} className="mr-1.5" /> {returnTo ? 'Performance' : 'Viewer'}
+                <ChevronLeft size={16} className="mr-1" />
+                <span>{returnTo && returnTo.includes('/chart/') ? 'Viewer' : returnTo && returnTo.includes('/perform') ? 'Performance' : 'Back'}</span>
               </button>
 
               <div className="flex items-center gap-2 sm:gap-3">
@@ -943,14 +971,14 @@ export default function ChartEditor() {
             
             <div className="w-full flex justify-between items-center text-[10px] font-bold tracking-wider text-text-secondary uppercase mt-2 px-1">
               <span>{totalLines} lines • {totalBars} bars total</span>
-              <span className="text-orange-600 dark:text-orange-400 md:hidden">💡 Tap bar to open keypad</span>
+              <span className="text-orange-600 dark:text-orange-400 xl:hidden">💡 Tap bar to open keypad</span>
             </div>
           </div>
 
           {/* ═══════════════════════════════════════════════════════════════
-              MOBILE PHONE VIEW (< md): Stacked Cards & Touch Targets
+              MOBILE PHONE & TABLET VIEW (< xl): Stacked Cards & Touch Targets
               ═══════════════════════════════════════════════════════════════ */}
-          <div className="block md:hidden space-y-3">
+          <div className="block xl:hidden space-y-3">
             {(chart.lines || []).map((line) => (
               <div key={line.id} className="bg-surface-glass backdrop-blur-xl border border-glass shadow-glass rounded-[24px] p-3.5 flex flex-col gap-3">
                 
@@ -1075,9 +1103,9 @@ export default function ChartEditor() {
           </div>
 
           {/* ═══════════════════════════════════════════════════════════════
-              DESKTOP VIEW (>= md): Full Width Grid with Inline Inputs
+              DESKTOP VIEW (>= xl): Full Width Grid with Inline Inputs
               ═══════════════════════════════════════════════════════════════ */}
-          <div className="hidden md:block space-y-6">
+          <div className="hidden xl:block space-y-6">
             {(chart.lines || []).map((line) => (
               <div key={line.id} className="flex items-stretch bg-surface-glass backdrop-blur-xl border border-glass shadow-glass rounded-[24px] relative group overflow-hidden">
                 
@@ -1347,7 +1375,7 @@ export default function ChartEditor() {
           MOBILE CHORD KEYPAD (BOTTOM SHEET - NO DARKENING OVERLAY)
           ═══════════════════════════════════════════════════════════════ */}
       {activeMobileSelection && (
-        <div className="fixed left-0 right-0 bottom-0 bg-surface-glass backdrop-blur-2xl border-t border-glass rounded-t-[24px] p-3.5 pb-[max(16px,env(safe-area-inset-bottom))] z-50 shadow-glass-strong md:hidden max-w-lg mx-auto animate-slide-up">
+        <div className="fixed left-0 right-0 bottom-0 bg-surface-glass backdrop-blur-2xl border-t border-glass rounded-t-[24px] p-3.5 pb-[max(16px,env(safe-area-inset-bottom))] z-50 shadow-glass-strong xl:hidden max-w-lg mx-auto animate-slide-up">
           
           {/* Drawer Top Controls */}
           <div className="flex items-center justify-between gap-2 mb-2 px-1">

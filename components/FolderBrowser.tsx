@@ -339,6 +339,8 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
     onNormalClick();
   };
 
+  const catalogReturnPath = folderId ? `/folder/?id=${folderId}` : (kind === 'lyrics' ? '/lyrics' : '/chords');
+
 
 
   const loadContents = async () => {
@@ -414,6 +416,7 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
   const handleCreateChart = async () => {
     if (!canEdit) return;
     const currentUserId = user?.id || (typeof window !== 'undefined' ? localStorage.getItem('chord-grid-offline-user-id') : null) || 'guest-user';
+    const returnPath = folderId ? `/folder/?id=${folderId}` : (kind === 'lyrics' ? '/lyrics' : '/chords');
     if (kind === 'lyrics') {
       const lyrics = {
         id: crypto.randomUUID(),
@@ -425,7 +428,7 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
       };
       const { saveLyrics } = await import('@/lib/lyrics');
       await saveLyrics(lyrics);
-      const lyricsUrl = `/lyrics/edit/?id=${lyrics.id}`;
+      const lyricsUrl = `/lyrics/edit/?id=${lyrics.id}&returnTo=${encodeURIComponent(returnPath)}`;
       try {
         router.push(lyricsUrl);
       } catch {
@@ -447,7 +450,7 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
         updated_at: new Date().toISOString(),
       };
       await saveChart(chart);
-      const chartUrl = `/chart/edit/?id=${chart.id}`;
+      const chartUrl = `/chart/edit/?id=${chart.id}&returnTo=${encodeURIComponent(returnPath)}`;
       try {
         router.push(chartUrl);
       } catch {
@@ -664,7 +667,8 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
                 onClick={(e) => {
                   e.stopPropagation();
                   setActiveDropdown(null);
-                  const targetUrl = type === 'lyrics' ? `/lyrics/edit/?id=${id}` : `/chart/edit/?id=${id}`;
+                  const returnPath = folderId ? `/folder/?id=${folderId}` : (type === 'lyrics' ? '/lyrics' : '/chords');
+                  const targetUrl = type === 'lyrics' ? `/lyrics/edit/?id=${id}&returnTo=${encodeURIComponent(returnPath)}` : `/chart/edit/?id=${id}&returnTo=${encodeURIComponent(returnPath)}`;
                   router.push(targetUrl);
                 }}
                 className="flex items-center w-full px-4 py-2 text-xs font-semibold text-slate-800 dark:text-slate-100 hover:bg-orange-500/10 hover:text-orange-600 dark:hover:text-orange-400 transition-colors cursor-pointer"
@@ -1028,7 +1032,7 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
                             onPointerMove={handlePointerMove}
                             onPointerUp={handlePointerUp}
                             onPointerCancel={handlePointerUp}
-                            onClick={(e) => handleCardClick(chart.id, kind, e, () => router.push(kind === 'lyrics' ? `/lyrics/view/?id=${chart.id}` : `/chart/?id=${chart.id}`))}
+                            onClick={(e) => handleCardClick(chart.id, kind, e, () => router.push(kind === 'lyrics' ? `/lyrics/view/?id=${chart.id}&returnTo=${encodeURIComponent(catalogReturnPath)}` : `/chart/?id=${chart.id}&returnTo=${encodeURIComponent(catalogReturnPath)}`))}
                             onContextMenu={(e) => {
                               e.preventDefault();
                               if (Date.now() - lastLongPressTime.current > 600) {
@@ -1089,7 +1093,7 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
                             onPointerMove={handlePointerMove}
                             onPointerUp={handlePointerUp}
                             onPointerCancel={handlePointerUp}
-                            onClick={(e) => handleCardClick(chart.id, kind, e, () => router.push(kind === 'lyrics' ? `/lyrics/view/?id=${chart.id}` : `/chart/?id=${chart.id}`))}
+                            onClick={(e) => handleCardClick(chart.id, kind, e, () => router.push(kind === 'lyrics' ? `/lyrics/view/?id=${chart.id}&returnTo=${encodeURIComponent(catalogReturnPath)}` : `/chart/?id=${chart.id}&returnTo=${encodeURIComponent(catalogReturnPath)}`))}
                             onContextMenu={(e) => {
                               e.preventDefault();
                               if (Date.now() - lastLongPressTime.current > 600) {
@@ -1266,7 +1270,7 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
                       onPointerMove={handlePointerMove}
                       onPointerUp={handlePointerUp}
                       onPointerCancel={handlePointerUp}
-                      onClick={(e) => handleCardClick(chart.id, kind, e, () => router.push(kind === 'lyrics' ? `/lyrics/view/?id=${chart.id}` : `/chart/?id=${chart.id}`))}
+                      onClick={(e) => handleCardClick(chart.id, kind, e, () => router.push(kind === 'lyrics' ? `/lyrics/view/?id=${chart.id}&returnTo=${encodeURIComponent(catalogReturnPath)}` : `/chart/?id=${chart.id}&returnTo=${encodeURIComponent(catalogReturnPath)}`))}
                       onContextMenu={(e) => {
                         e.preventDefault();
                         if (Date.now() - lastLongPressTime.current > 600) {
@@ -1315,7 +1319,7 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
                       onPointerMove={handlePointerMove}
                       onPointerUp={handlePointerUp}
                       onPointerCancel={handlePointerUp}
-                      onClick={(e) => handleCardClick(chart.id, kind, e, () => router.push(kind === 'lyrics' ? `/lyrics/view/?id=${chart.id}` : `/chart/?id=${chart.id}`))}
+                      onClick={(e) => handleCardClick(chart.id, kind, e, () => router.push(kind === 'lyrics' ? `/lyrics/view/?id=${chart.id}&returnTo=${encodeURIComponent(catalogReturnPath)}` : `/chart/?id=${chart.id}&returnTo=${encodeURIComponent(catalogReturnPath)}`))}
                       onContextMenu={(e) => {
                         e.preventDefault();
                         if (Date.now() - lastLongPressTime.current > 600) {

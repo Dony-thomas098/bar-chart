@@ -83,7 +83,11 @@ export function CapacitorInit(): null {
       const atHome = currentPath === '/';
 
       if (!atHome) {
-        // On ANY other module: NEVER exit! Always return to the home screen ('/')
+        // Return to previous route where the user left off, falling back to home
+        if (typeof window !== 'undefined' && window.history.length > 1) {
+          router.back();
+          return;
+        }
         router.push('/');
         return;
       }

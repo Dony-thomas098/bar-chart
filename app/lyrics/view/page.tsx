@@ -6,6 +6,7 @@ import { useAuth } from '@/components/AuthProvider';
 import { useLyricsSync } from '@/hooks/useLyricsSync';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { Lyric } from '@/lib/lyrics';
+import LyricsEditor from '../[id]/edit/page';
 
 const PiascoreLyricsReader = dynamic(
   () => import('@/components/PiascoreLyricsReader').then((mod) => mod.PiascoreLyricsReader),
@@ -139,6 +140,24 @@ function LyricsViewerContent() {
   );
 }
 
+function LyricsViewerRouter() {
+  const params = useParams();
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
+  const isEditRoute = params?.id === 'edit' || pathname.includes('/edit');
+
+  if (isEditRoute) {
+    return <LyricsEditor />;
+  }
+
+  return <LyricsViewerContent />;
+}
+
 export default function LyricsViewerPage() {
   return (
     <Suspense fallback={
@@ -146,7 +165,7 @@ export default function LyricsViewerPage() {
         <div className="w-6 h-6 border-2 border-accent-start border-t-transparent rounded-full animate-spin" />
       </div>
     }>
-      <LyricsViewerContent />
+      <LyricsViewerRouter />
     </Suspense>
   );
 }

@@ -192,4 +192,53 @@ describe('Chart and Lyrics Editor Navigation & Routing Fixes', () => {
     expect(lyricsReaderCode).toContain('setActiveTabId(initialLyric.id);');
     expect(lyricsReaderCode).toContain('setCurrentLyric(initialLyric);');
   });
+
+  it('guarantees ChartEditor uses touch card interface for phones and tablets below xl', () => {
+    const editorPage = fs.readFileSync(path.resolve(__dirname, '../app/chart/[id]/edit/page.tsx'), 'utf-8');
+    expect(editorPage).toContain('block xl:hidden');
+    expect(editorPage).toContain('hidden xl:block');
+    expect(editorPage).not.toContain('block md:hidden');
+    expect(editorPage).not.toContain('hidden md:block');
+  });
+
+  it('guarantees app/chart/[id]/page.tsx and app/chart/page.tsx render ChartEditor immediately on edit routes', () => {
+    const chartIdPage = fs.readFileSync(path.resolve(__dirname, '../app/chart/[id]/page.tsx'), 'utf-8');
+    const chartPage = fs.readFileSync(path.resolve(__dirname, '../app/chart/page.tsx'), 'utf-8');
+
+    expect(chartIdPage).toContain("const isEditRoute = params?.id === 'edit' || pathname.includes('/edit');");
+    expect(chartIdPage).toContain('if (isEditRoute) {\n    return <ChartEditor />;\n  }');
+    expect(chartPage).toContain("const isEditRoute = params?.id === 'edit' || pathname.includes('/edit');");
+    expect(chartPage).toContain('if (isEditRoute) {\n    return <ChartEditor />;\n  }');
+  });
+
+  it('guarantees ChartEditor and LyricsEditor integrate useHardwareBackButton and returnTo navigation', () => {
+    const chartEditor = fs.readFileSync(path.resolve(__dirname, '../app/chart/[id]/edit/page.tsx'), 'utf-8');
+    const lyricsEditor = fs.readFileSync(path.resolve(__dirname, '../app/lyrics/[id]/edit/page.tsx'), 'utf-8');
+
+    expect(chartEditor).toContain('useHardwareBackButton({');
+    expect(chartEditor).toContain('stateKey: \'chordly_chart_editor\'');
+    expect(chartEditor).toContain('if (returnTo) {\n      router.push(returnTo);');
+    expect(chartEditor).toContain('router.push(`/folder/?id=${chartRef.current.folder_id}`);');
+
+    expect(lyricsEditor).toContain('useHardwareBackButton({');
+    expect(lyricsEditor).toContain('stateKey: \'chordly_lyrics_editor\'');
+    expect(lyricsEditor).toContain('if (returnTo) {\n      router.push(returnTo);');
+    expect(lyricsEditor).toContain('router.push(`/lyrics/folder/?id=${lyricRef.current.folder_id}`);');
+  });
+
+  it('guarantees new chart creation in Navigation, FolderBrowser, and Sidebar includes returnTo parameter', () => {
+    const nav = fs.readFileSync(path.resolve(__dirname, '../components/Navigation.tsx'), 'utf-8');
+    const folder = fs.readFileSync(path.resolve(__dirname, '../components/FolderBrowser.tsx'), 'utf-8');
+    const sidebar = fs.readFileSync(path.resolve(__dirname, '../components/Sidebar.tsx'), 'utf-8');
+
+    expect(nav).toContain('returnTo=${encodeURIComponent(returnPath)}');
+    expect(folder).toContain('returnTo=${encodeURIComponent(returnPath)}');
+    expect(sidebar).toContain('returnTo=${encodeURIComponent(returnPath)}');
+  });
+
+  it('guarantees CapacitorInit allows history back navigation on subroutes instead of hardcoding home', () => {
+    const capInit = fs.readFileSync(path.resolve(__dirname, '../components/CapacitorInit.tsx'), 'utf-8');
+    expect(capInit).toContain('window.history.length > 1');
+    expect(capInit).toContain('router.back();');
+  });
 });

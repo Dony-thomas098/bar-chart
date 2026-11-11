@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { ChartData } from '@/lib/chart-types';
 import { ChartRenderer } from '@/components/ChartRenderer';
 import { SongPickerModal, PickedItem } from '@/components/SongPickerModal';
@@ -119,6 +119,7 @@ function ChartContentWrapper({
 
 export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollowStart }: Props) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { profile } = useAuth();
   const canEditChart = canModifySection(profile?.profession, 'chart');
 
@@ -715,7 +716,20 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
               showLockNotification('Screen is locked · Tap lock icon to unlock');
               return;
             }
-            router.push(folderId ? `/folder/?id=${folderId}` : '/');
+            const returnTo = searchParams?.get('returnTo');
+            if (returnTo) {
+              router.push(returnTo);
+              return;
+            }
+            if (folderId) {
+              router.push(`/folder/?id=${folderId}`);
+              return;
+            }
+            if (typeof window !== 'undefined' && window.history.length > 1) {
+              router.back();
+            } else {
+              router.push('/chords');
+            }
           }}
           className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg transition-all active:scale-95 shrink-0 ${
             isStageLocked
@@ -1083,7 +1097,8 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
               e.preventDefault();
               e.stopPropagation();
               if (currentChart?.id) {
-                const targetUrl = `/chart/edit/?id=${encodeURIComponent(currentChart.id)}`;
+                const returnPath = `/chart/?id=${encodeURIComponent(currentChart.id)}`;
+                const targetUrl = `/chart/edit/?id=${encodeURIComponent(currentChart.id)}&returnTo=${encodeURIComponent(returnPath)}`;
                 try {
                   router.push(targetUrl);
                 } catch {

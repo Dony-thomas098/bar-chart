@@ -6,8 +6,9 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { moveEntry } from '@/lib/storage';
 import { saveLyrics, Lyric } from '@/lib/lyrics';
 import { FolderPickerModal } from '@/components/FolderPickerModal';
-import { CornerLeftUp, Folder as FolderIcon, RefreshCw, Cloud, CloudOff, Copy } from 'lucide-react';
-import React, { useState } from 'react';
+import { useHardwareBackButton } from '@/hooks/useHardwareBackButton';
+import { CornerLeftUp, Folder as FolderIcon, RefreshCw, Cloud, CloudOff, Copy, ChevronLeft } from 'lucide-react';
+import React, { useState, useCallback, useRef } from 'react';
 
 export default function LyricsEditor() {
   const router = useRouter();
@@ -65,6 +66,38 @@ export default function LyricsEditor() {
   const { lyric, loading: lyricLoading, saveStatus, collaborators, updateLyric, forceSave } = useLyricsSync(lyricId);
   const [copied, setCopied] = useState(false);
   const [isFolderPickerOpen, setIsFolderPickerOpen] = useState(false);
+  const returnTo = searchParams.get('returnTo');
+  const lyricRef = useRef<Lyric | null>(lyric);
+  React.useEffect(() => {
+    lyricRef.current = lyric;
+  }, [lyric]);
+
+  const handleBack = useCallback(async () => {
+    try {
+      await forceSave();
+    } catch (err) {
+      console.warn('[LyricsEditor] Error saving before navigation:', err);
+    }
+    if (returnTo) {
+      router.push(returnTo);
+      return;
+    }
+    if (lyricRef.current?.folder_id) {
+      router.push(`/lyrics/folder/?id=${lyricRef.current.folder_id}`);
+      return;
+    }
+    if (typeof window !== 'undefined' && window.history.length > 1) {
+      router.back();
+    } else {
+      router.push('/lyrics');
+    }
+  }, [forceSave, returnTo, router]);
+
+  useHardwareBackButton({
+    enabled: !isFolderPickerOpen,
+    onBack: handleBack,
+    stateKey: 'chordly_lyrics_editor',
+  });
 
   if (authLoading || lyricLoading) {
     return <div className="flex h-screen items-center justify-center text-white">Loading...</div>;
@@ -96,15 +129,15 @@ export default function LyricsEditor() {
         <div className="max-w-4xl mx-auto space-y-8">
           
           {/* Top Bar for buttons */}
-          <div className="w-full flex flex-col sm:flex-row justify-end lg:justify-between items-start sm:items-center gap-4 mb-4">
+          <div className="w-full flex justify-between items-center gap-4 mb-4">
             <button 
-              onClick={async () => {
-                await forceSave();
-                router.push(`/lyrics/view/?id=${lyric.id}`);
-              }}
-              className="hidden lg:flex px-4 py-2 text-sm font-bold tracking-widest uppercase text-text-secondary hover:text-white bg-surface border border-border shadow-md rounded-xl hover:bg-surface-raised items-center transition-all"
+              type="button"
+              onClick={handleBack}
+              className="flex px-3 sm:px-4 py-2 sm:py-2.5 text-xs font-bold tracking-wider uppercase text-text-primary bg-white/70 dark:bg-white/10 border border-glass shadow-sm rounded-full hover:bg-white items-center transition-all active:scale-95 cursor-pointer"
+              aria-label="Back"
             >
-              <CornerLeftUp size={16} className="mr-2" /> Back to Viewer
+              <ChevronLeft size={16} className="mr-1" />
+              <span>{returnTo && returnTo.includes('/lyrics/view') ? 'Viewer' : returnTo && returnTo.includes('/perform') ? 'Performance' : 'Back'}</span>
             </button>
 
             <div className="flex flex-wrap items-center gap-4">

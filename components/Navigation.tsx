@@ -397,7 +397,8 @@ export function Navigation() {
       updated_at: new Date().toISOString(),
     };
     await saveChart(chart);
-    const chartUrl = `/chart/edit/?id=${chart.id}`;
+    const returnPath = pathname || '/chords';
+    const chartUrl = `/chart/edit/?id=${chart.id}&returnTo=${encodeURIComponent(returnPath)}`;
     try {
       router.push(chartUrl);
     } catch {
@@ -419,7 +420,8 @@ export function Navigation() {
       updated_at: new Date().toISOString(),
     };
     await saveLyrics(lyrics);
-    const lyricsUrl = `/lyrics/edit/?id=${lyrics.id}`;
+    const returnPath = pathname || '/lyrics';
+    const lyricsUrl = `/lyrics/edit/?id=${lyrics.id}&returnTo=${encodeURIComponent(returnPath)}`;
     try {
       router.push(lyricsUrl);
     } catch {

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Lyric, readLyrics } from '@/lib/lyrics';
 import { supabase } from '@/lib/supabase';
 import { SongPickerModal, PickedItem } from '@/components/SongPickerModal';
@@ -169,6 +169,7 @@ function LyricsContentWrapper({
 
 export function PiascoreLyricsReader({ initialLyric, folderId }: Props) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { profile } = useAuth();
   const canEditLyrics = canModifySection(profile?.profession, 'lyrics');
 
@@ -660,7 +661,20 @@ export function PiascoreLyricsReader({ initialLyric, folderId }: Props) {
               showLockNotification('Screen is locked · Tap lock icon to unlock');
               return;
             }
-            router.push(folderId ? `/lyrics/folder/?id=${folderId}` : '/lyrics/');
+            const returnTo = searchParams?.get('returnTo');
+            if (returnTo) {
+              router.push(returnTo);
+              return;
+            }
+            if (folderId) {
+              router.push(`/lyrics/folder/?id=${folderId}`);
+              return;
+            }
+            if (typeof window !== 'undefined' && window.history.length > 1) {
+              router.back();
+            } else {
+              router.push('/lyrics');
+            }
           }}
           className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg transition-all active:scale-95 ${
             isStageLocked
@@ -996,7 +1010,8 @@ export function PiascoreLyricsReader({ initialLyric, folderId }: Props) {
               e.preventDefault();
               e.stopPropagation();
               if (currentLyric?.id) {
-                const targetUrl = `/lyrics/edit/?id=${encodeURIComponent(currentLyric.id)}`;
+                const returnPath = `/lyrics/view/?id=${encodeURIComponent(currentLyric.id)}`;
+                const targetUrl = `/lyrics/edit/?id=${encodeURIComponent(currentLyric.id)}&returnTo=${encodeURIComponent(returnPath)}`;
                 try {
                   router.push(targetUrl);
                 } catch {

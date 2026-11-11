@@ -504,11 +504,11 @@ describe('Multi-Device Band Synchronization & Profile Field Preservation', () =>
     expect(setlistPerformPage).toContain('centerZoomedOut={false}');
   });
 
-  it('guarantees calculateScoreFit centers short charts vertically in phones and tablets', async () => {
+  it('guarantees calculateScoreFit moves the score to the center of the screen across phones, tablets, and desktops', async () => {
     const { calculateScoreFit } = await import('../lib/score-fit');
 
     // 1. Mobile Portrait: short chart (350px tall in 844px viewport)
-    // Vertically centered in viewport across both unlocked and locked states
+    // Moves to the center of the screen vertically whenever it fits comfortably in the viewport
     const unlocked = calculateScoreFit({
       viewportWidth: 390,
       viewportHeight: 844,
@@ -522,7 +522,6 @@ describe('Multi-Device Band Synchronization & Profile Field Preservation', () =>
     expect(unlocked.posY).toBeCloseTo(expectedPosYUnlocked, 1);
     expect(unlocked.posY).toBeGreaterThan(8);
 
-    // When locked: also centered vertically in the viewport
     const locked = calculateScoreFit({
       viewportWidth: 390,
       viewportHeight: 844,
@@ -537,7 +536,7 @@ describe('Multi-Device Band Synchronization & Profile Field Preservation', () =>
     expect(locked.posY).toBeGreaterThan(8);
 
     // 2. Mobile Portrait: tall chart (1800px tall in 844px viewport)
-    // Must stay at topOffset so the top measures are never clipped
+    // Must stay at topOffset (8px) so top measures are never clipped off screen
     const tallLocked = calculateScoreFit({
       viewportWidth: 390,
       viewportHeight: 844,
@@ -548,7 +547,7 @@ describe('Multi-Device Band Synchronization & Profile Field Preservation', () =>
     });
     expect(tallLocked.posY).toBe(8);
 
-    // 3. iPad Pro 13" (1032x1376) and Tablet: short/medium chart
+    // 3. iPad Pro 13" (1032x1376) and Tablet: centers score in the screen
     const ipadUnlocked = calculateScoreFit({
       viewportWidth: 1032,
       viewportHeight: 1376,

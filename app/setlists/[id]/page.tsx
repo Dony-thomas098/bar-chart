@@ -140,10 +140,11 @@ function SortableItemRow({
   const [dropUp, setDropUp] = useState(false);
 
   const handleOpenItem = () => {
+    const returnPath = `/setlists/view/?id=${item.setlist_id}`;
     if (item.item_type === 'chart') {
-      router.push(`/chart/?id=${item.item_id}`);
+      router.push(`/chart/?id=${item.item_id}&returnTo=${encodeURIComponent(returnPath)}`);
     } else {
-      router.push(`/lyrics/view/?id=${item.item_id}`);
+      router.push(`/lyrics/view/?id=${item.item_id}&returnTo=${encodeURIComponent(returnPath)}`);
     }
   };
 

@@ -6,6 +6,7 @@ import { useAuth } from '@/components/AuthProvider';
 import { useChartSync } from '@/hooks/useChartSync';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { ChartData } from '@/lib/chart-types';
+import ChartEditor from './[id]/edit/page';
 
 const PiascoreReader = dynamic(
   () => import('@/components/PiascoreReader').then((mod) => mod.PiascoreReader),
@@ -139,6 +140,24 @@ function ChartViewerContent() {
   );
 }
 
+function ChartViewerRouter() {
+  const params = useParams();
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
+  const isEditRoute = params?.id === 'edit' || pathname.includes('/edit');
+
+  if (isEditRoute) {
+    return <ChartEditor />;
+  }
+
+  return <ChartViewerContent />;
+}
+
 export default function ChartViewerPage() {
   return (
     <Suspense fallback={
@@ -146,7 +165,7 @@ export default function ChartViewerPage() {
         <div className="w-6 h-6 border-2 border-[#007aff] border-t-transparent rounded-full animate-spin" />
       </div>
     }>
-      <ChartViewerContent />
+      <ChartViewerRouter />
     </Suspense>
   );
 }

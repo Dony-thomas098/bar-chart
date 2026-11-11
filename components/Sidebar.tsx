@@ -111,7 +111,8 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
       updated_at: new Date().toISOString(),
     };
     await saveChart(chart);
-    const chartUrl = `/chart/edit/?id=${chart.id}`;
+    const returnPath = currentFolderId ? `/folder/?id=${currentFolderId}` : (pathname || '/chords');
+    const chartUrl = `/chart/edit/?id=${chart.id}&returnTo=${encodeURIComponent(returnPath)}`;
     try {
       router.push(chartUrl);
     } catch {
@@ -133,7 +134,8 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
       updated_at: new Date().toISOString(),
     };
     await saveLyrics(lyric);
-    const lyricsUrl = `/lyrics/edit/?id=${lyric.id}`;
+    const returnPath = currentFolderId ? `/lyrics/folder/?id=${currentFolderId}` : (pathname || '/lyrics');
+    const lyricsUrl = `/lyrics/edit/?id=${lyric.id}&returnTo=${encodeURIComponent(returnPath)}`;
     try {
       router.push(lyricsUrl);
     } catch {
