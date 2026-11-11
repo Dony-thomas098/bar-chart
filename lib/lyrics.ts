@@ -92,6 +92,10 @@ export async function readLyrics(id: string): Promise<Lyric | null> {
       try {
         const { data: sessionData } = await supabase.auth.getSession();
         sessionUser = sessionData?.session?.user || null;
+        if (!sessionUser) {
+          const { data: userData } = await supabase.auth.getUser();
+          sessionUser = userData?.user || null;
+        }
       } catch {}
 
       const fetchPromise = supabase.from('lyrics').select('*').eq('id', id).maybeSingle();

@@ -26,7 +26,7 @@ function LyricsViewerDetailContent() {
   const params = useParams();
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { user, loading: authLoading } = useAuth();
+  const { user, isGuest, loading: authLoading } = useAuth();
 
   const getInitialLyricId = () => {
     if (params?.id && params.id !== 'edit' && params.id !== 'view' && params.id !== 'demo' && params.id !== 'folder') return params.id as string;
@@ -79,28 +79,51 @@ function LyricsViewerDetailContent() {
   }
 
   if (!lyric) {
+    const isGuestOrUnauthenticated = !user || isGuest || user?.email === 'guest@offline.local';
+    const currentUrl = typeof window !== 'undefined' ? window.location.pathname + window.location.search : '';
+
     return (
-      <div className="flex h-screen flex-col items-center justify-center bg-[#121214] text-white gap-4">
-        <p className="text-slate-400 text-sm">Lyrics not found or access denied.</p>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => router.push('/lyrics/')}
-            className="px-5 py-2.5 bg-accent-gradient font-bold rounded-xl text-white hover:brightness-110 transition-all"
-          >
-            Go to Lyrics Catalog
-          </button>
+      <div className="flex h-screen flex-col items-center justify-center bg-[#121214] text-white gap-4 px-6 text-center">
+        <p className="text-slate-400 text-sm max-w-sm">
+          {isGuestOrUnauthenticated
+            ? 'Sign in to access your band’s cloud lyrics and songs on this device.'
+            : 'Lyrics not found or access denied for your current band workspace.'}
+        </p>
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          {isGuestOrUnauthenticated ? (
+            <button
+              onClick={() => router.push(`/auth?returnTo=${encodeURIComponent(currentUrl)}`)}
+              className="px-6 py-2.5 bg-accent-gradient font-bold rounded-xl text-white hover:brightness-110 transition-all shadow-lg"
+            >
+              Sign In to View
+            </button>
+          ) : (
+            <button
+              onClick={() => router.push('/lyrics/')}
+              className="px-5 py-2.5 bg-accent-gradient font-bold rounded-xl text-white hover:brightness-110 transition-all"
+            >
+              Go to Lyrics Catalog
+            </button>
+          )}
           <button
             onClick={() => window.location.reload()}
             className="px-5 py-2.5 bg-white/10 hover:bg-white/20 font-bold rounded-xl text-white transition-all"
           >
             Retry
           </button>
-          {!user && (
+          {isGuestOrUnauthenticated ? (
             <button
-              onClick={() => router.push('/auth')}
+              onClick={() => router.push('/lyrics/')}
               className="px-5 py-2.5 bg-white/10 hover:bg-white/20 font-bold rounded-xl text-white transition-all"
             >
-              Sign In
+              Go to Lyrics Catalog
+            </button>
+          ) : (
+            <button
+              onClick={() => router.push('/profile')}
+              className="px-5 py-2.5 bg-white/10 hover:bg-white/20 font-bold rounded-xl text-white transition-all"
+            >
+              Check Band
             </button>
           )}
         </div>

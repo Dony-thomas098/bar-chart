@@ -57,6 +57,19 @@ export default function AuthPage() {
   const { user, loading, enableGuestMode } = useAuth();
   const formRef = useRef<HTMLFormElement>(null);
 
+  const getReturnToUrl = () => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const target = params.get('returnTo');
+      if (target && target.startsWith('/') && !target.startsWith('/auth')) {
+        return target;
+      }
+    }
+    return '/';
+  };
+
+
+
   // Detect iOS / macOS platform for Apple Sign In display
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -153,7 +166,7 @@ export default function AuthPage() {
           console.warn('[Auth] Error safely syncing profile on sign in:', e);
         }
 
-        router.replace('/');
+        router.replace(getReturnToUrl());
       }
     });
 
@@ -188,7 +201,7 @@ export default function AuthPage() {
             console.error('[Auth] OAuth exchange error:', error);
             setGeneralError(error.message || 'Failed to complete sign-in from redirect.');
           } else if (data?.session) {
-            router.replace('/');
+            router.replace(getReturnToUrl());
           }
         }).catch((err) => {
           setIsSubmitting(false);
@@ -209,7 +222,7 @@ export default function AuthPage() {
   // If already authenticated and not in password recovery, redirect to home
   useEffect(() => {
     if (!loading && user && modalView !== 'recovery') {
-      router.replace('/');
+      router.replace(getReturnToUrl());
     }
   }, [user, loading, modalView, router]);
 
@@ -261,7 +274,7 @@ export default function AuthPage() {
   // Guest Mode handler
   const handleGuestClick = () => {
     enableGuestMode();
-    router.push('/');
+    router.push(getReturnToUrl());
   };
 
   // Google OAuth login
@@ -442,7 +455,7 @@ export default function AuthPage() {
 
         // Reset failed attempts on success
         setFailedAttempts(0);
-        router.push('/');
+        router.push(getReturnToUrl());
       } catch (err: any) {
         setGeneralError(err.message || 'Authentication failed. Please try again.');
       } finally {
@@ -533,7 +546,7 @@ export default function AuthPage() {
         }
 
         if (data?.session) {
-          router.push('/');
+          router.push(getReturnToUrl());
         } else {
           setSuccessMessage(`Account created for @${cleanUsername}! You can now sign in with your username or email.`);
           setIdentifier(cleanUsername);
@@ -596,7 +609,7 @@ export default function AuthPage() {
       if (error) throw error;
       setSuccessMessage('Password successfully updated! Redirecting to your library...');
       setTimeout(() => {
-        router.push('/');
+        router.push(getReturnToUrl());
       }, 1200);
     } catch (err: any) {
       setGeneralError(err.message || 'Failed to update password. Please request a new recovery link.');

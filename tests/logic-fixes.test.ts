@@ -193,5 +193,44 @@ describe('Group 2: High Logic Bugs & Strict Typing Verification', () => {
       // 5. Chart viewer page offers a Retry button
       expect(chartPage).toContain('Retry');
     });
+
+    it('verifies mobile guest/unauthenticated detection, returnTo routing, and RPC band resolution', async () => {
+      const fs = await import('fs');
+      const path = await import('path');
+
+      const chartPage = fs.readFileSync(path.resolve(__dirname, '../app/chart/page.tsx'), 'utf-8');
+      const chartDetailPage = fs.readFileSync(path.resolve(__dirname, '../app/chart/[id]/page.tsx'), 'utf-8');
+      const lyricsPage = fs.readFileSync(path.resolve(__dirname, '../app/lyrics/view/page.tsx'), 'utf-8');
+      const lyricsDetailPage = fs.readFileSync(path.resolve(__dirname, '../app/lyrics/[id]/page.tsx'), 'utf-8');
+      const authPage = fs.readFileSync(path.resolve(__dirname, '../app/auth/page.tsx'), 'utf-8');
+      const bandCode = fs.readFileSync(path.resolve(__dirname, '../lib/band.ts'), 'utf-8');
+      const storageCode = fs.readFileSync(path.resolve(__dirname, '../lib/storage.ts'), 'utf-8');
+      const lyricsStorageCode = fs.readFileSync(path.resolve(__dirname, '../lib/lyrics.ts'), 'utf-8');
+
+      // 1. Chart and lyrics viewers detect guests/unauthenticated users explicitly
+      expect(chartPage).toContain('isGuestOrUnauthenticated');
+      expect(chartDetailPage).toContain('isGuestOrUnauthenticated');
+      expect(lyricsPage).toContain('isGuestOrUnauthenticated');
+      expect(lyricsDetailPage).toContain('isGuestOrUnauthenticated');
+
+      // 2. Viewers provide 'Sign In to View' button
+      expect(chartPage).toContain('Sign In to View');
+      expect(chartDetailPage).toContain('Sign In to View');
+      expect(lyricsPage).toContain('Sign In to View');
+      expect(lyricsDetailPage).toContain('Sign In to View');
+
+      // 3. Auth page supports returnTo parameter for seamless return to opened song
+      expect(authPage).toContain('getReturnToUrl');
+      expect(authPage).toContain('returnTo');
+
+      // 4. Band resolution uses get_band_by_code RPC to bypass restrictive band table RLS
+      expect(bandCode).toContain("supabase.rpc('get_band_by_code'");
+      expect(bandCode).toContain("p_code: 'INFANTJESUS'");
+      expect(bandCode).toContain("p_code: '1234'");
+
+      // 5. readChart and readLyrics check getUser() if getSession() is empty
+      expect(storageCode).toContain('supabase.auth.getUser()');
+      expect(lyricsStorageCode).toContain('supabase.auth.getUser()');
+    });
   });
 });

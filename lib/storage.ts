@@ -1202,6 +1202,10 @@ export async function readChart(id: string, bypassCache = false): Promise<Chart 
       try {
         const { data: sessionData } = await supabase.auth.getSession();
         sessionUser = sessionData?.session?.user || null;
+        if (!sessionUser) {
+          const { data: userData } = await supabase.auth.getUser();
+          sessionUser = userData?.user || null;
+        }
       } catch {}
 
       const fetchPromise = supabase.from('charts').select('*').eq('id', id).maybeSingle();
@@ -1563,6 +1567,10 @@ export async function readLyrics(id: string): Promise<any | null> {
     try {
       const { data: sessionData } = await supabase.auth.getSession();
       sessionUser = sessionData?.session?.user || null;
+      if (!sessionUser) {
+        const { data: userData } = await supabase.auth.getUser();
+        sessionUser = userData?.user || null;
+      }
     } catch {}
     const { data, error } = await supabase.from('lyrics').select('*').eq('id', id).maybeSingle();
     if (!error && data) {

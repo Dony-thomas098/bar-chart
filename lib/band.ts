@@ -325,13 +325,31 @@ export async function syncBandForUser(user: { id: string; email?: string | null;
     
     let churchBand = null;
     try {
-      const { data } = await supabase
-        .from('bands')
-        .select('*')
-        .or('code.ilike.INFANTJESUS,code.ilike.1234')
-        .limit(1);
-      churchBand = data?.[0] || null;
+      const { data: rpcData } = await supabase.rpc('get_band_by_code', { p_code: 'INFANTJESUS' });
+      const row = Array.isArray(rpcData) ? rpcData[0] : rpcData;
+      if (row && row.id) {
+        churchBand = row as Band;
+      }
     } catch {}
+    if (!churchBand) {
+      try {
+        const { data: rpcData } = await supabase.rpc('get_band_by_code', { p_code: '1234' });
+        const row = Array.isArray(rpcData) ? rpcData[0] : rpcData;
+        if (row && row.id) {
+          churchBand = row as Band;
+        }
+      } catch {}
+    }
+    if (!churchBand) {
+      try {
+        const { data } = await supabase
+          .from('bands')
+          .select('*')
+          .or('code.ilike.INFANTJESUS,code.ilike.1234')
+          .limit(1);
+        churchBand = data?.[0] || null;
+      } catch {}
+    }
 
     const defaultBand = churchBand || {
       id: '9ca7fef8-a0e0-4587-a329-0444c4b27f70',

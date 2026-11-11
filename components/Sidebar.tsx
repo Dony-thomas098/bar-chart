@@ -5,7 +5,7 @@ import { useAuth, canModifySection } from '@/components/AuthProvider';
 import { getRecentCharts, createFolder, saveChart } from '@/lib/storage';
 import { saveLyrics } from '@/lib/lyrics';
 import { createDefaultLine } from '@/lib/chart-types';
-import { X, User, LogOut, Settings, Folder as FolderIcon, FileText, Printer, Trash2, Music, Music2, ListMusic, Star, Download, ChevronRight, Plus, Sun, Moon, Users } from 'lucide-react';
+import { X, User, LogOut, LogIn, Settings, Folder as FolderIcon, FileText, Printer, Trash2, Music, Music2, ListMusic, Star, Download, ChevronRight, Plus, Sun, Moon, Users } from 'lucide-react';
 import { useRouter, usePathname } from 'next/navigation';
 import { getStoredTheme, setTheme, ThemeMode } from '@/lib/theme';
 import { ChordlyLogo } from './ChordlyLogo';
@@ -14,7 +14,7 @@ import { getStoredBand } from '@/lib/band';
 import './sidebar-drawer.css';
 
 export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
-  const { user, profile, signOut } = useAuth();
+  const { user, isGuest, profile, signOut } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
 
@@ -437,12 +437,24 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
 
         {/* Logout Footer */}
         <div className="app-drawer-footer">
-          <button
-            onClick={handleLogout}
-            className="app-drawer-signout"
-          >
-            <LogOut size={14} /> Sign Out
-          </button>
+          {isGuest || user?.email === 'guest@offline.local' ? (
+            <button
+              onClick={() => {
+                onClose();
+                router.push('/auth');
+              }}
+              className="app-drawer-signout !text-orange-500 hover:!text-orange-400"
+            >
+              <LogIn size={14} /> Sign In
+            </button>
+          ) : (
+            <button
+              onClick={handleLogout}
+              className="app-drawer-signout"
+            >
+              <LogOut size={14} /> Sign Out
+            </button>
+          )}
         </div>
       </div>
 
