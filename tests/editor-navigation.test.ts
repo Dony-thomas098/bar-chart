@@ -326,4 +326,79 @@ describe('Chart and Lyrics Editor Navigation & Routing Fixes', () => {
     expect(setlistPerformCode).toContain('(supabase as any).realtime?.channels');
     expect(setlistPerformCode).toContain('channels.filter');
   });
+
+  it('guarantees PiascoreReader Writing button has assign fallback and supports light mode theme', () => {
+    const readerCode = fs.readFileSync(path.resolve(__dirname, '../components/PiascoreReader.tsx'), 'utf-8');
+    // Writing button navigation fallback
+    expect(readerCode).toContain('window.location.assign(targetUrl);');
+    expect(readerCode).toContain("window.location.pathname.includes('/edit')");
+
+    // Light and dark mode support
+    expect(readerCode).toContain('bg-[#F4F4F6] dark:bg-[#0F1015]');
+    expect(readerCode).toContain('bg-white/85 dark:bg-[#0F1015]/85');
+    expect(readerCode).toContain('bg-white/80 dark:bg-[#0F1015]/75');
+    expect(readerCode).toContain('bg-white/90 dark:bg-[#14141A]');
+  });
+
+  it('guarantees ChartViewerRouter and LyricsViewerRouter use reactive usePathname', () => {
+    const chartPage = fs.readFileSync(path.resolve(__dirname, '../app/chart/page.tsx'), 'utf-8');
+    const chartIdPage = fs.readFileSync(path.resolve(__dirname, '../app/chart/[id]/page.tsx'), 'utf-8');
+    const lyricsPage = fs.readFileSync(path.resolve(__dirname, '../app/lyrics/view/page.tsx'), 'utf-8');
+    const lyricsIdPage = fs.readFileSync(path.resolve(__dirname, '../app/lyrics/[id]/page.tsx'), 'utf-8');
+
+    expect(chartPage).toContain('routerPathname = usePathname();');
+    expect(chartIdPage).toContain('routerPathname = usePathname();');
+    expect(lyricsPage).toContain('routerPathname = usePathname();');
+    expect(lyricsIdPage).toContain('routerPathname = usePathname();');
+  });
+
+  it('guarantees compareFolders prioritizes explicit position before alphabetical fallback', async () => {
+    const { compareFolders } = await import('../lib/storage');
+
+    const folderA = { id: '1', name: 'Zebra', position: 0, parent_id: null, created_by: 'u1', updated_at: '', kind: 'chart' as const };
+    const folderB = { id: '2', name: 'Apple', position: 1, parent_id: null, created_by: 'u1', updated_at: '', kind: 'chart' as const };
+    const folderC = { id: '3', name: 'Banana', position: null, parent_id: null, created_by: 'u1', updated_at: '', kind: 'chart' as const };
+    const folderD = { id: '4', name: 'Cat', position: null, parent_id: null, created_by: 'u1', updated_at: '', kind: 'chart' as const };
+
+    // Explicit position wins over alphabetical
+    expect(compareFolders(folderA, folderB)).toBeLessThan(0);
+    expect(compareFolders(folderB, folderA)).toBeGreaterThan(0);
+
+    // Positioned folder comes before unpositioned folder
+    expect(compareFolders(folderB, folderC)).toBeLessThan(0);
+    expect(compareFolders(folderC, folderB)).toBeGreaterThan(0);
+
+    // Unpositioned folders fall back to alphabetical A-Z
+    expect(compareFolders(folderC, folderD)).toBeLessThan(0);
+    expect(compareFolders(folderD, folderC)).toBeGreaterThan(0);
+  });
+
+  it('guarantees FolderBrowser drag-and-drop reordering is restricted strictly to Admins and supports both grid and list views', () => {
+    const folderCode = fs.readFileSync(path.resolve(__dirname, '../components/FolderBrowser.tsx'), 'utf-8');
+
+    // Admin-only drag restrictions
+    expect(folderCode).toContain("const isAdmin = profile?.profession === 'admin';");
+    expect(folderCode).toContain('const isSortableDisabled = !isAdmin || isSearching || selectedItems.length > 0;');
+    expect(folderCode).toContain('isAdmin && !isSearching');
+    expect(folderCode).toContain('GripVertical');
+    expect(folderCode).toContain('title="Drag to reorder folder (Admin only)"');
+
+    // Drag-and-drop integration across Grid & List views
+    expect(folderCode).toContain('DndContext');
+    expect(folderCode).toContain('SortableContext');
+    expect(folderCode).toContain('verticalListSortingStrategy : rectSortingStrategy');
+    expect(folderCode).toContain('reorderFolders');
+    expect(folderCode).toContain('compareFolders');
+  });
+
+  it('guarantees lib/storage.ts exports reorderFolders and compareFolders with offline-first support', () => {
+    const storageCode = fs.readFileSync(path.resolve(__dirname, '../lib/storage.ts'), 'utf-8');
+
+    expect(storageCode).toContain('export function compareFolders');
+    expect(storageCode).toContain('export async function reorderFolders');
+    expect(storageCode).toContain("tx.store.put({ ...folder, position, updated_at })");
+    expect(storageCode).toContain("supabase.from('folders').update({ position, updated_at })");
+    expect(storageCode).toContain("type: 'folder',");
+    expect(storageCode).toContain("data: { ...folder, position, updated_at }");
+  });
 });

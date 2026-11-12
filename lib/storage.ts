@@ -28,7 +28,16 @@ export type Folder = {
   updated_at: string;
   kind: 'chart' | 'lyrics';
   band_id?: string | null;
+  position?: number | null;
 };
+
+/** Compare folders by explicit custom position (ascending), falling back to alphabetical (A-Z) */
+export function compareFolders(a: Folder, b: Folder): number {
+  const posA = a.position !== null && a.position !== undefined ? a.position : Infinity;
+  const posB = b.position !== null && b.position !== undefined ? b.position : Infinity;
+  if (posA !== posB) return posA - posB;
+  return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+}
 
 export const DEFAULT_CHURCH_BAND_ID = '9ca7fef8-a0e0-4587-a329-0444c4b27f70';
 
@@ -320,7 +329,7 @@ export async function listFolderFromCache(
 
   const folders = allFolders
     .filter((f) => f.parent_id === folderId && f.kind === kind && !f.name.startsWith('__TRASH__:') && matchesBand(f.band_id))
-    .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+    .sort(compareFolders);
 
   const items = allItems.filter((c) => c.folder_id === folderId && !c.title.startsWith('__TRASH__:') && matchesBand(c.band_id));
 
@@ -369,6 +378,7 @@ export async function listFolder(
         .from('folders')
         .select('*')
         .eq('kind', kind)
+        .order('position', { ascending: true, nullsFirst: false })
         .order('name', { ascending: true })
         .not('name', 'like', '__TRASH__:%');
 
@@ -469,7 +479,7 @@ export async function listFolder(
       flushPendingSaves().catch(() => {});
 
       return {
-        folders: Array.from(folderMap.values()).sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })),
+        folders: Array.from(folderMap.values()).sort(compareFolders),
         charts: Array.from(itemMap.values()),
       };
     } catch (e) {
@@ -490,6 +500,18 @@ export async function createFolder(
   const { data: { user } } = await supabase.auth.getUser();
   const activeBandId = bandId !== undefined ? bandId : (typeof window !== 'undefined' ? localStorage.getItem('chord-grid-band-id') : null);
 
+  let nextPosition = 0;
+  if (dbPromise) {
+    try {
+      const db = await dbPromise;
+      if (db) {
+        const allFolders = await db.getAll('folders');
+        const siblingFolders = allFolders.filter(f => f.parent_id === parentId && f.kind === kind && !f.name.startsWith('__TRASH__:'));
+        nextPosition = siblingFolders.length;
+      }
+    } catch {}
+  }
+
   const folder: Folder = {
     id: crypto.randomUUID(),
     name,
@@ -498,6 +520,7 @@ export async function createFolder(
     band_id: activeBandId || null,
     updated_at: new Date().toISOString(),
     kind,
+    position: nextPosition,
   };
 
   if (isOnline()) {
@@ -508,6 +531,88 @@ export async function createFolder(
   }
   await cacheFolder(folder);
   return folder;
+}
+
+export async function reorderFolders(
+  items: Array<{ id: string; position: number }>
+): Promise<void> {
+  const updated_at = new Date().toISOString();
+
+  // 1. Offline-first: update local IndexedDB cache immediately
+  if (dbPromise) {
+    try {
+      const db = await dbPromise;
+      if (db) {
+        const tx = db.transaction('folders', 'readwrite');
+        for (const { id, position } of items) {
+          const folder = await tx.store.get(id);
+          if (folder) {
+            await tx.store.put({ ...folder, position, updated_at });
+          }
+        }
+        await tx.done;
+      }
+    } catch (err) {
+      console.warn('[Storage] reorderFolders IndexedDB update error:', err);
+    }
+  }
+
+  // 2. If online, update Supabase directly
+  if (isOnline()) {
+    try {
+      const results = await Promise.all(
+        items.map(({ id, position }) =>
+          supabase.from('folders').update({ position, updated_at }).eq('id', id)
+        )
+      );
+      const firstError = results.find(r => r.error)?.error;
+      if (firstError) {
+        throw new Error(`Failed to update folder position: ${firstError.message}`);
+      }
+    } catch (err) {
+      console.warn('[Storage] Online reorderFolders failed, queueing pending_saves:', err);
+      // Queue in pending_saves on network failure
+      if (dbPromise) {
+        try {
+          const db = await dbPromise;
+          if (db) {
+            for (const { id, position } of items) {
+              const folder = await db.get('folders', id);
+              if (folder) {
+                await db.put('pending_saves', {
+                  id,
+                  type: 'folder',
+                  data: { ...folder, position, updated_at },
+                  action: 'upsert',
+                });
+              }
+            }
+          }
+        } catch {}
+      }
+      throw err;
+    }
+  } else if (dbPromise) {
+    // Offline: queue in pending_saves
+    try {
+      const db = await dbPromise;
+      if (db) {
+        for (const { id, position } of items) {
+          const folder = await db.get('folders', id);
+          if (folder) {
+            await db.put('pending_saves', {
+              id,
+              type: 'folder',
+              data: { ...folder, position, updated_at },
+              action: 'upsert',
+            });
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('[Storage] reorderFolders offline queueing error:', err);
+    }
+  }
 }
 
 
@@ -1281,13 +1386,13 @@ export async function getAllFolders(kind?: 'chart' | 'lyrics', bandId?: string |
     if (bandFilter) query = query.or(bandFilter);
     if (kind) query = query.eq('kind', kind);
     const { data } = await query;
-    return data || [];
+    return (data || []).sort(compareFolders);
   } else if (dbPromise) {
     const db = await dbPromise;
     const all = await db.getAll('folders');
     const filtered = all.filter(f => !f.name.startsWith('__TRASH__:') && (isGuestMode || (activeBandId ? (activeBandId === DEFAULT_CHURCH_BAND_ID ? (f.band_id === activeBandId || !f.band_id) : f.band_id === activeBandId) : !f.band_id)));
-    if (kind) return filtered.filter(f => f.kind === kind);
-    return filtered;
+    if (kind) return filtered.filter(f => f.kind === kind).sort(compareFolders);
+    return filtered.sort(compareFolders);
   }
   return [];
 }

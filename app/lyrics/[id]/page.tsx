@@ -4,7 +4,7 @@ import React, { Suspense, useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { useAuth } from '@/components/AuthProvider';
 import { useLyricsSync } from '@/hooks/useLyricsSync';
-import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import { useParams, useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { Lyric } from '@/lib/lyrics';
 import LyricsEditor from './edit/page';
 
@@ -143,13 +143,14 @@ function LyricsViewerDetailContent() {
 
 function LyricsViewerDetailRouter() {
   const params = useParams();
+  const routerPathname = usePathname();
   const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
     setIsClient(true);
   }, []);
 
-  const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
+  const pathname = routerPathname || (typeof window !== 'undefined' ? window.location.pathname : '');
   const isEditRoute = params?.id === 'edit' || pathname.includes('/edit');
 
   if (isEditRoute) {

@@ -611,10 +611,10 @@ export function PiascoreLyricsReader({ initialLyric, folderId }: Props) {
           type="button"
           onClick={toggleStageLock}
           onTouchEnd={toggleStageLock}
-          className={`phone-rotate-compact-lock flex items-center justify-center gap-1.5 p-2 sm:px-3 sm:py-1.5 rounded-full font-bold text-xs shadow-[0_4px_16px_rgba(0,0,0,0.6)] backdrop-blur-md transition-all active:scale-95 cursor-pointer border touch-manipulation min-h-[36px] min-w-[36px] ${
+          className={`phone-rotate-compact-lock flex items-center justify-center gap-1.5 p-2 sm:px-3 sm:py-1.5 rounded-full font-bold text-xs shadow-[0_4px_16px_rgba(0,0,0,0.08)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.6)] backdrop-blur-md transition-all active:scale-95 cursor-pointer border touch-manipulation min-h-[36px] min-w-[36px] ${
             isStageLocked
-              ? 'bg-amber-500/20 text-amber-400 border-amber-500/50 shadow-[0_0_16px_rgba(245,158,11,0.35)] ring-1 ring-amber-400/40'
-              : 'bg-[#14141A]/90 text-[#8C8A93] border-[#2A2A31] hover:text-[#F4F2F0] hover:border-[#3E3E48]'
+              ? 'bg-amber-500/20 text-amber-900 dark:text-amber-400 border-amber-500/50 shadow-[0_0_16px_rgba(245,158,11,0.35)] ring-1 ring-amber-400/40'
+              : 'bg-white/90 text-slate-700 border-slate-200 dark:bg-[#14141A]/90 dark:text-[#8C8A93] dark:border-[#2A2A31] hover:text-slate-900 dark:hover:text-[#F4F2F0] hover:border-slate-300 dark:hover:border-[#3E3E48]'
           }`}
           title={
             isStageLocked
@@ -1062,9 +1062,14 @@ export function PiascoreLyricsReader({ initialLyric, folderId }: Props) {
                   router.push(targetUrl);
                 } catch {
                   if (typeof window !== 'undefined') {
-                    window.location.href = targetUrl;
+                    window.location.assign(targetUrl);
                   }
                 }
+                setTimeout(() => {
+                  if (typeof window !== 'undefined' && !window.location.pathname.includes('/edit')) {
+                    window.location.assign(targetUrl);
+                  }
+                }, 150);
               }
             }}
             className="flex flex-col items-center gap-0.5 text-[10px] font-semibold text-slate-600 dark:text-slate-400 hover:text-accent-start transition-all active:scale-95"

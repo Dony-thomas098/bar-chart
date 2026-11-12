@@ -647,12 +647,18 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
   }, [isStageLocked]);
 
   return (
-    <div data-viewing-chords="true" className="fixed inset-0 w-screen h-screen bg-[#0F1015] text-[#F4F2F0] flex flex-col overflow-hidden select-none font-sans relative">
+    <div data-viewing-chords="true" className="fixed inset-0 w-screen h-screen bg-[#F4F4F6] dark:bg-[#0F1015] text-[#1C1C1E] dark:text-[#F4F2F0] flex flex-col overflow-hidden select-none font-sans relative">
       {/* ── Soft warm radial glow in top-left corner ──────────────────────── */}
       <div 
-        className="absolute top-0 left-0 w-[500px] h-[500px] sm:w-[700px] sm:h-[700px] pointer-events-none z-0"
+        className="absolute top-0 left-0 w-[500px] h-[500px] sm:w-[700px] sm:h-[700px] pointer-events-none z-0 dark:block hidden"
         style={{
           background: 'radial-gradient(circle at 0% 0%, #26150F 0%, rgba(38, 21, 15, 0.45) 45%, transparent 75%)',
+        }}
+      />
+      <div 
+        className="absolute top-0 left-0 w-[500px] h-[500px] sm:w-[700px] sm:h-[700px] pointer-events-none z-0 block dark:hidden"
+        style={{
+          background: 'radial-gradient(circle at 0% 0%, rgba(255, 106, 31, 0.1) 0%, rgba(255, 106, 31, 0.02) 45%, transparent 75%)',
         }}
       />
 
@@ -663,10 +669,10 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
           type="button"
           onClick={toggleStageLock}
           onTouchEnd={toggleStageLock}
-          className={`phone-rotate-compact-lock flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-full font-bold text-xs shadow-[0_4px_20px_rgba(0,0,0,0.6)] backdrop-blur-md transition-all active:scale-95 cursor-pointer border touch-manipulation min-h-[36px] ${
+          className={`phone-rotate-compact-lock flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-full font-bold text-xs shadow-[0_4px_20px_rgba(0,0,0,0.08)] dark:shadow-[0_4px_20px_rgba(0,0,0,0.6)] backdrop-blur-md transition-all active:scale-95 cursor-pointer border touch-manipulation min-h-[36px] ${
             isStageLocked
-              ? 'bg-amber-500/25 text-amber-300 border-amber-500/60 shadow-[0_0_16px_rgba(245,158,11,0.4)] ring-1 ring-amber-400/50'
-              : 'bg-[#181820]/90 text-white border-[#3A3A45] hover:bg-[#22222C] hover:border-white/30'
+              ? 'bg-amber-500/20 text-amber-900 dark:text-amber-300 border-amber-500/60 shadow-[0_0_16px_rgba(245,158,11,0.3)] ring-1 ring-amber-400/50'
+              : 'bg-white/90 text-slate-800 border-slate-200/90 hover:bg-slate-100 hover:border-slate-300 dark:bg-[#181820]/90 dark:text-white dark:border-[#3A3A45] dark:hover:bg-[#22222C] dark:hover:border-white/30'
           }`}
           title={
             isStageLocked
@@ -677,13 +683,13 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
         >
           {isStageLocked ? (
             <>
-              <Lock size={15} className="text-amber-400 stroke-[2.5]" />
-              <span className="font-bold text-amber-300 text-xs">Locked</span>
+              <Lock size={15} className="text-amber-600 dark:text-amber-400 stroke-[2.5]" />
+              <span className="font-bold text-amber-900 dark:text-amber-300 text-xs">Locked</span>
             </>
           ) : (
             <>
-              <Unlock size={15} className="text-white/80 stroke-[2.2]" />
-              <span className="font-bold text-white/90 text-xs">Lock</span>
+              <Unlock size={15} className="text-slate-700 dark:text-white/80 stroke-[2.2]" />
+              <span className="font-bold text-slate-800 dark:text-white/90 text-xs">Lock</span>
             </>
           )}
         </button>
@@ -691,8 +697,8 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
 
       {/* ── STAGE LOCK TOAST NOTIFICATION ───────────────────────────────── */}
       {lockToast && (
-        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-[70] bg-[#1A1A20]/95 backdrop-blur-md border border-amber-500/40 text-amber-300 px-4 py-2 rounded-full text-xs font-semibold shadow-[0_8px_24px_rgba(0,0,0,0.8)] flex items-center gap-2.5 animate-in fade-in zoom-in-95 duration-200">
-          <Lock size={14} className="text-amber-400 shrink-0" />
+        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-[70] bg-white/95 dark:bg-[#1A1A20]/95 backdrop-blur-md border border-amber-500/40 text-amber-900 dark:text-amber-300 px-4 py-2 rounded-full text-xs font-semibold shadow-[0_8px_24px_rgba(0,0,0,0.12)] dark:shadow-[0_8px_24px_rgba(0,0,0,0.8)] flex items-center gap-2.5 animate-in fade-in zoom-in-95 duration-200">
+          <Lock size={14} className="text-amber-500 dark:text-amber-400 shrink-0" />
           <span>{lockToast}</span>
           {isStageLocked && (
             <button
@@ -710,7 +716,7 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
 
       {/* ── 1. TOP HEADER (Centered Title, Synchronized Sliding) ─────────── */}
       <header
-        className={`fixed top-0 left-0 right-0 z-50 bg-[#0F1015]/85 backdrop-blur-2xl border-b border-[#2A2A31] flex items-center justify-between px-4 pt-[env(safe-area-inset-top,0px)] h-[calc(3.5rem+env(safe-area-inset-top,0px))] transition-transform duration-300 ${
+        className={`fixed top-0 left-0 right-0 z-50 bg-white/85 dark:bg-[#0F1015]/85 backdrop-blur-2xl border-b border-slate-200/80 dark:border-[#2A2A31] flex items-center justify-between px-4 pt-[env(safe-area-inset-top,0px)] h-[calc(3.5rem+env(safe-area-inset-top,0px))] transition-transform duration-300 ${
           showUI ? 'translate-y-0' : '-translate-y-full'
         }`}
       >
@@ -742,8 +748,8 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
             }}
             className={`hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-full transition-all active:scale-95 border cursor-pointer select-none ${
               isStageLocked
-                ? 'opacity-30 cursor-not-allowed text-[#8C8A93] border-white/5 bg-white/5'
-                : 'bg-[#181820] hover:bg-[#22222C] text-[#F4F2F0] border-[#2A2A31] hover:border-white/20 shadow-xs'
+                ? 'opacity-30 cursor-not-allowed text-slate-400 dark:text-[#8C8A93] border-black/5 dark:border-white/5 bg-black/5 dark:bg-white/5'
+                : 'bg-slate-100 hover:bg-slate-200 text-slate-800 border-slate-200/80 hover:border-slate-300 dark:bg-[#181820] dark:hover:bg-[#22222C] dark:text-[#F4F2F0] dark:border-[#2A2A31] dark:hover:border-white/20 shadow-xs'
             }`}
             title={isStageLocked ? 'Back disabled while screen is locked' : 'Go back'}
             aria-label="Go back"
@@ -778,24 +784,24 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
             }}
             className={`md:hidden flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg transition-all active:scale-95 shrink-0 ${
               isStageLocked
-                ? 'opacity-30 cursor-not-allowed text-[#8C8A93]'
-                : 'text-[#FF6A1F] hover:bg-white/5 cursor-pointer'
+                ? 'opacity-30 cursor-not-allowed text-slate-400 dark:text-[#8C8A93]'
+                : 'text-[#FF6A1F] hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer'
             }`}
             title={isStageLocked ? 'Catalog navigation disabled while screen is locked' : 'Back to Catalog'}
             aria-label="Back to Catalog"
           >
-            <FolderOpen size={16} className={isStageLocked ? 'text-[#8C8A93]' : 'text-[#FF6A1F]'} />
+            <FolderOpen size={16} className={isStageLocked ? 'text-slate-400 dark:text-[#8C8A93]' : 'text-[#FF6A1F]'} />
             <span className="hidden sm:inline">Catalog</span>
           </button>
         </div>
 
         {/* Center: Song Title & Composer / Subtitle */}
         <div className="flex flex-col items-center justify-center text-center max-w-[55vw] sm:max-w-[65vw]">
-          <h1 className="text-sm sm:text-base font-bold text-[#F4F2F0] truncate tracking-tight">
+          <h1 className="text-sm sm:text-base font-bold text-slate-900 dark:text-[#F4F2F0] truncate tracking-tight">
             {currentChart ? (currentChart.title || 'Untitled') : 'No Song Open'}
             {currentChart && totalLines > 0 ? ` (${currentLineIndex + 1}/${totalLines})` : ''}
           </h1>
-          <p className="text-[11px] text-[#8C8A93] truncate">
+          <p className="text-[11px] text-slate-500 dark:text-[#8C8A93] truncate">
             {currentChart
               ? currentChart.custom_text || (currentChart.tempo ? `Chord score · ${currentChart.tempo} BPM` : 'Chord score')
               : 'Chordly Reader'}
@@ -808,7 +814,7 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
 
       {/* ── 2. DOCUMENT TAB NAVIGATION BAR (Below Header) ──────────────────── */}
       <nav
-        className={`fixed top-[calc(3.5rem+env(safe-area-inset-top,0px))] left-0 right-0 z-40 bg-[#0F1015]/75 backdrop-blur-2xl border-b border-[#2A2A31] flex items-center px-3 h-12 gap-2 overflow-x-auto scrollbar-none transition-transform duration-300 ${
+        className={`fixed top-[calc(3.5rem+env(safe-area-inset-top,0px))] left-0 right-0 z-40 bg-white/80 dark:bg-[#0F1015]/75 backdrop-blur-2xl border-b border-slate-200/80 dark:border-[#2A2A31] flex items-center px-3 h-12 gap-2 overflow-x-auto scrollbar-none transition-transform duration-300 ${
           showUI ? 'translate-y-0' : '-translate-y-[calc(6.5rem+env(safe-area-inset-top,0px))]'
         }`}
       >
@@ -820,8 +826,8 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
               onClick={() => setActiveTabId(tab.id)}
               className={`group relative flex items-center gap-1.5 pl-3.5 pr-1 py-1 text-xs font-semibold rounded-[24px] cursor-pointer transition-all shrink-0 max-w-[200px] border ${
                 isActive
-                  ? 'bg-[#1A1A20] text-[#F4F2F0] border-[#FF6A1F] shadow-[0_0_12px_rgba(255,106,31,0.2)]'
-                  : 'bg-[#1A1A20] text-[#8C8A93] border-[#2A2A31] hover:text-[#F4F2F0] hover:border-[#3E3E48]'
+                  ? 'bg-white dark:bg-[#1A1A20] text-slate-900 dark:text-[#F4F2F0] border-[#FF6A1F] shadow-[0_2px_8px_rgba(255,106,31,0.15)] dark:shadow-[0_0_12px_rgba(255,106,31,0.2)]'
+                  : 'bg-slate-100/80 dark:bg-[#1A1A20] text-slate-600 dark:text-[#8C8A93] border-slate-200 dark:border-[#2A2A31] hover:text-slate-900 dark:hover:text-[#F4F2F0] hover:border-slate-300 dark:hover:border-[#3E3E48]'
               }`}
             >
               <span className="truncate flex-1 select-none">{tab.title}</span>
@@ -833,8 +839,8 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
                 onClick={(e) => handleCloseTab(e, tab.id)}
                 className={`w-8 h-8 min-w-[32px] min-h-[32px] rounded-full flex items-center justify-center transition-all ${
                   isStageLocked
-                    ? 'opacity-30 cursor-not-allowed text-[#8C8A93]'
-                    : 'text-[#8C8A93] hover:text-[#F4F2F0] hover:bg-white/10 active:scale-90 cursor-pointer'
+                    ? 'opacity-30 cursor-not-allowed text-slate-400 dark:text-[#8C8A93]'
+                    : 'text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 dark:text-[#8C8A93] dark:hover:text-[#F4F2F0] dark:hover:bg-white/10 active:scale-90 cursor-pointer'
                 }`}
                 title={isStageLocked ? 'Closing disabled while screen is locked' : `Close ${tab.title}`}
                 aria-label={`Close ${tab.title}`}
@@ -861,7 +867,7 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
       <button
         type="button"
         onClick={() => setIsMetronomeOpen((prev) => !prev)}
-        className={`fixed left-0 top-1/2 -translate-y-1/2 z-40 bg-[#1A1A20] border border-l-0 border-[#2A2A31] shadow-[0_4px_20px_rgba(0,0,0,0.5)] rounded-r-[24px] px-2 py-3.5 flex flex-col items-center gap-2 hover:px-2.5 transition-all cursor-pointer ${
+        className={`fixed left-0 top-1/2 -translate-y-1/2 z-40 bg-white dark:bg-[#1A1A20] border border-l-0 border-slate-200 dark:border-[#2A2A31] shadow-[0_4px_20px_rgba(0,0,0,0.08)] dark:shadow-[0_4px_20px_rgba(0,0,0,0.5)] rounded-r-[24px] px-2 py-3.5 flex flex-col items-center gap-2 hover:px-2.5 transition-all cursor-pointer ${
           showUI ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-full'
         }`}
         title="Toggle Metronome"
@@ -869,7 +875,7 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
       >
         <Volume2 size={16} className={`text-[#FF6A1F] ${isPlayingMetronome ? 'animate-bounce' : ''}`} />
         <span
-          className="text-[9px] font-bold tracking-widest uppercase text-[#8C8A93]"
+          className="text-[9px] font-bold tracking-widest uppercase text-slate-500 dark:text-[#8C8A93]"
           style={{ writingMode: 'vertical-rl' }}
         >
           Metronome
@@ -878,14 +884,14 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
 
       {/* ── METRONOME CONTROL DRAWER ──────────────────────────────────────── */}
       {isMetronomeOpen && (
-        <div className="fixed left-12 top-1/2 -translate-y-1/2 z-50 w-72 bg-[#1A1A20] border border-[#2A2A31] shadow-[0_12px_40px_rgba(0,0,0,0.8)] rounded-[24px] p-4 flex flex-col gap-3.5 text-[#F4F2F0]">
-          <div className="flex items-center justify-between border-b border-[#2A2A31] pb-2">
-            <h3 className="text-sm font-bold flex items-center gap-2 text-[#F4F2F0]">
+        <div className="fixed left-12 top-1/2 -translate-y-1/2 z-50 w-72 bg-white dark:bg-[#1A1A20] border border-slate-200 dark:border-[#2A2A31] shadow-[0_12px_40px_rgba(0,0,0,0.15)] dark:shadow-[0_12px_40px_rgba(0,0,0,0.8)] rounded-[24px] p-4 flex flex-col gap-3.5 text-slate-900 dark:text-[#F4F2F0]">
+          <div className="flex items-center justify-between border-b border-slate-200 dark:border-[#2A2A31] pb-2">
+            <h3 className="text-sm font-bold flex items-center gap-2 text-slate-900 dark:text-[#F4F2F0]">
               <Volume2 size={16} className="text-[#FF6A1F]" /> Metronome
             </h3>
             <button
               onClick={() => setIsMetronomeOpen(false)}
-              className="p-1 text-[#8C8A93] hover:text-[#F4F2F0] rounded-lg transition-colors"
+              className="p-1 text-slate-400 hover:text-slate-700 dark:text-[#8C8A93] dark:hover:text-[#F4F2F0] rounded-lg transition-colors"
             >
               <X size={16} />
             </button>
@@ -901,29 +907,29 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
                     ? idx === 0
                       ? 'bg-rose-500 scale-125 shadow-[0_0_10px_rgba(244,63,94,0.8)]'
                       : 'bg-[#FF6A1F] scale-110 shadow-[0_0_8px_rgba(255,106,31,0.8)]'
-                    : 'bg-[#2E2E38]'
+                    : 'bg-slate-200 dark:bg-[#2E2E38]'
                 }`}
               />
             ))}
           </div>
 
           {/* BPM Display & Buttons */}
-          <div className="flex items-center justify-between bg-[#14141A] border border-[#2A2A31] p-3 rounded-[20px]">
+          <div className="flex items-center justify-between bg-slate-50 dark:bg-[#14141A] border border-slate-200 dark:border-[#2A2A31] p-3 rounded-[20px]">
             <button
               onClick={() => setBpm((b) => Math.max(30, b - 5))}
-              className="w-9 h-9 rounded-full bg-[#24242C] hover:bg-[#2E2E38] font-bold text-[#F4F2F0] active:scale-95 transition-all"
+              className="w-9 h-9 rounded-full bg-slate-200 hover:bg-slate-300 text-slate-800 dark:bg-[#24242C] dark:hover:bg-[#2E2E38] font-bold dark:text-[#F4F2F0] active:scale-95 transition-all"
             >
               -5
             </button>
             <div className="text-center">
-              <span className="text-2xl font-extrabold text-[#F4F2F0] font-mono">
+              <span className="text-2xl font-extrabold text-slate-900 dark:text-[#F4F2F0] font-mono">
                 {bpm}
               </span>
-              <span className="block text-[9px] font-bold text-[#8C8A93] uppercase">BPM</span>
+              <span className="block text-[9px] font-bold text-slate-500 dark:text-[#8C8A93] uppercase">BPM</span>
             </div>
             <button
               onClick={() => setBpm((b) => Math.min(260, b + 5))}
-              className="w-9 h-9 rounded-full bg-[#24242C] hover:bg-[#2E2E38] font-bold text-[#F4F2F0] active:scale-95 transition-all"
+              className="w-9 h-9 rounded-full bg-slate-200 hover:bg-slate-300 text-slate-800 dark:bg-[#24242C] dark:hover:bg-[#2E2E38] font-bold dark:text-[#F4F2F0] active:scale-95 transition-all"
             >
               +5
             </button>
@@ -938,7 +944,7 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
                 className={`flex-1 py-1.5 rounded-xl font-bold transition-all ${
                   timeSig === ts
                     ? 'bg-[#FF6A1F] text-white shadow-[0_2px_8px_rgba(255,106,31,0.4)]'
-                    : 'bg-[#14141A] border border-[#2A2A31] text-[#8C8A93] hover:text-[#F4F2F0]'
+                    : 'bg-slate-100 border border-slate-200 text-slate-600 hover:text-slate-900 dark:bg-[#14141A] dark:border-[#2A2A31] dark:text-[#8C8A93] dark:hover:text-[#F4F2F0]'
                 }`}
               >
                 {ts}
@@ -988,11 +994,11 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
             onClick={(e) => e.stopPropagation()}
             className="flex-1 w-full flex flex-col items-center justify-center p-6 text-center z-10"
           >
-            <div className="w-16 h-16 rounded-[24px] bg-[#1A1A20] border border-[#2A2A31] flex items-center justify-center mb-4 shadow-xl">
+            <div className="w-16 h-16 rounded-[24px] bg-white dark:bg-[#1A1A20] border border-slate-200 dark:border-[#2A2A31] flex items-center justify-center mb-4 shadow-xl">
               <BookOpen size={28} className="text-[#FF6A1F]" />
             </div>
-            <h2 className="text-xl font-bold text-[#F4F2F0] mb-2 tracking-tight">No song open</h2>
-            <p className="text-xs text-[#8C8A93] max-w-xs mb-6 leading-relaxed">
+            <h2 className="text-xl font-bold text-slate-900 dark:text-[#F4F2F0] mb-2 tracking-tight">No song open</h2>
+            <p className="text-xs text-slate-500 dark:text-[#8C8A93] max-w-xs mb-6 leading-relaxed">
               All tabs have been closed. Open a song from your catalog to view chord progressions and bar charts.
             </p>
             <button
@@ -1067,7 +1073,7 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
 
       {/* ── 5. FLOATING BOTTOM ACTION TOOLBAR ──────────────────────────────── */}
       <footer
-        className={`fixed bottom-[max(1rem,calc(env(safe-area-inset-bottom,0px)+0.75rem))] left-[14px] right-[14px] max-w-[500px] mx-auto z-50 bg-[#14141A] border border-[#2E2E36] rounded-[30px] shadow-[0_8px_24px_rgba(0,0,0,0.6)] flex items-center justify-around h-16 px-3 transition-transform duration-300 ${
+        className={`fixed bottom-[max(1rem,calc(env(safe-area-inset-bottom,0px)+0.75rem))] left-[14px] right-[14px] max-w-[500px] mx-auto z-50 bg-white/90 dark:bg-[#14141A] border border-slate-200/90 dark:border-[#2E2E36] rounded-[30px] shadow-[0_8px_24px_rgba(0,0,0,0.1)] dark:shadow-[0_8px_24px_rgba(0,0,0,0.6)] backdrop-blur-xl flex items-center justify-around h-16 px-3 transition-transform duration-300 ${
           showUI ? 'translate-y-0' : 'translate-y-[calc(100%+32px)]'
         }`}
       >
@@ -1080,7 +1086,7 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
             setIsInfoOpen(false);
           }}
           className={`flex flex-col items-center gap-1 text-[10px] font-semibold transition-all active:scale-95 cursor-pointer ${
-            isBookmarkOpen ? 'text-[#FF6A1F]' : 'text-[#8C8A93] hover:text-[#F4F2F0]'
+            isBookmarkOpen ? 'text-[#FF6A1F]' : 'text-slate-600 dark:text-[#8C8A93] hover:text-slate-900 dark:hover:text-[#F4F2F0]'
           }`}
         >
           <BookmarkIcon size={20} className={isBookmarkOpen ? 'fill-[#FF6A1F]' : ''} />
@@ -1096,7 +1102,7 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
             setIsInfoOpen(false);
           }}
           className={`flex flex-col items-center gap-1 text-[10px] font-semibold transition-all active:scale-95 cursor-pointer ${
-            isAdjustOpen ? 'text-[#FF6A1F]' : 'text-[#8C8A93] hover:text-[#F4F2F0]'
+            isAdjustOpen ? 'text-[#FF6A1F]' : 'text-slate-600 dark:text-[#8C8A93] hover:text-slate-900 dark:hover:text-[#F4F2F0]'
           }`}
         >
           <Crop size={20} />
@@ -1112,7 +1118,7 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
             setIsInfoOpen(false);
           }}
           className={`flex flex-col items-center gap-1 text-[10px] font-semibold transition-all active:scale-95 cursor-pointer ${
-            isPageOverviewOpen ? 'text-[#FF6A1F]' : 'text-[#8C8A93] hover:text-[#F4F2F0]'
+            isPageOverviewOpen ? 'text-[#FF6A1F]' : 'text-slate-600 dark:text-[#8C8A93] hover:text-slate-900 dark:hover:text-[#F4F2F0]'
           }`}
         >
           <LayoutGrid size={20} />
@@ -1128,7 +1134,7 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
             setIsPageOverviewOpen(false);
           }}
           className={`flex flex-col items-center gap-1 text-[10px] font-semibold transition-all active:scale-95 cursor-pointer ${
-            isInfoOpen ? 'text-[#FF6A1F]' : 'text-[#8C8A93] hover:text-[#F4F2F0]'
+            isInfoOpen ? 'text-[#FF6A1F]' : 'text-slate-600 dark:text-[#8C8A93] hover:text-slate-900 dark:hover:text-[#F4F2F0]'
           }`}
         >
           <Info size={20} />
@@ -1149,12 +1155,17 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
                   router.push(targetUrl);
                 } catch {
                   if (typeof window !== 'undefined') {
-                    window.location.href = targetUrl;
+                    window.location.assign(targetUrl);
                   }
                 }
+                setTimeout(() => {
+                  if (typeof window !== 'undefined' && !window.location.pathname.includes('/edit')) {
+                    window.location.assign(targetUrl);
+                  }
+                }, 150);
               }
             }}
-            className="flex flex-col items-center gap-1 text-[10px] font-semibold text-[#8C8A93] hover:text-[#FF6A1F] transition-all active:scale-95 cursor-pointer"
+            className="flex flex-col items-center gap-1 text-[10px] font-semibold text-slate-600 dark:text-[#8C8A93] hover:text-[#FF6A1F] transition-all active:scale-95 cursor-pointer"
           >
             <Edit3 size={20} />
             <span>Writing</span>
@@ -1164,26 +1175,26 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
 
       {/* ── 6. BOOKMARK POPOVER MODAL ─────────────────────────────────────── */}
       {isBookmarkOpen && (
-        <div className="fixed bottom-24 left-4 z-50 w-80 max-w-[90vw] bg-[#1A1A20] border border-[#2A2A31] shadow-[0_12px_40px_rgba(0,0,0,0.8)] rounded-[24px] overflow-hidden flex flex-col max-h-96 animate-in slide-in-from-bottom-2 duration-200 text-[#F4F2F0]">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-[#2A2A31] bg-[#14141A]">
+        <div className="fixed bottom-24 left-4 z-50 w-80 max-w-[90vw] bg-white dark:bg-[#1A1A20] border border-slate-200 dark:border-[#2A2A31] shadow-[0_12px_40px_rgba(0,0,0,0.15)] dark:shadow-[0_12px_40px_rgba(0,0,0,0.8)] rounded-[24px] overflow-hidden flex flex-col max-h-96 animate-in slide-in-from-bottom-2 duration-200 text-slate-900 dark:text-[#F4F2F0]">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-[#2A2A31] bg-slate-50 dark:bg-[#14141A]">
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setIsBookmarkOpen(false)}
-                className="p-1 text-[#FF6A1F] hover:bg-white/5 rounded-lg"
+                className="p-1 text-[#FF6A1F] hover:bg-black/5 dark:hover:bg-white/5 rounded-lg"
               >
                 <BookOpen size={18} />
               </button>
-              <button className="p-1 text-[#FF6A1F] hover:bg-white/5 rounded-lg">
+              <button className="p-1 text-[#FF6A1F] hover:bg-black/5 dark:hover:bg-white/5 rounded-lg">
                 <ArrowUpDown size={18} />
               </button>
             </div>
-            <h2 className="text-sm font-bold text-[#F4F2F0]">Bookmark</h2>
+            <h2 className="text-sm font-bold text-slate-900 dark:text-[#F4F2F0]">Bookmark</h2>
             <button
               onClick={handleAddCurrentBookmark}
               className={`p-1 rounded-lg active:scale-95 transition-all ${
                 currentChart && bookmarksList.some((b) => b.id === currentChart.id)
                   ? 'text-[#FF6A1F] bg-[#FF6A1F]/15 font-bold'
-                  : 'text-[#FF6A1F] hover:bg-white/5'
+                  : 'text-[#FF6A1F] hover:bg-black/5 dark:hover:bg-white/5'
               }`}
               title={
                 currentChart && bookmarksList.some((b) => b.id === currentChart.id)
@@ -1203,9 +1214,9 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
           </div>
 
           {/* List of bookmarks */}
-          <div className="overflow-y-auto p-2 divide-y divide-[#2A2A31]">
+          <div className="overflow-y-auto p-2 divide-y divide-slate-200 dark:divide-[#2A2A31]">
             {bookmarksList.length === 0 ? (
-              <div className="p-6 text-center text-xs text-[#8C8A93]">
+              <div className="p-6 text-center text-xs text-slate-500 dark:text-[#8C8A93]">
                 No bookmarks added yet. Tap <Plus size={12} className="inline text-[#FF6A1F]" /> to bookmark this chart.
               </div>
             ) : (
@@ -1213,15 +1224,15 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
                 <div
                   key={bm.id}
                   onClick={() => handleOpenBookmarkInTab(bm)}
-                  className="flex items-center justify-between p-3 hover:bg-white/5 rounded-xl cursor-pointer transition-colors"
+                  className="flex items-center justify-between p-3 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl cursor-pointer transition-colors"
                 >
                   <div className="flex items-center gap-3 truncate">
                     <BookmarkIcon size={16} className="text-[#FF6A1F] shrink-0 fill-[#FF6A1F]" />
-                    <span className="text-xs font-bold text-[#F4F2F0] truncate">
+                    <span className="text-xs font-bold text-slate-900 dark:text-[#F4F2F0] truncate">
                       {bm.title}
                     </span>
                   </div>
-                  <ChevronRight size={14} className="text-[#8C8A93]" />
+                  <ChevronRight size={14} className="text-slate-400 dark:text-[#8C8A93]" />
                 </div>
               ))
             )}
@@ -1231,12 +1242,12 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
 
       {/* ── 7. SYNC PAGE TURNING MODAL ────────────────────────────────────── */}
       {isSyncModalOpen && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-in fade-in duration-200">
-          <div className="bg-[#1A1A20] border border-[#2A2A31] rounded-[24px] shadow-[0_16px_48px_rgba(0,0,0,0.85)] max-w-sm w-full p-6 text-center flex flex-col items-center gap-4 text-[#F4F2F0]">
-            <h2 className="text-lg font-bold text-[#F4F2F0]">
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-[#1A1A20] border border-slate-200 dark:border-[#2A2A31] rounded-[24px] shadow-[0_16px_48px_rgba(0,0,0,0.2)] dark:shadow-[0_16px_48px_rgba(0,0,0,0.85)] max-w-sm w-full p-6 text-center flex flex-col items-center gap-4 text-slate-900 dark:text-[#F4F2F0]">
+            <h2 className="text-lg font-bold text-slate-900 dark:text-[#F4F2F0]">
               Sync page turning
             </h2>
-            <p className="text-xs text-[#8C8A93] leading-relaxed">
+            <p className="text-xs text-slate-500 dark:text-[#8C8A93] leading-relaxed">
               You can sync page turning between several devices.
               <br />
               (&quot;Follow&quot; follows &quot;Lead&quot;&apos;s page-turning)
@@ -1249,7 +1260,7 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
               maxLength={6}
               value={syncJoinCodeInput}
               onChange={(e) => setSyncJoinCodeInput(e.target.value.toUpperCase())}
-              className="w-full text-center px-4 py-2.5 bg-[#14141A] border border-[#2A2A31] rounded-xl text-sm font-mono uppercase font-bold text-[#F4F2F0] focus:outline-none focus:border-[#FF6A1F]"
+              className="w-full text-center px-4 py-2.5 bg-slate-50 dark:bg-[#14141A] border border-slate-200 dark:border-[#2A2A31] rounded-xl text-sm font-mono uppercase font-bold text-slate-900 dark:text-[#F4F2F0] focus:outline-none focus:border-[#FF6A1F]"
             />
 
             {/* Action Buttons Stack */}
@@ -1263,13 +1274,13 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
               <button
                 onClick={handleStartFollow}
                 disabled={syncJoinCodeInput.trim().length !== 6}
-                className="w-full py-3 rounded-full text-sm font-bold text-[#F4F2F0] bg-[#24242C] border border-[#2E2E36] hover:bg-[#2E2E38] active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                className="w-full py-3 rounded-full text-sm font-bold text-slate-800 dark:text-[#F4F2F0] bg-slate-100 dark:bg-[#24242C] border border-slate-200 dark:border-[#2E2E36] hover:bg-slate-200 dark:hover:bg-[#2E2E38] active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 Follow
               </button>
               <button
                 onClick={() => setIsSyncModalOpen(false)}
-                className="w-full py-2 text-xs font-semibold text-[#8C8A93] hover:text-[#F4F2F0] transition-colors"
+                className="w-full py-2 text-xs font-semibold text-slate-500 dark:text-[#8C8A93] hover:text-slate-900 dark:hover:text-[#F4F2F0] transition-colors"
               >
                 Cancel
               </button>
@@ -1280,14 +1291,14 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
 
       {/* ── 8. ADJUST PAGE PANEL ─────────────────────────────────────────── */}
       {isAdjustOpen && currentChart && (
-        <div className="fixed bottom-24 right-4 z-50 w-80 bg-[#1A1A20] border border-[#2A2A31] shadow-[0_12px_40px_rgba(0,0,0,0.8)] rounded-[24px] p-4 flex flex-col gap-4 text-[#F4F2F0]">
-          <div className="flex items-center justify-between border-b border-[#2A2A31] pb-2">
-            <h3 className="text-sm font-bold flex items-center gap-2 text-[#F4F2F0]">
+        <div className="fixed bottom-24 right-4 z-50 w-80 bg-white dark:bg-[#1A1A20] border border-slate-200 dark:border-[#2A2A31] shadow-[0_12px_40px_rgba(0,0,0,0.15)] dark:shadow-[0_12px_40px_rgba(0,0,0,0.8)] rounded-[24px] p-4 flex flex-col gap-4 text-slate-900 dark:text-[#F4F2F0]">
+          <div className="flex items-center justify-between border-b border-slate-200 dark:border-[#2A2A31] pb-2">
+            <h3 className="text-sm font-bold flex items-center gap-2 text-slate-900 dark:text-[#F4F2F0]">
               <Crop size={16} className="text-[#FF6A1F]" /> Display & Scroll Mode
             </h3>
             <button
               onClick={() => setIsAdjustOpen(false)}
-              className="p-1 text-[#8C8A93] hover:text-[#F4F2F0]"
+              className="p-1 text-slate-400 hover:text-slate-700 dark:text-[#8C8A93] dark:hover:text-[#F4F2F0]"
             >
               <X size={16} />
             </button>
@@ -1310,18 +1321,18 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
               setIsAdjustOpen(false);
               setTimeout(() => window.print(), 100);
             }}
-            className="w-full py-2.5 px-3 bg-[#24242C] border border-[#2E2E36] hover:bg-[#2E2E38] text-[#F4F2F0] rounded-full text-xs font-bold transition-all flex items-center justify-center gap-2 active:scale-98 cursor-pointer"
+            className="w-full py-2.5 px-3 bg-slate-100 hover:bg-slate-200 border border-slate-200 dark:bg-[#24242C] dark:border-[#2E2E36] dark:hover:bg-[#2E2E38] text-slate-800 dark:text-[#F4F2F0] rounded-full text-xs font-bold transition-all flex items-center justify-center gap-2 active:scale-98 cursor-pointer"
           >
             <Printer size={14} className="text-[#FF6A1F]" /> Print Chart (1 Page)
           </button>
 
           {/* Transpose Key */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-bold text-[#8C8A93] uppercase">Transpose Key</label>
-            <div className="flex items-center justify-between bg-[#14141A] border border-[#2A2A31] p-2 rounded-[18px]">
+            <label className="text-xs font-bold text-slate-500 dark:text-[#8C8A93] uppercase">Transpose Key</label>
+            <div className="flex items-center justify-between bg-slate-50 dark:bg-[#14141A] border border-slate-200 dark:border-[#2A2A31] p-2 rounded-[18px]">
               <button
                 onClick={() => handleTranspose(-1)}
-                className="w-9 h-9 rounded-full bg-[#24242C] hover:bg-[#2E2E38] font-bold text-[#F4F2F0] active:scale-95 text-lg"
+                className="w-9 h-9 rounded-full bg-slate-200 hover:bg-slate-300 text-slate-800 dark:bg-[#24242C] dark:hover:bg-[#2E2E38] font-bold dark:text-[#F4F2F0] active:scale-95 text-lg"
               >
                 -
               </button>
@@ -1332,7 +1343,7 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
               </span>
               <button
                 onClick={() => handleTranspose(1)}
-                className="w-9 h-9 rounded-full bg-[#24242C] hover:bg-[#2E2E38] font-bold text-[#F4F2F0] active:scale-95 text-lg"
+                className="w-9 h-9 rounded-full bg-slate-200 hover:bg-slate-300 text-slate-800 dark:bg-[#24242C] dark:hover:bg-[#2E2E38] font-bold dark:text-[#F4F2F0] active:scale-95 text-lg"
               >
                 +
               </button>
@@ -1341,7 +1352,7 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
 
           {/* Font Selector */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-bold text-[#8C8A93] uppercase">Font Style</label>
+            <label className="text-xs font-bold text-slate-500 dark:text-[#8C8A93] uppercase">Font Style</label>
             <select
               value={selectedFont}
               onChange={(e) => {
@@ -1350,7 +1361,7 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
                 localStorage.setItem('chord-grid-font', f);
                 window.dispatchEvent(new Event('chord-grid-font-change'));
               }}
-              className="w-full p-2.5 bg-[#14141A] border border-[#2A2A31] rounded-xl text-xs font-semibold text-[#F4F2F0] outline-none"
+              className="w-full p-2.5 bg-slate-50 dark:bg-[#14141A] border border-slate-200 dark:border-[#2A2A31] rounded-xl text-xs font-semibold text-slate-900 dark:text-[#F4F2F0] outline-none"
             >
               <option value="system">Plus Jakarta Sans (Default)</option>
               <option value="'JetBrains Mono', monospace">JetBrains Mono</option>
@@ -1363,7 +1374,7 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
 
           {/* Part Name & Chord Color */}
           <div className="flex flex-col gap-2">
-            <label className="text-xs font-bold text-[#8C8A93] uppercase">Part Name & Chord Color</label>
+            <label className="text-xs font-bold text-slate-500 dark:text-[#8C8A93] uppercase">Part Name & Chord Color</label>
             <div className="flex items-center gap-2 flex-wrap">
               {[
                 { label: 'Ink', color: '#0f172a' },
@@ -1383,7 +1394,7 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
                   }}
                   className={`w-7 h-7 rounded-full border-2 transition-all active:scale-90 ${
                     chordColor === color
-                      ? 'border-white scale-110 shadow-md'
+                      ? 'border-slate-900 dark:border-white scale-110 shadow-md'
                       : 'border-transparent hover:scale-105'
                   }`}
                   style={{ backgroundColor: color }}
@@ -1396,14 +1407,14 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
 
       {/* ── 9. PAGE GRID OVERVIEW PANEL ──────────────────────────────────── */}
       {isPageOverviewOpen && currentChart && (
-        <div className="fixed bottom-24 right-4 z-50 w-80 bg-[#1A1A20] border border-[#2A2A31] shadow-[0_12px_40px_rgba(0,0,0,0.8)] rounded-[24px] p-4 flex flex-col gap-3 text-[#F4F2F0]">
-          <div className="flex items-center justify-between border-b border-[#2A2A31] pb-2">
-            <h3 className="text-sm font-bold flex items-center gap-2 text-[#F4F2F0]">
+        <div className="fixed bottom-24 right-4 z-50 w-80 bg-white dark:bg-[#1A1A20] border border-slate-200 dark:border-[#2A2A31] shadow-[0_12px_40px_rgba(0,0,0,0.15)] dark:shadow-[0_12px_40px_rgba(0,0,0,0.8)] rounded-[24px] p-4 flex flex-col gap-3 text-slate-900 dark:text-[#F4F2F0]">
+          <div className="flex items-center justify-between border-b border-slate-200 dark:border-[#2A2A31] pb-2">
+            <h3 className="text-sm font-bold flex items-center gap-2 text-slate-900 dark:text-[#F4F2F0]">
               <LayoutGrid size={16} className="text-[#FF6A1F]" /> Section Overview
             </h3>
             <button
               onClick={() => setIsPageOverviewOpen(false)}
-              className="p-1 text-[#8C8A93] hover:text-[#F4F2F0]"
+              className="p-1 text-slate-400 hover:text-slate-700 dark:text-[#8C8A93] dark:hover:text-[#F4F2F0]"
             >
               <X size={16} />
             </button>
@@ -1419,7 +1430,7 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
                 className={`p-3 rounded-2xl border text-left flex flex-col gap-1 transition-all ${
                   currentLineIndex === idx
                     ? 'border-[#FF6A1F] bg-[#FF6A1F]/15 text-[#FF6A1F] font-bold'
-                    : 'border-[#2A2A31] bg-[#14141A] text-[#8C8A93] hover:text-[#F4F2F0]'
+                    : 'border-slate-200 bg-slate-50 text-slate-600 hover:text-slate-900 dark:border-[#2A2A31] dark:bg-[#14141A] dark:text-[#8C8A93] dark:hover:text-[#F4F2F0]'
                 }`}
               >
                 <span className="text-[10px] uppercase font-bold opacity-75">
@@ -1436,37 +1447,37 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
 
       {/* ── 10. INFO PANEL ──────────────────────────────────────────────── */}
       {isInfoOpen && currentChart && (
-        <div className="fixed bottom-24 right-4 z-50 w-72 bg-[#1A1A20] border border-[#2A2A31] shadow-[0_12px_40px_rgba(0,0,0,0.8)] rounded-[24px] p-4 flex flex-col gap-3 text-[#F4F2F0]">
-          <div className="flex items-center justify-between border-b border-[#2A2A31] pb-2">
-            <h3 className="text-sm font-bold flex items-center gap-2 text-[#F4F2F0]">
+        <div className="fixed bottom-24 right-4 z-50 w-72 bg-white dark:bg-[#1A1A20] border border-slate-200 dark:border-[#2A2A31] shadow-[0_12px_40px_rgba(0,0,0,0.15)] dark:shadow-[0_12px_40px_rgba(0,0,0,0.8)] rounded-[24px] p-4 flex flex-col gap-3 text-slate-900 dark:text-[#F4F2F0]">
+          <div className="flex items-center justify-between border-b border-slate-200 dark:border-[#2A2A31] pb-2">
+            <h3 className="text-sm font-bold flex items-center gap-2 text-slate-900 dark:text-[#F4F2F0]">
               <Info size={16} className="text-[#FF6A1F]" /> Score Details
             </h3>
             <button
               onClick={() => setIsInfoOpen(false)}
-              className="p-1 text-[#8C8A93] hover:text-[#F4F2F0]"
+              className="p-1 text-slate-400 hover:text-slate-700 dark:text-[#8C8A93] dark:hover:text-[#F4F2F0]"
             >
               <X size={16} />
             </button>
           </div>
           <div className="flex flex-col gap-2 text-xs">
-            <div className="flex justify-between py-1 border-b border-[#2A2A31]">
-              <span className="text-[#8C8A93]">Title:</span>
-              <span className="font-bold text-[#F4F2F0]">{currentChart.title || 'Untitled'}</span>
+            <div className="flex justify-between py-1 border-b border-slate-200 dark:border-[#2A2A31]">
+              <span className="text-slate-500 dark:text-[#8C8A93]">Title:</span>
+              <span className="font-bold text-slate-900 dark:text-[#F4F2F0]">{currentChart.title || 'Untitled'}</span>
             </div>
-            <div className="flex justify-between py-1 border-b border-[#2A2A31]">
-              <span className="text-[#8C8A93]">Tempo:</span>
-              <span className="font-mono font-bold text-[#F4F2F0]">{currentChart.tempo || 120} BPM</span>
+            <div className="flex justify-between py-1 border-b border-slate-200 dark:border-[#2A2A31]">
+              <span className="text-slate-500 dark:text-[#8C8A93]">Tempo:</span>
+              <span className="font-mono font-bold text-slate-900 dark:text-[#F4F2F0]">{currentChart.tempo || 120} BPM</span>
             </div>
-            <div className="flex justify-between py-1 border-b border-[#2A2A31]">
-              <span className="text-[#8C8A93]">Time Signature:</span>
-              <span className="font-mono font-bold text-[#F4F2F0]">{currentChart.time_sig || '4/4'}</span>
+            <div className="flex justify-between py-1 border-b border-slate-200 dark:border-[#2A2A31]">
+              <span className="text-slate-500 dark:text-[#8C8A93]">Time Signature:</span>
+              <span className="font-mono font-bold text-slate-900 dark:text-[#F4F2F0]">{currentChart.time_sig || '4/4'}</span>
             </div>
-            <div className="flex justify-between py-1 border-b border-[#2A2A31]">
-              <span className="text-[#8C8A93]">Sections / Lines:</span>
-              <span className="font-bold text-[#F4F2F0]">{totalLines}</span>
+            <div className="flex justify-between py-1 border-b border-slate-200 dark:border-[#2A2A31]">
+              <span className="text-slate-500 dark:text-[#8C8A93]">Sections / Lines:</span>
+              <span className="font-bold text-slate-900 dark:text-[#F4F2F0]">{totalLines}</span>
             </div>
             <div className="flex justify-between py-1">
-              <span className="text-[#8C8A93]">Key Offset:</span>
+              <span className="text-slate-500 dark:text-[#8C8A93]">Key Offset:</span>
               <span className="font-mono font-bold text-[#FF6A1F]">
                 {currentChart.semitone_offset === 0 ? 'Original' : `${currentChart.semitone_offset} semitones`}
               </span>

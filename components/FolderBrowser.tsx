@@ -4,7 +4,8 @@ import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Folder, Chart, listFolder, listFolderFromCache, createFolder, renameEntry,
-  deleteEntry, moveToTrash, moveEntry, saveChart, searchAll, exportChart, toggleBookmark
+  deleteEntry, moveToTrash, moveEntry, saveChart, searchAll, exportChart, toggleBookmark,
+  reorderFolders, compareFolders
 } from '@/lib/storage';
 import { FolderPickerModal } from './FolderPickerModal';
 import { LogoLoading } from './LogoLoading';
@@ -14,9 +15,27 @@ import { useAuth, canModifySection } from '@/components/AuthProvider';
 import { BandConnectModal } from './BandConnectModal';
 import { hasJoinedBand, syncBandForUser } from '@/lib/band';
 import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  useSortable,
+  arrayMove,
+  sortableKeyboardCoordinates,
+  rectSortingStrategy,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import {
   Folder as FolderIcon, FileText, MoreVertical, Search,
   Plus, CornerLeftUp, Trash2, Edit2, Edit3, CornerRightDown, Download, X, ArrowLeft,
-  FolderPlus, FilePlus, Printer, Star, LayoutGrid, List, Sparkles, Check, Music
+  FolderPlus, FilePlus, Printer, Star, LayoutGrid, List, Sparkles, Check, Music, GripVertical
 } from 'lucide-react';
 import './ios-tiles.css';
 
@@ -24,6 +43,191 @@ interface Props {
   folderId: string | null;
   folderName?: string; // Passed if inside a subfolder
   kind?: 'chart' | 'lyrics';
+}
+
+interface SortableFolderCardProps {
+  folder: Folder;
+  viewMode: 'grid' | 'list';
+  isAdmin: boolean;
+  isSearching: boolean;
+  selectedItems: Array<{ id: string; type: 'folder' | 'chart' | 'lyrics' }>;
+  activeDropdown: string | null;
+  kind: 'chart' | 'lyrics';
+  handlePointerDown: (id: string, type: 'folder' | 'chart' | 'lyrics', e: React.PointerEvent) => void;
+  handlePointerMove: (e: React.PointerEvent) => void;
+  handlePointerUp: () => void;
+  handleCardClick: (id: string, type: 'folder' | 'chart' | 'lyrics', e: React.MouseEvent, onNormalClick: () => void) => void;
+  safeNavigate: (targetUrl: string) => void;
+  lastLongPressTime: React.MutableRefObject<number>;
+  toggleSelection: (id: string, type: 'folder' | 'chart' | 'lyrics', e: React.MouseEvent) => void;
+  renderCheckbox: (id: string, type: 'folder' | 'chart' | 'lyrics') => React.ReactNode;
+  renderRowMenu: (id: string, type: 'folder' | 'chart' | 'lyrics', name: string, createdBy?: string) => React.ReactNode;
+}
+
+function SortableFolderCard({
+  folder,
+  viewMode,
+  isAdmin,
+  isSearching,
+  selectedItems,
+  activeDropdown,
+  kind,
+  handlePointerDown,
+  handlePointerMove,
+  handlePointerUp,
+  handleCardClick,
+  safeNavigate,
+  lastLongPressTime,
+  toggleSelection,
+  renderCheckbox,
+  renderRowMenu,
+}: SortableFolderCardProps) {
+  const isSortableDisabled = !isAdmin || isSearching || selectedItems.length > 0;
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
+    id: folder.id,
+    disabled: isSortableDisabled,
+  });
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.6 : 1,
+    zIndex: isDragging ? 50 : (activeDropdown === folder.id ? 40 : 'auto'),
+  };
+
+  const isSelected = selectedItems.some(i => i.id === folder.id);
+
+  if (viewMode === 'list') {
+    return (
+      <div
+        ref={setNodeRef}
+        style={style}
+        className={`ios-tile px-4 py-3 flex items-center justify-between cursor-pointer group relative transition-all duration-200 select-none ${
+          isSelected ? 'ring-2 ring-orange-500 shadow-glow' : ''
+        } ${isDragging ? 'ring-2 ring-orange-500/80 shadow-glow scale-[1.01]' : ''} ${
+          activeDropdown === folder.id ? 'z-[999]' : ''
+        }`}
+        onPointerDown={(e) => handlePointerDown(folder.id, 'folder', e)}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+        onClick={(e) =>
+          handleCardClick(folder.id, 'folder', e, () =>
+            safeNavigate(kind === 'lyrics' ? `/lyrics/folder/?id=${folder.id}` : `/folder/?id=${folder.id}`)
+          )
+        }
+        onContextMenu={(e) => {
+          e.preventDefault();
+          if (Date.now() - lastLongPressTime.current > 600) {
+            toggleSelection(folder.id, 'folder', e);
+          }
+        }}
+      >
+        <div className="flex items-center gap-3 min-w-0 flex-1 pr-2">
+          {/* Admin Drag Handle (List View) */}
+          {isAdmin && !isSearching && selectedItems.length === 0 && (
+            <div
+              {...attributes}
+              {...listeners}
+              onClick={(e) => e.stopPropagation()}
+              className="p-1 -ml-1 text-slate-400 hover:text-orange-500 cursor-grab active:cursor-grabbing touch-none shrink-0 transition-colors"
+              title="Drag to reorder folder (Admin only)"
+              aria-label="Drag to reorder folder"
+            >
+              <GripVertical size={16} />
+            </div>
+          )}
+
+          {renderCheckbox(folder.id, 'folder')}
+
+          <div className="w-10 h-10 icon-well flex items-center justify-center shrink-0">
+            <FolderIcon size={18} className="text-orange-500/80" fill="currentColor" fillOpacity={0.2} />
+          </div>
+
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-bold text-text-primary truncate">{folder.name}</p>
+            <p className="text-[11px] text-text-secondary mt-0.5 font-medium">
+              {new Date(folder.updated_at).toLocaleDateString()}
+            </p>
+          </div>
+        </div>
+
+        <div onClick={(e) => e.stopPropagation()} className="shrink-0">
+          {renderRowMenu(folder.id, 'folder', folder.name, folder.created_by)}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`ios-tile p-4 sm:p-5 flex flex-col items-center justify-center cursor-pointer group relative transition-all duration-200 select-none ${
+        isSelected ? 'ring-2 ring-orange-500 shadow-glow' : ''
+      } ${isDragging ? 'ring-2 ring-orange-500/80 shadow-glow scale-[1.02]' : ''} ${
+        activeDropdown === folder.id ? 'z-[999]' : ''
+      }`}
+      onPointerDown={(e) => handlePointerDown(folder.id, 'folder', e)}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
+      onClick={(e) =>
+        handleCardClick(folder.id, 'folder', e, () =>
+          safeNavigate(kind === 'lyrics' ? `/lyrics/folder/?id=${folder.id}` : `/folder/?id=${folder.id}`)
+        )
+      }
+      onContextMenu={(e) => {
+        e.preventDefault();
+        if (Date.now() - lastLongPressTime.current > 600) {
+          toggleSelection(folder.id, 'folder', e);
+        }
+      }}
+    >
+      {/* Top Left: Checkbox in selection mode, or Drag Handle for Admin */}
+      {selectedItems.length > 0 ? (
+        renderCheckbox(folder.id, 'folder')
+      ) : (
+        isAdmin && !isSearching && (
+          <div
+            {...attributes}
+            {...listeners}
+            onClick={(e) => e.stopPropagation()}
+            className="absolute top-2.5 left-2.5 z-10 p-1 text-slate-400 hover:text-orange-500 cursor-grab active:cursor-grabbing touch-none transition-colors rounded-md hover:bg-black/5 dark:hover:bg-white/10"
+            title="Drag to reorder folder (Admin only)"
+            aria-label="Drag to reorder folder"
+          >
+            <GripVertical size={16} />
+          </div>
+        )
+      )}
+
+      {/* Top Right: Kebab Menu */}
+      <div className="absolute top-2.5 right-2.5 z-10" onClick={(e) => e.stopPropagation()}>
+        {renderRowMenu(folder.id, 'folder', folder.name, folder.created_by)}
+      </div>
+
+      {/* Centered Circular Glass Icon Well */}
+      <div className="w-14 h-14 sm:w-16 sm:h-16 icon-well flex items-center justify-center mb-3 mt-3 transition-transform group-hover:scale-105">
+        <FolderIcon size={26} className="text-orange-500/80" fill="currentColor" fillOpacity={0.18} />
+      </div>
+
+      {/* Title & Date */}
+      <p className="text-sm font-bold text-text-primary text-center w-full line-clamp-2 leading-tight px-1">
+        {folder.name}
+      </p>
+      <p className="text-[11px] text-text-secondary mt-1 font-medium">
+        {new Date(folder.updated_at).toLocaleDateString()}
+      </p>
+    </div>
+  );
 }
 
 export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
@@ -49,9 +253,9 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
 
-  // Memoized alphabetical sorting for folders (A-Z)
+  // Memoized sorting for folders: by custom position (Admin configured), falling back to alphabetical (A-Z)
   const sortedFolders = useMemo(() => {
-    return [...folders].sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+    return [...folders].sort(compareFolders);
   }, [folders]);
 
   // Priority grouping in search: Folders (1st priority, A-Z), then Charts/Files (A-Z)
@@ -769,6 +973,62 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
     );
   };
 
+  const isAdmin = profile?.profession === 'admin';
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    if (!isAdmin || isSearching || selectedItems.length > 0) return;
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = sortedFolders.findIndex(f => f.id === active.id);
+    const newIndex = sortedFolders.findIndex(f => f.id === over.id);
+    if (oldIndex === -1 || newIndex === -1 || oldIndex === newIndex) return;
+
+    const previousFolders = [...folders];
+    const reorderedSorted = arrayMove(sortedFolders, oldIndex, newIndex).map((folder, idx) => ({
+      ...folder,
+      position: idx,
+    }));
+
+    // Optimistically update local folders state
+    const reorderedMap = new Map(reorderedSorted.map(f => [f.id, f]));
+    setFolders(prev => prev.map(f => reorderedMap.get(f.id) || f));
+
+    try {
+      await reorderFolders(reorderedSorted.map(f => ({ id: f.id, position: f.position! })));
+    } catch (err) {
+      console.error('[FolderBrowser] Failed to save folder order:', err);
+      setFolders(previousFolders);
+    }
+  };
+
+  const renderCheckbox = (id: string, type: 'folder' | 'chart' | 'lyrics') => {
+    if (!canEdit || selectedItems.length === 0) return null;
+    return (
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className={viewMode === 'list' ? "shrink-0 animate-in fade-in zoom-in-75 duration-150" : "absolute top-3 left-3 z-10 animate-in fade-in zoom-in-75 duration-150"}
+      >
+        <SelectionCheckbox id={id} type={type} />
+      </div>
+    );
+  };
+
+  const renderRowMenu = (id: string, type: 'folder' | 'chart' | 'lyrics', name: string, createdBy?: string) => {
+    return <RowMenu id={id} type={type} name={name} createdBy={createdBy} />;
+  };
+
   const [createDropdownOpen, setCreateDropdownOpen] = useState(false);
 
   return (
@@ -1199,86 +1459,38 @@ export function FolderBrowser({ folderId, folderName, kind = 'chart' }: Props) {
               </div>
             ) : (
               <>
-                {sortedFolders.map(folder => (
-                  viewMode === 'list' ? (
-                    <div
-                      key={folder.id}
-                      className={`ios-tile px-4 py-3 flex items-center justify-between cursor-pointer group relative transition-all duration-200 select-none ${
-                        selectedItems.some(i => i.id === folder.id) ? 'ring-2 ring-orange-500 shadow-glow' : ''
-                      } ${activeDropdown === folder.id ? 'z-[999]' : ''}`}
-                      style={{ touchAction: 'manipulation', WebkitUserSelect: 'none', userSelect: 'none', WebkitTouchCallout: 'none' }}
-                      onPointerDown={(e) => handlePointerDown(folder.id, 'folder', e)}
-                      onPointerMove={handlePointerMove}
-                      onPointerUp={handlePointerUp}
-                      onPointerCancel={handlePointerUp}
-                      onClick={(e) => handleCardClick(folder.id, 'folder', e, () => safeNavigate(kind === 'lyrics' ? `/lyrics/folder/?id=${folder.id}` : `/folder/?id=${folder.id}`))}
-                      onContextMenu={(e) => {
-                        e.preventDefault();
-                        if (Date.now() - lastLongPressTime.current > 600) {
-                          toggleSelection(folder.id, 'folder', e);
-                        }
-                      }}
-                    >
-                      <div className="flex items-center gap-3 min-w-0 flex-1 pr-2">
-                        {selectedItems.length > 0 && (
-                          <div onClick={e => e.stopPropagation()} className="shrink-0 animate-in fade-in zoom-in-75 duration-150">
-                            <SelectionCheckbox id={folder.id} type="folder" />
-                          </div>
-                        )}
-                        <div className="w-10 h-10 icon-well flex items-center justify-center shrink-0">
-                          <FolderIcon size={18} className="text-orange-500/80" fill="currentColor" fillOpacity={0.2} />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-bold text-text-primary truncate">{folder.name}</p>
-                          <p className="text-[11px] text-text-secondary mt-0.5 font-medium">{new Date(folder.updated_at).toLocaleDateString()}</p>
-                        </div>
-                      </div>
-                      <div onClick={e => e.stopPropagation()} className="shrink-0">
-                        <RowMenu id={folder.id} type="folder" name={folder.name} createdBy={folder.created_by} />
-                      </div>
-                    </div>
-                  ) : (
-                    <div
-                      key={folder.id}
-                      className={`ios-tile p-4 sm:p-5 flex flex-col items-center justify-center cursor-pointer group relative transition-all duration-200 select-none ${
-                        selectedItems.some(i => i.id === folder.id) ? 'ring-2 ring-orange-500 shadow-glow' : ''
-                      } ${activeDropdown === folder.id ? 'z-[999]' : ''}`}
-                      style={{ touchAction: 'manipulation', WebkitUserSelect: 'none', userSelect: 'none', WebkitTouchCallout: 'none' }}
-                      onPointerDown={(e) => handlePointerDown(folder.id, 'folder', e)}
-                      onPointerMove={handlePointerMove}
-                      onPointerUp={handlePointerUp}
-                      onPointerCancel={handlePointerUp}
-                      onClick={(e) => handleCardClick(folder.id, 'folder', e, () => safeNavigate(kind === 'lyrics' ? `/lyrics/folder/?id=${folder.id}` : `/folder/?id=${folder.id}`))}
-                      onContextMenu={(e) => {
-                        e.preventDefault();
-                        if (Date.now() - lastLongPressTime.current > 600) {
-                          toggleSelection(folder.id, 'folder', e);
-                        }
-                      }}
-                    >
-                      {/* Top Left: Checkbox (only shown in selection mode) */}
-                      {selectedItems.length > 0 && (
-                        <div className="absolute top-3 left-3 z-10 animate-in fade-in zoom-in-75 duration-150" onClick={e => e.stopPropagation()}>
-                          <SelectionCheckbox id={folder.id} type="folder" />
-                        </div>
-                      )}
-
-                      {/* Top Right: Kebab Menu */}
-                      <div className="absolute top-2.5 right-2.5 z-10" onClick={e => e.stopPropagation()}>
-                        <RowMenu id={folder.id} type="folder" name={folder.name} createdBy={folder.created_by} />
-                      </div>
-
-                      {/* Centered Circular Glass Icon Well */}
-                      <div className="w-14 h-14 sm:w-16 sm:h-16 icon-well flex items-center justify-center mb-3 mt-3 transition-transform group-hover:scale-105">
-                        <FolderIcon size={26} className="text-orange-500/80" fill="currentColor" fillOpacity={0.18} />
-                      </div>
-
-                      {/* Title & Date */}
-                      <p className="text-sm font-bold text-text-primary text-center w-full line-clamp-2 leading-tight px-1">{folder.name}</p>
-                      <p className="text-[11px] text-text-secondary mt-1 font-medium">{new Date(folder.updated_at).toLocaleDateString()}</p>
-                    </div>
-                  )
-                ))}
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleDragEnd}
+                >
+                  <SortableContext
+                    items={sortedFolders.map(f => f.id)}
+                    strategy={viewMode === 'list' ? verticalListSortingStrategy : rectSortingStrategy}
+                  >
+                    {sortedFolders.map(folder => (
+                      <SortableFolderCard
+                        key={folder.id}
+                        folder={folder}
+                        viewMode={viewMode}
+                        isAdmin={isAdmin}
+                        isSearching={isSearching}
+                        selectedItems={selectedItems}
+                        activeDropdown={activeDropdown}
+                        kind={kind}
+                        handlePointerDown={handlePointerDown}
+                        handlePointerMove={handlePointerMove}
+                        handlePointerUp={handlePointerUp}
+                        handleCardClick={handleCardClick}
+                        safeNavigate={safeNavigate}
+                        lastLongPressTime={lastLongPressTime}
+                        toggleSelection={toggleSelection}
+                        renderCheckbox={renderCheckbox}
+                        renderRowMenu={renderRowMenu}
+                      />
+                    ))}
+                  </SortableContext>
+                </DndContext>
                 
                 {charts.map(chart => (
                   viewMode === 'list' ? (

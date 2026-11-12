@@ -4,7 +4,7 @@ import React, { Suspense, useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { useAuth } from '@/components/AuthProvider';
 import { useChartSync } from '@/hooks/useChartSync';
-import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import { useParams, useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { ChartData } from '@/lib/chart-types';
 import ChartEditor from './edit/page';
 
@@ -143,13 +143,14 @@ function ChartViewerDetailContent() {
 
 function ChartViewerDetailRouter() {
   const params = useParams();
+  const routerPathname = usePathname();
   const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
     setIsClient(true);
   }, []);
 
-  const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
+  const pathname = routerPathname || (typeof window !== 'undefined' ? window.location.pathname : '');
   const isEditRoute = params?.id === 'edit' || pathname.includes('/edit');
 
   if (isEditRoute) {
