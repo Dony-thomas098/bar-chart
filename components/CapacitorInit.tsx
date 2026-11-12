@@ -17,14 +17,7 @@ export function CapacitorInit(): null {
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    // Only set up history trap on NON-home pages.
-    // On the home screen ('/'), FolderBrowser handles the trap and double-back exit.
     if (!isHomeScreen) {
-      try {
-        const currentState = window.history.state || {};
-        window.history.pushState({ ...currentState, chordly_module_trap: true }, '', window.location.href);
-      } catch {}
-
       const handleWebPopState = (e: PopStateEvent) => {
         // If Stage Lock is active, do not navigate away
         if (
@@ -45,8 +38,10 @@ export function CapacitorInit(): null {
           return;
         }
 
-        // On any non-home module, pressing back always returns to the home page ('/')
-        router.push('/');
+        // If opened directly with no previous in-app history, fallback to home
+        if (window.history.length <= 1) {
+          router.push('/');
+        }
       };
 
       window.addEventListener('popstate', handleWebPopState);
