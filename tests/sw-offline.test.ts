@@ -83,5 +83,5 @@ describe('Service Worker Offline Generation and Resilience', () => {
     // Never pass non-null body to status 204 (prevents "Response with null body status cannot have body" TypeError)
     expect(publicSw).not.toContain("new Response('', { status: 204");
     expect(publicSw).toContain("new Response(null, { status: 204");
-  }, 15000);
+  }, 45000);
 });

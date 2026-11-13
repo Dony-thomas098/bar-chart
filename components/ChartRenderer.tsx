@@ -24,8 +24,8 @@ function ChordNoteTooltip({ chord }: { chord: string }) {
 
 /** Renders a bar-line marker (e.g. "||:", ":||:", "||") so that
  *  the || double-bars are black/bold and only the : repeat dots are indigo. */
-function BarMarker({ marker, side }: { marker: string; side: 'left' | 'right' }) {
-  const barClass = 'text-slate-500 font-medium text-[1.0em] sm:text-[1.1em] print:text-black print:!text-[1em] print:!font-normal print:!font-mono';
+function BarMarker({ marker, side, isNightView = false }: { marker: string; side: 'left' | 'right'; isNightView?: boolean }) {
+  const barClass = `${isNightView ? 'text-slate-400' : 'text-slate-500'} font-medium text-[1.0em] sm:text-[1.1em] print:text-black print:!text-[1em] print:!font-normal print:!font-mono`;
   const dotClass = 'text-[#FF6A1F] font-black text-[1.0em] sm:text-[1.1em] print:text-black print:!text-[1em] print:!font-normal print:!font-mono';
 
   // Split into segments: leading ':', '||', trailing ':'
@@ -156,6 +156,8 @@ interface ChartRendererProps {
   activeSectionIndex?: number;
   /** When true, interaction on chord cells & tooltips is locked */
   isLocked?: boolean;
+  /** When true, renders in high-contrast stage Night View */
+  isNightView?: boolean;
 }
 
 export function ChartRenderer({ 
@@ -169,6 +171,7 @@ export function ChartRenderer({
   id = 'chart-card',
   activeSectionIndex,
   isLocked = false,
+  isNightView = false,
 }: ChartRendererProps) {
   // Individual element color overrides
   const [itemColors, setItemColors] = useState<Record<string, string>>({});
@@ -303,7 +306,7 @@ export function ChartRenderer({
     if (!chartData) return null;
     if (chartData.custom_text !== undefined && chartData.custom_text !== null) {
       return (
-        <pre className="text-indigo-600 font-medium text-[10px] sm:text-xs md:text-[15px] leading-normal whitespace-pre min-w-max" style={fontStyle}>
+        <pre className={`${isNightView ? 'text-indigo-400' : 'text-indigo-600'} font-medium text-[10px] sm:text-xs md:text-[15px] leading-normal whitespace-pre min-w-max`} style={fontStyle}>
           {chartData.custom_text}
         </pre>
       );
@@ -317,20 +320,20 @@ export function ChartRenderer({
 
     return (
       <div 
-        className="flex flex-col gap-4 print:!font-mono w-full leading-relaxed text-slate-900 print-reset-scale print:text-black" 
+        className={`flex flex-col gap-4 print:!font-mono w-full leading-relaxed ${isNightView ? 'text-[#F4F2F0]' : 'text-slate-900'} print-reset-scale print:text-black`} 
         style={fontStyle}
       >
         {/* Header */}
-        <div className="relative flex items-center justify-center mb-4 sm:mb-6 md:mb-7 pb-3 md:pb-4 border-b border-slate-200 print:border-b print:border-black/20 w-full text-slate-900 print:text-black print:pt-2 print:pb-2 print:mb-4">
+        <div className={`relative flex items-center justify-center mb-4 sm:mb-6 md:mb-7 pb-3 md:pb-4 border-b ${isNightView ? 'border-white/10 text-white' : 'border-slate-200 text-slate-900'} print:border-b print:border-black/20 w-full print:text-black print:pt-2 print:pb-2 print:mb-4`}>
           <div className="flex items-baseline gap-3 sm:gap-6 print:gap-3">
-            <h1 className="text-xl sm:text-3xl md:text-4xl font-extrabold print:text-2xl print:!font-bold tracking-tight print:!tracking-normal text-slate-900 print:text-black" style={fontStyle}>
+            <h1 className={`text-xl sm:text-3xl md:text-4xl font-extrabold print:text-2xl print:!font-bold tracking-tight print:!tracking-normal ${isNightView ? 'text-white' : 'text-slate-900'} print:text-black`} style={fontStyle}>
               {chartData.title || 'Untitled Chart'}
             </h1>
-            <span className="font-bold text-slate-500 print:text-black print:!font-semibold text-sm sm:text-xl print:!text-base" style={fontStyle}>
+            <span className={`font-bold ${isNightView ? 'text-slate-400' : 'text-slate-500'} print:text-black print:!font-semibold text-sm sm:text-xl print:!text-base`} style={fontStyle}>
               {chartData.time_sig || '4/4'}
             </span>
           </div>
-          <div className="absolute right-0 print:right-2 font-bold text-slate-500 print:text-black print:!font-semibold text-xs sm:text-lg print:!text-sm" style={fontStyle}>
+          <div className={`absolute right-0 print:right-2 font-bold ${isNightView ? 'text-slate-400' : 'text-slate-500'} print:text-black print:!font-semibold text-xs sm:text-lg print:!text-sm`} style={fontStyle}>
             t={chartData.tempo || 120}
           </div>
         </div>
@@ -431,10 +434,11 @@ export function ChartRenderer({
 
                       return (
                         <React.Fragment key={bIdx}>
-                          <BarMarker marker={prefix} side="left" />
+                          <BarMarker marker={prefix} side="left" isNightView={isNightView} />
                           {block.bars.map((bar, barIdx) => {
                             const barKey = `chord-note-${lIdx}-${bIdx}-${barIdx}`;
                             const isTooltipActive = activeNoteTooltipKey === barKey;
+                            const effectiveChordColor = chordColor && chordColor !== '#0f172a' ? chordColor : (isNightView ? '#FFFFFF' : '#0f172a');
 
                             return (
                               <React.Fragment key={barIdx}>
@@ -467,16 +471,16 @@ export function ChartRenderer({
                                     }
                                   }}
                                   className={`relative inline-flex items-center justify-center min-w-[2.2rem] sm:min-w-[3.6rem] md:min-w-[4.8rem] print:!min-w-0 print:!w-auto px-1 sm:px-2 print:!px-1 text-center font-extrabold print:!font-normal print:!font-mono transition-all duration-150 text-sm sm:text-2xl md:text-[1.75rem] print:!text-[1em] print:!font-mono rounded print:!rounded-none select-none ${
-                                    isTooltipActive ? 'bg-[#FF6A1F]/10 ring-2 ring-[#FF6A1F]/50' : 'hover:bg-slate-50/50'
+                                    isTooltipActive ? 'bg-[#FF6A1F]/10 ring-2 ring-[#FF6A1F]/50' : (isNightView ? 'hover:bg-white/5' : 'hover:bg-slate-50/50')
                                   }`}
-                                  style={{ color: '#0f172a', ...fontStyle }}
+                                  style={{ color: effectiveChordColor, ...fontStyle }}
                                   title="Double-tap or double-click to view chord notes"
                                 >
                                   {isTooltipActive && <ChordNoteTooltip chord={bar || ''} />}
                                   {parseChord(bar || '_')}
                                 </span>
                                 {barIdx < block.bars.length - 1 && (
-                                  <span className="inline-flex items-center justify-center text-slate-500 font-medium px-1 sm:px-2 print:!px-1 text-base sm:text-2xl md:text-3xl print:text-black print:!text-[1em] print:!font-normal print:!font-mono print:!tracking-normal">|</span>
+                                  <span className={`inline-flex items-center justify-center ${isNightView ? 'text-slate-400' : 'text-slate-500'} font-medium px-1 sm:px-2 print:!px-1 text-base sm:text-2xl md:text-3xl print:text-black print:!text-[1em] print:!font-normal print:!font-mono print:!tracking-normal`}>|</span>
                                 )}
                               </React.Fragment>
                             );
@@ -489,7 +493,7 @@ export function ChartRenderer({
                     {line.blocks.length > 0 && (() => {
                       const lastBlock = line.blocks[line.blocks.length - 1];
                       const suffix = lastBlock.endRepeat ? ':||' : '||';
-                      return <BarMarker marker={suffix} side="right" />;
+                      return <BarMarker marker={suffix} side="right" isNightView={isNightView} />;
                     })()}
                   </div>
                   
@@ -504,7 +508,7 @@ export function ChartRenderer({
                           setActivePickerKey(activePickerKey === labelRightKey ? null : labelRightKey);
                         }}
                         className="relative shrink-0 font-semibold print:text-black text-sm sm:text-2xl print:text-[1em] print:!font-normal print:!font-mono text-left pl-2 sm:pl-6 print:!pl-3 flex items-center cursor-pointer hover:opacity-75 transition-opacity"
-                        style={{ width: `${labelRightCh}ch`, color: customLabelRightColor || '#64748b', ...fontStyle }}
+                        style={{ width: `${labelRightCh}ch`, color: customLabelRightColor || (isNightView ? '#94a3b8' : '#64748b'), ...fontStyle }}
                         title="Click to color this text"
                       >
                         <ColorPickerPopover itemKey={labelRightKey} activePickerKey={activePickerKey} onSetColor={handleSetColor} />
@@ -525,7 +529,11 @@ export function ChartRenderer({
     <div 
       id={id}
       onClick={onClick}
-      className="flex text-left flex-col w-fit p-4 sm:p-6 md:p-8 print:p-0 bg-white print:bg-transparent rounded-none relative mx-auto my-0 print:min-h-0 print:h-auto print:w-full border border-slate-200/80 shadow-2xl print:border-none print:shadow-none break-inside-avoid print:break-inside-avoid-page print-single-page"
+      className={`flex text-left flex-col w-fit p-4 sm:p-6 md:p-8 print:p-0 ${
+        isNightView
+          ? 'bg-[#121216] text-[#F4F2F0] border-[#2A2A34] shadow-[0_16px_48px_rgba(0,0,0,0.8)]'
+          : 'bg-white text-slate-900 border-slate-200/80 shadow-2xl'
+      } print:bg-transparent rounded-none relative mx-auto my-0 print:min-h-0 print:h-auto print:w-full border print:border-none print:shadow-none break-inside-avoid print:break-inside-avoid-page print-single-page`}
     >
       {watermark && (
         <div className="hidden print:grid absolute inset-0 grid-cols-4 gap-y-6 gap-x-4 items-center justify-items-center pointer-events-none overflow-hidden z-[1] opacity-[0.04] rotate-[-30deg] scale-150 select-none">
@@ -539,7 +547,7 @@ export function ChartRenderer({
       {renderTextFlow(chart)}
 
       {/* Footer Info */}
-      <div className={`print:hidden mt-auto pt-6 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-[10px] text-slate-400 font-bold tracking-widest uppercase transition-opacity duration-300 ${showUI ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+      <div className={`print:hidden mt-auto pt-6 border-t ${isNightView ? 'border-white/10 text-slate-500' : 'border-slate-200 text-slate-400'} flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-[10px] font-bold tracking-widest uppercase transition-opacity duration-300 ${showUI ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
         <div className="flex items-center space-x-4">
           <span className="flex items-center text-[#FF6A1F]"><Cloud size={14} className="mr-2" /> Live Sync</span>
           {collaborators.length > 0 && (

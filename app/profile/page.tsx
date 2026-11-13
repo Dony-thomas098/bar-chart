@@ -155,7 +155,7 @@ export default function ProfilePage() {
 
   if (loading || !user) {
     return (
-      <div className="min-h-dvh h-dvh bg-[var(--bg-canvas)] flex flex-col">
+      <div className="min-h-screen bg-[var(--bg-canvas)] flex flex-col">
         <Header />
         <div className="flex-1 flex items-center justify-center">
           <div className="w-8 h-8 rounded-full border-2 border-orange-500 border-t-transparent animate-spin" />
@@ -224,9 +224,9 @@ export default function ProfilePage() {
   const initial = (displayName.charAt(0) || user.email?.charAt(0) || 'U').toUpperCase();
 
   return (
-    <div className="min-h-dvh h-dvh flex flex-col safe-area-screen bg-[var(--bg-canvas)] text-[#1c1c1e] dark:text-[#f4f4f6]">
+    <div className="min-h-screen flex flex-col safe-area-screen bg-[var(--bg-canvas)] text-[#1c1c1e] dark:text-[#f4f4f6]">
       <Header />
-      <main className="flex-1 overflow-y-auto overflow-x-hidden w-full px-4 pt-4 pb-[calc(7.5rem+max(env(safe-area-inset-bottom,0px),var(--safe-area-inset-bottom,0px)))]">
+      <main className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden w-full px-4 pt-4 pb-[calc(10rem+max(env(safe-area-inset-bottom,0px),var(--safe-area-inset-bottom,0px)))]">
         <div className="mx-auto w-full max-w-[430px] flex flex-col gap-4">
           
           {/* Top Bar Header */}

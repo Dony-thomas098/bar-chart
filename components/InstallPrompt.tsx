@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 import { Download, X } from 'lucide-react';
 
 interface BeforeInstallPromptEvent extends Event {
@@ -82,7 +83,9 @@ export function InstallPrompt() {
     sessionStorage.setItem('chordcraft_install_dismissed', '1');
   };
 
-  if (isStandalone || !isVisible || isDismissed) {
+  const pathname = usePathname();
+
+  if (isStandalone || !isVisible || isDismissed || pathname === '/auth' || pathname?.startsWith('/auth')) {
     return null;
   }
 

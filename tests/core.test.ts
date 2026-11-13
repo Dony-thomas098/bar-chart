@@ -876,9 +876,9 @@ describe('Application Exit and Back Button Navigation Rules', () => {
     const path = await import('path');
     const capInit = fs.readFileSync(path.resolve(__dirname, '../components/CapacitorInit.tsx'), 'utf-8');
 
-    // On non-home routes, back button navigates to home ('/')
+    // On non-home routes, back button navigates to home ('/') when no prior history
     expect(capInit).toContain("const isHomeScreen = normalizedPath === '/'");
-    expect(capInit).toContain('chordly_module_trap');
+    expect(capInit).toContain('window.history.length <= 1');
     expect(capInit).toContain("router.push('/')");
 
     // On native back button, non-home routes always return to home screen

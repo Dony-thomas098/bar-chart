@@ -1,12 +1,13 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { searchAll } from '@/lib/storage';
+import { searchAll, readChart } from '@/lib/storage';
+import { readLyrics } from '@/lib/lyrics';
 import { Header } from '@/components/Header';
 import { GlassCard, PillButton, IconButton } from '@/components/ui/primitives';
 import {
   Play, Search, Plus, Trash2, CornerLeftUp, GripVertical, X,
-  Save, BookOpen, ChevronRight, Music2, FolderOpen, Radio,
+  Save, BookOpen, ChevronRight, Music2, FolderOpen, Radio, Pencil,
 } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
@@ -27,6 +28,7 @@ interface SavedSetlist {
   id: string;
   name: string;
   chartIds: string[];
+  items?: QueueItem[];
   savedAt: string;
 }
 
@@ -122,7 +124,41 @@ function PerformContent() {
   );
 
   useEffect(() => {
-    setSavedSetlists(loadSavedSetlists());
+    const lists = loadSavedSetlists();
+    setSavedSetlists(lists);
+
+    // Auto-repair any saved setlists with "Unknown" or missing titles from IndexedDB
+    let hasRepairs = false;
+    Promise.all(
+      lists.map(async (sl) => {
+        const needsRepair = !sl.items || sl.items.some(i => !i.title || i.title === 'Unknown' || i.title === 'Unknown (Item Removed)' || i.title === 'Loading...');
+        if (!needsRepair) return sl;
+        const repairedItems = await Promise.all(
+          sl.chartIds.map(async (id) => {
+            const existing = sl.items?.find(it => it.id === id);
+            if (existing && existing.title && existing.title !== 'Unknown' && existing.title !== 'Unknown (Item Removed)' && existing.title !== 'Loading...') {
+              return existing;
+            }
+            try {
+              const c = await readChart(id);
+              if (c?.title) return { id, title: c.title, meta: c.time_sig ? `${c.time_sig} · t=${c.tempo || 120}` : 'Chart' };
+            } catch {}
+            try {
+              const l = await readLyrics(id);
+              if (l?.title) return { id, title: l.title, meta: 'Lyrics' };
+            } catch {}
+            return { id, title: 'Untitled Chart', meta: '' };
+          })
+        );
+        hasRepairs = true;
+        return { ...sl, items: repairedItems };
+      })
+    ).then((repaired) => {
+      if (hasRepairs) {
+        setSavedSetlists(repaired);
+        persistSetlists(repaired);
+      }
+    });
   }, []);
 
   // Auto-populate when launched from Setlists menu (?setlistId=...)
@@ -146,7 +182,7 @@ function PerformContent() {
         if (!isCancelled && items && items.length > 0) {
           const queueItems: QueueItem[] = items.map(item => ({
             id: item.item_id,
-            title: item.title || 'Untitled',
+            title: (item.title && item.title !== 'Unknown' && item.title !== 'Unknown (Item Removed)' && item.title !== 'Loading...') ? item.title : (item.item_type === 'lyrics' ? 'Untitled Lyrics' : 'Untitled Chart'),
             meta: item.item_type === 'lyrics' ? 'Lyrics' : (item.transpose_override ? `Transpose: ${item.transpose_override > 0 ? '+' : ''}${item.transpose_override}` : ''),
           }));
           setQueue(queueItems);
@@ -196,6 +232,7 @@ function PerformContent() {
       id: crypto.randomUUID(),
       name: setlistName || 'Untitled Setlist',
       chartIds: queue.map(q => q.id),
+      items: queue,
       savedAt: new Date().toISOString(),
     };
     const updated = [newList, ...savedSetlists];
@@ -204,18 +241,60 @@ function PerformContent() {
   };
 
   const handleLoadSetlist = async (sl: SavedSetlist) => {
-    const items: QueueItem[] = sl.chartIds.map(id => ({ id, title: 'Loading...', meta: '' }));
-    setQueue(items);
+    // 1. Immediately show cached items if available, filtering out corrupt "Unknown" labels
+    const initialItems: QueueItem[] = (sl.items && sl.items.length === sl.chartIds.length)
+      ? sl.items.map(it => ({
+          ...it,
+          title: (it.title && it.title !== 'Unknown' && it.title !== 'Unknown (Item Removed)' && it.title !== 'Loading...') ? it.title : 'Loading...',
+        }))
+      : sl.chartIds.map(id => ({ id, title: 'Loading...', meta: '' }));
+    setQueue(initialItems);
     setSetlistName(sl.name);
     setShowSaved(false);
 
-    const results = await searchAll('');
-    const byId = Object.fromEntries(results.map((r: any) => [r.id, r]));
-    setQueue(sl.chartIds.map(id => ({
-      id,
-      title: byId[id]?.title || 'Unknown',
-      meta: byId[id]?.time_sig ? `${byId[id].time_sig} · t=${byId[id].tempo}` : '',
-    })));
+    // 2. Safely resolve every chart / lyrics by ID so "Unknown" never appears
+    try {
+      const resolved = await Promise.all(
+        sl.chartIds.map(async (id) => {
+          const cached = sl.items?.find(it => it.id === id);
+          if (cached && cached.title && cached.title !== 'Unknown' && cached.title !== 'Unknown (Item Removed)' && cached.title !== 'Loading...') {
+            return cached;
+          }
+          try {
+            const chart = await readChart(id);
+            if (chart) {
+              return {
+                id: chart.id,
+                title: chart.title || 'Untitled Chart',
+                meta: chart.time_sig ? `${chart.time_sig} · t=${chart.tempo || 120}` : 'Chart',
+              };
+            }
+          } catch {}
+          try {
+            const lyric = await readLyrics(id);
+            if (lyric) {
+              return {
+                id: lyric.id,
+                title: lyric.title || 'Untitled Lyrics',
+                meta: 'Lyrics',
+              };
+            }
+          } catch {}
+          const safeCachedTitle = (cached?.title && cached.title !== 'Unknown' && cached.title !== 'Unknown (Item Removed)' && cached.title !== 'Loading...')
+            ? cached.title
+            : 'Untitled Song';
+          return { id, title: safeCachedTitle, meta: '' };
+        })
+      );
+      setQueue(resolved);
+
+      // Persist resolved items back to local storage so subsequent loads are immediate
+      const updatedSetlists = savedSetlists.map(s => s.id === sl.id ? { ...s, items: resolved } : s);
+      setSavedSetlists(updatedSetlists);
+      persistSetlists(updatedSetlists);
+    } catch (err) {
+      console.error('Failed to resolve setlist charts:', err);
+    }
   };
 
   const handleDeleteSaved = (id: string) => {
@@ -322,7 +401,7 @@ function PerformContent() {
 
         {/* ── Queue ── */}
         <GlassCard className="p-5 sm:p-6 mb-6">
-          <div className="flex items-center justify-between mb-5 pb-4 border-b border-black/[0.06] dark:border-white/[0.08]">
+          <div className="flex items-center justify-between mb-4 pb-3 border-b border-black/[0.06] dark:border-white/[0.08]">
             <h2 className="text-base font-bold text-text-primary flex items-center gap-2 tracking-tight">
               <Music2 size={18} className="text-orange-500" />
               Live Queue ({queue.length})
@@ -335,6 +414,19 @@ function PerformContent() {
                 <BookOpen size={12} className="mr-1.5" /> Saved ({savedSetlists.length})
               </PillButton>
             </div>
+          </div>
+
+          {/* Editable Performance / Setlist Name Input */}
+          <div className="mb-4 flex items-center gap-2.5 px-3.5 py-2 bg-white/70 dark:bg-white/[0.05] border border-glass rounded-xl shadow-sm focus-within:border-orange-500/60 transition-all">
+            <Pencil size={15} className="text-orange-500 shrink-0" />
+            <input
+              type="text"
+              value={setlistName}
+              onChange={(e) => setSetlistName(e.target.value)}
+              placeholder="Performance Name (e.g. My Setlist, Sunday Service)"
+              className="w-full bg-transparent text-sm font-bold text-text-primary placeholder:text-text-muted focus:outline-none"
+              title="Edit performance name"
+            />
           </div>
 
           {/* Saved setlists panel */}

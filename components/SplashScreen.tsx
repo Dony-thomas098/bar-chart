@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useRef, useCallback } from 'react';
+import { usePathname } from 'next/navigation';
 import { useAuth } from './AuthProvider';
 import { ChordlyLoader } from './ChordlyLoader';
 import styles from './SplashScreen.module.css';
@@ -62,7 +63,9 @@ export function SplashScreen() {
     };
   }, [dismiss]);
 
-  if (!mounted || gone) return null;
+  const pathname = usePathname();
+
+  if (!mounted || gone || pathname === '/auth' || pathname?.startsWith('/auth')) return null;
 
   return (
     <div

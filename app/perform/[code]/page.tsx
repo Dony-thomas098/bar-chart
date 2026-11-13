@@ -24,13 +24,16 @@ function PerformChartWrapper({
   chart,
   showHeader = true,
   onBaseScaleChange,
+  assignedTransformsRef,
 }: { 
   chart: ChartData;
   showHeader?: boolean;
   onBaseScaleChange?: (scale: number) => void;
+  assignedTransformsRef: React.MutableRefObject<Record<string, { scale: number; posX: number; posY: number; userMoved: boolean }>>;
 }) {
   const { zoomToElement, setTransform, instance } = useControls();
   const isInitialFitRef = useRef(true);
+  const prevShowHeaderRef = useRef(showHeader);
 
   const fitToScreen = useCallback(() => {
     const cardEl = document.getElementById('perform-chart-card');
@@ -48,7 +51,8 @@ function PerformChartWrapper({
       cardWidth,
       cardHeight,
       showUI: showHeader,
-      topPadding: 8,
+      topPadding: showHeader ? 8 : 4,
+      bottomPadding: showHeader ? 75 : 24,
     });
 
     if (instance.setup) {
@@ -58,12 +62,19 @@ function PerformChartWrapper({
       onBaseScaleChange(effectiveMinScale);
     }
 
-    const animDuration = isInitialFitRef.current ? 0 : 250;
+    const assigned = assignedTransformsRef.current[chart.id];
+    if (assigned && assigned.userMoved) {
+      // User set custom zoom/pan: preserve exact scale and adjust vertical position for top bar
+      const targetY = showHeader ? assigned.posY + 56 : assigned.posY;
+      setTransform(assigned.posX, targetY, assigned.scale, isInitialFitRef.current ? 0 : 250);
+    } else {
+      assignedTransformsRef.current[chart.id] = { scale, posX, posY, userMoved: false };
+      setTransform(posX, posY, scale, isInitialFitRef.current ? 0 : 250);
+    }
     isInitialFitRef.current = false;
+  }, [instance, setTransform, onBaseScaleChange, showHeader, chart.id, assignedTransformsRef]);
 
-    setTransform(posX, posY, scale, animDuration);
-  }, [instance, setTransform, onBaseScaleChange, showHeader]);
-
+  // Initial fit on chart mount or viewport resize
   useEffect(() => {
     isInitialFitRef.current = true;
     let t1: any;
@@ -87,7 +98,22 @@ function PerformChartWrapper({
       window.removeEventListener('resize', runFit);
       window.removeEventListener('orientationchange', runFit);
     };
-  }, [fitToScreen, chart.id, showHeader]);
+  }, [fitToScreen, chart.id]);
+
+  // Smoothly adjust visible viewport on showHeader toggle while preserving user custom zoom/pan
+  useEffect(() => {
+    if (isInitialFitRef.current) return;
+    if (prevShowHeaderRef.current === showHeader) return;
+    prevShowHeaderRef.current = showHeader;
+
+    const assigned = assignedTransformsRef.current[chart.id];
+    if (assigned && assigned.userMoved) {
+      const targetY = showHeader ? assigned.posY + 56 : assigned.posY;
+      setTransform(assigned.posX, targetY, assigned.scale, 250);
+    } else {
+      fitToScreen();
+    }
+  }, [showHeader, chart.id, setTransform, fitToScreen, assignedTransformsRef]);
 
   // Navigate to section on perform-navigate event (zoom to chart card)
   useEffect(() => {
@@ -111,14 +137,15 @@ function CodeBadge({ code }: { code: string }) {
   };
   return (
     <button
+      type="button"
       onClick={copy}
-      className="flex items-center gap-1.5 px-2.5 py-1.5 bg-surface-raised border border-border rounded-xl text-xs font-mono font-bold text-text-primary hover:border-accent-solid transition-all shrink-0 cursor-pointer"
+      className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-[#1c1c22] dark:hover:bg-white/10 border border-slate-300 dark:border-white/15 rounded-xl text-xs font-mono font-bold text-slate-900 dark:text-white hover:border-[#FF6A1F] dark:hover:border-[#FF6A1F] transition-all shrink-0 cursor-pointer shadow-sm"
       title="Click to copy room code"
       aria-label="Copy session code"
     >
-      <Radio size={12} className="text-accent-start animate-pulse" />
+      <Radio size={12} className="text-[#FF6A1F] animate-pulse" />
       <span>{code}</span>
-      {copied ? <Check size={12} className="text-green-400" /> : <Copy size={12} className="text-text-secondary" />}
+      {copied ? <Check size={12} className="text-emerald-600 dark:text-emerald-400" /> : <Copy size={12} className="text-slate-500 dark:text-slate-400" />}
     </button>
   );
 }
@@ -194,6 +221,7 @@ export default function PerformancePage() {
   const {
     mode, currentIndex, chartIds, sessionName, leaderName,
     followerCount, isFollowing, goTo, endSession, stopFollowing, resumeFollowing,
+    renameSession,
     broadcastChordUpdate,
   } = usePerformanceSession(code, initialPayload);
 
@@ -214,10 +242,30 @@ export default function PerformancePage() {
   const [sessionEnded, setSessionEnded] = useState(false);
   const [selectedFont, setSelectedFont] = useState('system');
 
+  // Rename Performance Modal State
+  const [isRenameModalOpen, setIsRenameModalOpen] = useState(false);
+  const [renameInputValue, setRenameInputValue] = useState('');
+
   // Performance Chord Editing State
   const [perfModalOpen, setPerfModalOpen] = useState(false);
   const [editingLines, setEditingLines] = useState<Line[]>([]);
   const [isSavingPerf, setIsSavingPerf] = useState(false);
+
+  // Assigned Transforms map: remembers user's manual pan & zoom scale per song
+  const assignedTransformsRef = useRef<Record<string, { scale: number; posX: number; posY: number; userMoved: boolean }>>({});
+
+  const handleUserTransform = useCallback((state: { scale: number; positionX: number; positionY: number }) => {
+    if (!currentChart?.id) return;
+    const currentKey = currentChart.id;
+    // Normalize baseline Y position relative to header-hidden state
+    const basePosY = showHeader ? state.positionY - 56 : state.positionY;
+    assignedTransformsRef.current[currentKey] = {
+      scale: state.scale,
+      posX: state.positionX,
+      posY: basePosY,
+      userMoved: true,
+    };
+  }, [currentChart?.id, showHeader]);
 
   useEffect(() => {
     const savedFont = localStorage.getItem('chord-grid-font');
@@ -549,7 +597,7 @@ export default function PerformancePage() {
       onClick={toggleHeader}
     >
       {/* ── Header (auto-hide) ── */}
-      <div className={`fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-3 sm:px-4 py-2.5 sm:py-3 bg-bg/90 backdrop-blur-md border-b border-border/50 transition-all duration-300 gap-2 ${showHeader ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0'}`}>
+      <div className={`fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-3 sm:px-4 py-2.5 sm:py-3 bg-white/95 dark:bg-[#121216]/95 backdrop-blur-xl border-b border-slate-200 dark:border-white/10 shadow-md transition-all duration-300 gap-2 ${showHeader ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0'}`}>
         <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
           {/* Desktop Back button */}
           <button
@@ -562,7 +610,7 @@ export default function PerformancePage() {
                 handleFollowerLeave();
               }
             }}
-            className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-full bg-white/10 hover:bg-white/20 text-white border border-white/15 transition-all active:scale-95 cursor-pointer select-none shrink-0"
+            className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-white/10 dark:hover:bg-white/20 text-slate-800 dark:text-white border border-slate-300 dark:border-white/15 transition-all active:scale-95 cursor-pointer select-none shrink-0 shadow-sm"
             title="Go back"
             aria-label="Go back"
           >
@@ -579,16 +627,32 @@ export default function PerformancePage() {
                 handleFollowerLeave(); 
               }
             }}
-            className="p-1.5 sm:p-2 text-text-secondary hover:text-white bg-surface border border-border rounded-lg transition-all shrink-0 cursor-pointer"
+            className="p-1.5 sm:p-2 text-slate-700 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white bg-slate-100 hover:bg-slate-200 dark:bg-[#1c1c22] dark:hover:bg-white/15 border border-slate-300 dark:border-white/15 rounded-lg transition-all shrink-0 cursor-pointer shadow-sm"
             title={isLeader ? "End performance session" : "Leave performance session"}
           >
             <X size={16} />
           </button>
           
           <div className="min-w-0 truncate">
-            <p className="text-xs sm:text-sm font-bold text-text-primary truncate">{sessionName}</p>
+            {isLeader ? (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setRenameInputValue(sessionName);
+                  setIsRenameModalOpen(true);
+                }}
+                className="flex items-center gap-1.5 text-xs sm:text-sm font-bold text-slate-900 dark:text-white hover:text-[#FF6A1F] dark:hover:text-[#FF6A1F] transition-colors group cursor-pointer max-w-full truncate text-left"
+                title="Click to rename performance"
+              >
+                <span className="truncate">{sessionName || 'Live Performance'}</span>
+                <Pencil size={12} className="text-slate-400 dark:text-slate-500 group-hover:text-[#FF6A1F] shrink-0" />
+              </button>
+            ) : (
+              <p className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white truncate">{sessionName || 'Live Performance'}</p>
+            )}
             {!isLeader && leaderName && (
-              <p className="text-[10px] text-text-secondary truncate">Leader: {leaderName}</p>
+              <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">Leader: {leaderName}</p>
             )}
           </div>
         </div>
@@ -596,12 +660,12 @@ export default function PerformancePage() {
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           {/* Follower Count Pill: Always fully visible on phone and desktop */}
           <div
-            className="flex items-center gap-1 px-2 py-1.5 bg-surface-raised border border-border rounded-xl text-xs font-semibold text-text-primary whitespace-nowrap shrink-0"
+            className="flex items-center gap-1 px-2 py-1.5 bg-slate-100 dark:bg-[#1c1c22] border border-slate-300 dark:border-white/15 rounded-xl text-xs font-semibold text-slate-800 dark:text-slate-200 whitespace-nowrap shrink-0 shadow-sm"
             title={`${followerCount} connected participant${followerCount !== 1 ? 's' : ''}`}
           >
             <Users size={12} className="text-accent-start" />
             <span className="font-mono font-bold">{followerCount}</span>
-            <span className="hidden sm:inline text-text-secondary font-normal">follower{followerCount !== 1 ? 's' : ''}</span>
+            <span className="hidden sm:inline text-slate-500 dark:text-slate-400 font-normal">follower{followerCount !== 1 ? 's' : ''}</span>
           </div>
 
           {/* Session Code Badge: Tap to copy code */}
@@ -611,23 +675,23 @@ export default function PerformancePage() {
           {isLeader && currentChart && (
             <div
               onClick={(e) => e.stopPropagation()}
-              className="flex items-center bg-surface border border-border rounded-xl p-0.5 shadow-sm shrink-0"
+              className="flex items-center bg-slate-100 dark:bg-[#1c1c22] border border-slate-300 dark:border-white/15 rounded-xl p-0.5 shadow-sm shrink-0"
             >
               <button
                 onClick={() => handleTranspose(-1)}
-                className="w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center text-text-secondary hover:text-white hover:bg-surface-raised rounded-lg active:scale-95 transition-all cursor-pointer"
+                className="w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center text-slate-700 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-white/10 rounded-lg active:scale-95 transition-all cursor-pointer"
                 title="Transpose down 1 semitone (-1)"
               >
                 <Minus size={12} />
               </button>
-              <span className="text-[11px] font-mono font-bold px-1.5 sm:px-2 text-accent-start select-none whitespace-nowrap">
+              <span className="text-[11px] font-mono font-bold px-1.5 sm:px-2 text-[#FF6A1F] select-none whitespace-nowrap">
                 {currentChart.semitone_offset === 0
                   ? 'Orig'
                   : `${currentChart.semitone_offset > 0 ? '+' : ''}${currentChart.semitone_offset}`}
               </span>
               <button
                 onClick={() => handleTranspose(1)}
-                className="w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center text-text-secondary hover:text-white hover:bg-surface-raised rounded-lg active:scale-95 transition-all cursor-pointer"
+                className="w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center text-slate-700 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-white/10 rounded-lg active:scale-95 transition-all cursor-pointer"
                 title="Transpose up 1 semitone (+1)"
               >
                 <Plus size={12} />
@@ -641,7 +705,7 @@ export default function PerformancePage() {
                 e.stopPropagation();
                 handleOpenPerfEdit();
               }}
-              className="px-2 py-1.5 sm:px-2.5 sm:py-1.5 bg-yellow-500/15 text-yellow-300 border border-yellow-500/30 rounded-lg hover:bg-yellow-500/25 transition-all flex items-center gap-1 text-xs font-bold shrink-0 cursor-pointer"
+              className="px-2.5 py-1.5 sm:px-3 sm:py-1.5 bg-amber-500/15 text-amber-800 dark:text-amber-300 border border-amber-500/40 hover:bg-amber-500/25 rounded-lg transition-all flex items-center gap-1 text-xs font-bold shrink-0 cursor-pointer shadow-sm"
               title="Edit Chords live in performance"
             >
               <Pencil size={13} />
@@ -657,7 +721,7 @@ export default function PerformancePage() {
                 router.push(`/chart/edit/?id=${encodeURIComponent(currentChart.id)}&returnTo=/perform/stage?code=${code}`);
               }}
               disabled={!currentChart}
-              className="p-1.5 sm:p-2 bg-accent-gradient text-white rounded-lg hover:brightness-110 transition-all disabled:opacity-40 shrink-0 cursor-pointer"
+              className="p-1.5 sm:p-2 bg-[#FF6A1F] text-white rounded-lg hover:brightness-110 transition-all disabled:opacity-40 shrink-0 cursor-pointer shadow-sm"
               title="Full Chart Editor"
             >
               <Edit2 size={14} />
@@ -668,7 +732,7 @@ export default function PerformancePage() {
           {isLeader ? (
             <button
               onClick={(e) => { e.stopPropagation(); setShowEndConfirmModal(true); }}
-              className="px-2.5 py-1.5 sm:px-3 sm:py-2 text-xs font-bold text-red-400 border border-red-500/30 bg-red-500/10 rounded-lg hover:bg-red-500 hover:text-white transition-all shrink-0 cursor-pointer"
+              className="px-2.5 py-1.5 sm:px-3 sm:py-2 text-xs font-bold text-red-700 dark:text-red-400 border border-red-500/40 bg-red-500/15 rounded-lg hover:bg-red-600 hover:text-white transition-all shrink-0 cursor-pointer shadow-sm"
               title="End session for all connected followers"
             >
               End
@@ -676,7 +740,7 @@ export default function PerformancePage() {
           ) : (
             <button
               onClick={(e) => { e.stopPropagation(); handleFollowerLeave(); }}
-              className="px-2.5 py-1.5 sm:px-3 sm:py-2 text-xs font-bold text-red-400 border border-red-500/30 bg-red-500/10 rounded-lg hover:bg-red-500 hover:text-white transition-all shrink-0 cursor-pointer"
+              className="px-2.5 py-1.5 sm:px-3 sm:py-2 text-xs font-bold text-red-700 dark:text-red-400 border border-red-500/40 bg-red-500/15 rounded-lg hover:bg-red-600 hover:text-white transition-all shrink-0 cursor-pointer shadow-sm"
               title="Leave live performance session"
             >
               Leave
@@ -708,6 +772,10 @@ export default function PerformancePage() {
             centerOnInit={false}
             centerZoomedOut={false}
             limitToBounds={true}
+            onPanningStop={(ref) => handleUserTransform(ref.state)}
+            onPinchStop={(ref) => handleUserTransform(ref.state)}
+            onZoomStop={(ref) => handleUserTransform(ref.state)}
+            onWheelStop={(ref) => handleUserTransform(ref.state)}
             wheel={{
               step: 0.1,
               wheelDisabled: true,
@@ -734,7 +802,7 @@ export default function PerformancePage() {
               contentClass="w-max flex flex-col items-start justify-start pb-36"
             >
               <div onClick={(e) => { e.stopPropagation(); toggleHeader(); }} className="w-fit max-w-none flex flex-col items-start justify-start">
-                <PerformChartWrapper chart={currentChart} showHeader={showHeader} onBaseScaleChange={setPerformMinScale} />
+                <PerformChartWrapper chart={currentChart} showHeader={showHeader} onBaseScaleChange={setPerformMinScale} assignedTransformsRef={assignedTransformsRef} />
               </div>
             </TransformComponent>
           </TransformWrapper>
@@ -851,6 +919,76 @@ export default function PerformancePage() {
             </button>
           )}
         </>
+      )}
+
+      {/* ── Rename Performance Modal ── */}
+      {isRenameModalOpen && (
+        <div
+          onClick={(e) => e.stopPropagation()}
+          className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-150"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-sm bg-white dark:bg-[#18181d] border border-slate-200 dark:border-white/10 rounded-2xl shadow-2xl p-5 flex flex-col gap-4 animate-in zoom-in-95 duration-150"
+          >
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-white/10">
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <Pencil size={15} className="text-[#FF6A1F]" /> Rename Performance
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsRenameModalOpen(false)}
+                className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded-lg cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Performance Name</label>
+              <input
+                type="text"
+                value={renameInputValue}
+                onChange={(e) => setRenameInputValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (renameInputValue.trim()) {
+                      renameSession(renameInputValue.trim());
+                      setIsRenameModalOpen(false);
+                    }
+                  }
+                }}
+                placeholder="e.g. Sunday Worship Set"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white font-semibold text-sm focus:outline-none focus:border-[#FF6A1F]"
+                autoFocus
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setIsRenameModalOpen(false)}
+                className="px-3 py-2 text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (renameInputValue.trim()) {
+                    renameSession(renameInputValue.trim());
+                    setIsRenameModalOpen(false);
+                  }
+                }}
+                disabled={!renameInputValue.trim()}
+                className="px-4 py-2 text-xs font-bold text-white bg-[#FF6A1F] hover:brightness-110 rounded-xl transition-all shadow-md active:scale-95 disabled:opacity-50 cursor-pointer"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* ── End Session Confirmation Modal ── */}
@@ -994,6 +1132,76 @@ export default function PerformancePage() {
               >
                 <Save size={15} />
                 <span>{isSavingPerf ? 'Broadcasting...' : 'Save & Broadcast'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Rename Performance Modal ── */}
+      {isRenameModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-150"
+          onClick={(e) => { e.stopPropagation(); setIsRenameModalOpen(false); }}
+        >
+          <div
+            className="w-full max-w-md bg-surface border border-border rounded-2xl shadow-2xl p-5 flex flex-col gap-4 text-text-primary"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-border pb-3">
+              <h3 className="text-base font-bold flex items-center gap-2">
+                <Pencil size={18} className="text-[#FF6A1F]" />
+                Edit Performance Name
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsRenameModalOpen(false)}
+                className="p-1.5 text-text-secondary hover:text-white rounded-lg transition-colors cursor-pointer"
+                title="Close"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-semibold text-text-secondary">Performance / Setlist Name</label>
+              <input
+                type="text"
+                value={renameInputValue}
+                onChange={(e) => setRenameInputValue(e.target.value)}
+                placeholder="e.g. Sunday Morning Service, Band Rehearsal"
+                className="w-full px-3.5 py-2.5 bg-surface-raised border border-border rounded-xl text-sm font-bold text-text-primary focus:outline-none focus:border-[#FF6A1F]"
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (renameInputValue.trim()) {
+                      renameSession(renameInputValue.trim());
+                      setIsRenameModalOpen(false);
+                    }
+                  }
+                }}
+              />
+            </div>
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setIsRenameModalOpen(false)}
+                className="px-4 py-2 text-xs font-bold text-text-secondary hover:text-white transition-all cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (renameInputValue.trim()) {
+                    renameSession(renameInputValue.trim());
+                    setIsRenameModalOpen(false);
+                  }
+                }}
+                disabled={!renameInputValue.trim()}
+                className="px-5 py-2.5 bg-accent-gradient text-white text-xs font-bold rounded-xl shadow-md hover:brightness-110 transition-all disabled:opacity-50 cursor-pointer"
+              >
+                Save Name
               </button>
             </div>
           </div>

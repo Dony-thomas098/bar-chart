@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { DEFAULT_CHURCH_BAND_ID, type Line } from './storage';
+import { DEFAULT_CHURCH_BAND_ID, type Line, readChart, readLyrics } from './storage';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -202,11 +202,31 @@ export async function listSetlistItems(setlistId: string): Promise<SetlistItem[]
       } catch {}
     }
 
-    const result = rawItems.map(item => ({
-      ...item,
-      title: titleMap[item.item_id] || item.title || 'Unknown (Item Removed)',
-      is_deleted: !titleMap[item.item_id],
-    }));
+    // Fallback to local IndexedDB / offline cache for any missing titles
+    await Promise.all(
+      rawItems.map(async (item) => {
+        if (!titleMap[item.item_id]) {
+          try {
+            if (item.item_type === 'chart') {
+              const localChart = await readChart(item.item_id);
+              if (localChart?.title) titleMap[item.item_id] = localChart.title;
+            } else {
+              const localLyric = await readLyrics(item.item_id);
+              if (localLyric?.title) titleMap[item.item_id] = localLyric.title;
+            }
+          } catch {}
+        }
+      })
+    );
+
+    const result = rawItems.map(item => {
+      const resolvedTitle = titleMap[item.item_id] || (item.title && item.title !== 'Unknown' && item.title !== 'Unknown (Item Removed)' ? item.title : null) || (item.item_type === 'lyrics' ? 'Untitled Lyrics' : 'Untitled Chart');
+      return {
+        ...item,
+        title: resolvedTitle,
+        is_deleted: !titleMap[item.item_id] && (!item.title || item.title === 'Unknown' || item.title === 'Unknown (Item Removed)'),
+      };
+    });
 
     if (typeof window !== 'undefined') {
       try {

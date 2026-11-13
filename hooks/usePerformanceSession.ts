@@ -24,6 +24,7 @@ export interface UsePerformanceSessionResult {
   endSession: () => void;
   stopFollowing: () => void;
   resumeFollowing: () => void;
+  renameSession: (name: string) => void;
   broadcastChordUpdate: (payload: {
     chartId: string;
     lines?: Line[];
@@ -212,6 +213,23 @@ export function usePerformanceSession(
           modeRef.current = 'loading';
           window.dispatchEvent(new CustomEvent('perform-session-end'));
         })
+        .on('broadcast', { event: 'session-rename' }, ({ payload }) => {
+          if (!isMountedRef.current) return;
+          if (!isLeader && leaderInstanceIdRef.current && payload?.senderId && payload.senderId !== leaderInstanceIdRef.current) {
+            console.warn('[PerformSession] Discarded unauthorized session-rename broadcast from:', payload?.senderId);
+            return;
+          }
+          if (payload?.sessionName) {
+            setSessionName(payload.sessionName);
+            try {
+              const raw = localStorage.getItem(`perform-active-session-${code}`);
+              if (raw) {
+                const parsed = JSON.parse(raw);
+                localStorage.setItem(`perform-active-session-${code}`, JSON.stringify({ ...parsed, sessionName: payload.sessionName }));
+              }
+            } catch {}
+          }
+        })
         .on('presence', { event: 'sync' }, () => {
           if (!isMountedRef.current) return;
           const state = channel.presenceState<PerformancePresence>();
@@ -347,6 +365,52 @@ export function usePerformanceSession(
     channelRef.current = null;
   }, []);
 
+  const renameSession = useCallback((newName: string) => {
+    const trimmed = newName.trim();
+    if (!trimmed) return;
+    setSessionName(trimmed);
+
+    // Update session storage / local storage
+    try {
+      const leaderRaw = sessionStorage.getItem(`perform-leader-${code}`) || localStorage.getItem(`perform-leader-${code}`);
+      if (leaderRaw) {
+        const parsed = JSON.parse(leaderRaw);
+        parsed.sessionName = trimmed;
+        sessionStorage.setItem(`perform-leader-${code}`, JSON.stringify(parsed));
+        localStorage.setItem(`perform-leader-${code}`, JSON.stringify(parsed));
+      }
+      const activeRaw = localStorage.getItem(`perform-active-session-${code}`);
+      if (activeRaw) {
+        const parsed = JSON.parse(activeRaw);
+        parsed.sessionName = trimmed;
+        localStorage.setItem(`perform-active-session-${code}`, JSON.stringify(parsed));
+      }
+    } catch {}
+
+    // Broadcast rename to followers
+    const ch = channelRef.current;
+    if (ch) {
+      ch.send({
+        type: 'broadcast',
+        event: 'session-rename',
+        payload: {
+          sessionName: trimmed,
+          senderId: instanceIdRef.current,
+        },
+      });
+      // Also update presence tracking if leader
+      if (isLeader) {
+        ch.track({
+          role: 'leader',
+          name: myNameRef.current,
+          currentIndex: currentIndexRef.current,
+          chartIds,
+          sessionName: trimmed,
+        });
+      }
+    }
+  }, [code, isLeader, chartIds]);
+
   const broadcastChordUpdate = useCallback((updatePayload: {
     chartId: string;
     lines?: Line[];
@@ -391,6 +455,7 @@ export function usePerformanceSession(
     endSession,
     stopFollowing,
     resumeFollowing,
+    renameSession,
     broadcastChordUpdate,
   };
 }

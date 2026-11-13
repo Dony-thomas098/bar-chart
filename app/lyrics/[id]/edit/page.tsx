@@ -7,7 +7,7 @@ import { moveEntry } from '@/lib/storage';
 import { saveLyrics, Lyric } from '@/lib/lyrics';
 import { FolderPickerModal } from '@/components/FolderPickerModal';
 import { useHardwareBackButton } from '@/hooks/useHardwareBackButton';
-import { CornerLeftUp, Folder as FolderIcon, RefreshCw, Cloud, CloudOff, Copy, ChevronLeft } from 'lucide-react';
+import { CornerLeftUp, Folder as FolderIcon, RefreshCw, Cloud, CloudOff, Copy, ChevronLeft, AlertTriangle, RotateCcw, Eye, Check } from 'lucide-react';
 import React, { useState, useCallback, useRef } from 'react';
 
 export default function LyricsEditor() {
@@ -72,32 +72,113 @@ export default function LyricsEditor() {
     lyricRef.current = lyric;
   }, [lyric]);
 
-  const handleBack = useCallback(async () => {
+  const initialLyricSnapshotRef = useRef<Lyric | null>(null);
+  const [showUnsavedModal, setShowUnsavedModal] = useState(false);
+  const showUnsavedModalRef = useRef(false);
+  React.useEffect(() => {
+    showUnsavedModalRef.current = showUnsavedModal;
+  }, [showUnsavedModal]);
+
+  React.useEffect(() => {
+    if (lyric && !initialLyricSnapshotRef.current) {
+      initialLyricSnapshotRef.current = JSON.parse(JSON.stringify(lyric));
+    }
+  }, [lyric]);
+
+  const hasEdits = useCallback((): boolean => {
+    if (!initialLyricSnapshotRef.current || !lyricRef.current) return false;
+    const initial = initialLyricSnapshotRef.current;
+    const current = lyricRef.current;
+    return (
+      current.title !== initial.title ||
+      current.body !== initial.body ||
+      current.folder_id !== initial.folder_id
+    );
+  }, []);
+
+  const getViewerUrl = useCallback((): string => {
+    if (returnTo && returnTo.startsWith('/lyrics/view/?id=')) {
+      return returnTo;
+    }
+    let folderTarget = lyricRef.current?.folder_id
+      ? `/lyrics/folder/?id=${encodeURIComponent(lyricRef.current.folder_id)}`
+      : '/lyrics';
+    if (returnTo && !returnTo.startsWith('/lyrics/view') && !returnTo.startsWith('/lyrics/edit')) {
+      folderTarget = returnTo;
+    }
+    return `/lyrics/view/?id=${encodeURIComponent(lyricId)}&returnTo=${encodeURIComponent(folderTarget)}`;
+  }, [lyricId, returnTo]);
+
+  const handleBack = useCallback(() => {
+    if (hasEdits()) {
+      setShowUnsavedModal(true);
+    } else {
+      router.push(getViewerUrl());
+    }
+  }, [hasEdits, getViewerUrl, router]);
+
+  const handleKeepEdits = useCallback(async () => {
     try {
       await forceSave();
     } catch (err) {
       console.warn('[LyricsEditor] Error saving before navigation:', err);
     }
-    if (returnTo) {
-      router.push(returnTo);
-      return;
+    setShowUnsavedModal(false);
+    router.push(getViewerUrl());
+  }, [forceSave, getViewerUrl, router]);
+
+  const handleDiscardEdits = useCallback(async () => {
+    try {
+      if (initialLyricSnapshotRef.current) {
+        await saveLyrics(initialLyricSnapshotRef.current);
+        updateLyric(initialLyricSnapshotRef.current);
+      }
+    } catch (err) {
+      console.warn('[LyricsEditor] Error reverting edits:', err);
     }
-    if (lyricRef.current?.folder_id) {
-      router.push(`/lyrics/folder/?id=${lyricRef.current.folder_id}`);
-      return;
-    }
-    if (typeof window !== 'undefined' && window.history.length > 1) {
-      router.back();
-    } else {
-      router.push('/lyrics');
-    }
-  }, [forceSave, returnTo, router]);
+    setShowUnsavedModal(false);
+    router.push(getViewerUrl());
+  }, [getViewerUrl, router, updateLyric]);
+
+  const handleReviewEdits = useCallback(() => {
+    setShowUnsavedModal(false);
+  }, []);
 
   useHardwareBackButton({
-    enabled: !isFolderPickerOpen,
-    onBack: handleBack,
+    enabled: isFolderPickerOpen || showUnsavedModal,
+    onBack: () => {
+      if (isFolderPickerOpen) {
+        setIsFolderPickerOpen(false);
+      } else if (showUnsavedModal) {
+        setShowUnsavedModal(false);
+      }
+    },
     stateKey: 'chordly_lyrics_editor',
   });
+
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const handlePopState = () => {
+      if (showUnsavedModalRef.current) {
+        setShowUnsavedModal(false);
+        return;
+      }
+      if (hasEdits()) {
+        try {
+          window.history.pushState(null, '', window.location.href);
+        } catch {}
+        setShowUnsavedModal(true);
+      } else {
+        router.push(getViewerUrl());
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [hasEdits, getViewerUrl, router]);
 
   if (authLoading || lyricLoading) {
     return <div className="flex h-screen items-center justify-center text-white">Loading...</div>;
@@ -212,6 +293,59 @@ export default function LyricsEditor() {
           title="Move Lyrics to..."
           excludeIds={[]}
         />
+      )}
+
+      {/* Unsaved Changes Confirmation Modal */}
+      {showUnsavedModal && (
+        <div
+          className="fixed inset-0 z-[120] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-200"
+          onClick={handleReviewEdits}
+        >
+          <div
+            className="bg-white/95 dark:bg-[#18181d]/95 backdrop-blur-2xl border border-white/60 dark:border-white/15 shadow-2xl rounded-3xl p-6 sm:p-8 w-full max-w-sm sm:max-w-md flex flex-col gap-4 text-center select-none"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="w-14 h-14 rounded-2xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center mx-auto text-amber-500">
+              <AlertTriangle size={30} />
+            </div>
+
+            <div>
+              <h3 className="text-xl font-bold text-text-primary">Keep Your Edits?</h3>
+              <p className="text-xs sm:text-sm text-text-secondary mt-2 leading-relaxed">
+                You made changes to these lyrics. Do you want to keep your edits, discard them to prevent accidental changes, or review your work?
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-2.5 mt-2">
+              {/* Option 1: Keep Edits & Exit */}
+              <button
+                type="button"
+                onClick={handleKeepEdits}
+                className="w-full py-3 px-4 bg-accent-gradient text-white text-xs sm:text-sm font-bold tracking-wider uppercase rounded-xl hover:brightness-110 active:scale-98 transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md"
+              >
+                <Check size={16} /> Keep Edits & Exit
+              </button>
+
+              {/* Option 2: Discard Edits */}
+              <button
+                type="button"
+                onClick={handleDiscardEdits}
+                className="w-full py-3 px-4 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 text-xs sm:text-sm font-bold tracking-wider uppercase rounded-xl active:scale-98 transition-all flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <RotateCcw size={16} /> Discard Edits
+              </button>
+
+              {/* Option 3: Review Changes */}
+              <button
+                type="button"
+                onClick={handleReviewEdits}
+                className="w-full py-2.5 px-4 bg-surface hover:bg-surface-raised border border-border text-text-primary text-xs sm:text-sm font-bold rounded-xl active:scale-98 transition-all flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Eye size={16} /> Review Changes
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

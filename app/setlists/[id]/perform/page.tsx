@@ -3,13 +3,14 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/components/AuthProvider';
-import { listSetlistItems, updateSetlistItem, type SetlistItem } from '@/lib/setlists';
+import { listSetlistItems, updateSetlist, updateSetlistItem, type SetlistItem } from '@/lib/setlists';
 import { readChart, readLyrics } from '@/lib/storage';
 import { transposeChart } from '@/lib/transpose';
 import { ChartRenderer } from '@/components/ChartRenderer';
 import { ChartData, Line, createDefaultLine } from '@/lib/chart-types';
 import { supabase } from '@/lib/supabase';
 import { useSetlistPrefetch } from '@/hooks/useSetlistPrefetch';
+import { useHardwareBackButton } from '@/hooks/useHardwareBackButton';
 import { TransformWrapper, TransformComponent, useControls } from 'react-zoom-pan-pinch';
 import { calculateScoreFit } from '@/lib/score-fit';
 import {
@@ -146,12 +147,18 @@ function useSetlistSession(setlistId: string, isLeaderDevice: boolean) {
   }, [setlistId]);
 
   const goTo = useCallback((pos: number) => {
-    const ch = channelRef.current;
-    if (!ch) return;
     setSongPosition(pos);
     positionRef.current = pos;
-    ch.track({ role: 'leader', name: myNameRef.current, songPosition: pos });
-    ch.send({ type: 'broadcast', event: 'song-change', payload: { position: pos } });
+    if (!isLeaderRef.current) {
+      setIsFollowing(false);
+      isFollowingRef.current = false;
+    }
+    const ch = channelRef.current;
+    if (!ch) return;
+    if (isLeaderRef.current) {
+      ch.track({ role: 'leader', name: myNameRef.current, songPosition: pos });
+      ch.send({ type: 'broadcast', event: 'song-change', payload: { position: pos } });
+    }
   }, []);
 
   const endSession = useCallback(() => {
@@ -199,23 +206,23 @@ function ChartWrapper({
   songKey,
   barsVisible = true,
   onBaseScaleChange,
+  assignedTransformsRef,
 }: { 
   chart: ChartData; 
   songKey: string;
   barsVisible?: boolean;
   onBaseScaleChange?: (scale: number) => void;
+  assignedTransformsRef: React.MutableRefObject<Record<string, { scale: number; posX: number; posY: number; userMoved: boolean }>>;
 }) {
   const { setTransform, instance } = useControls();
   const isInitialFitRef = useRef(true);
+  const prevBarsVisibleRef = useRef(barsVisible);
 
   const fitToScreen = useCallback(() => {
     const cardEl = document.getElementById('perf-chart-card');
     const wrapper = instance.wrapperComponent;
     if (!cardEl || !wrapper) return;
 
-    // Use the actual viewport dimensions, not the wrapper element, so resize
-    // events always reflect the current screen size even if the wrapper hasn't
-    // re-laid out yet.
     const viewportWidth = window.innerWidth || wrapper.clientWidth;
     const viewportHeight = window.innerHeight || wrapper.clientHeight;
     const cardWidth = Math.max(cardEl.scrollWidth, cardEl.offsetWidth);
@@ -229,7 +236,8 @@ function ChartWrapper({
       cardWidth,
       cardHeight,
       showUI: barsVisible,
-      topPadding: 8,
+      topPadding: barsVisible ? 64 : 16,
+      bottomPadding: barsVisible ? 88 : 24,
     });
 
     if (instance.setup) {
@@ -239,12 +247,20 @@ function ChartWrapper({
       onBaseScaleChange(effectiveMinScale);
     }
 
-    const animDuration = isInitialFitRef.current ? 0 : 250;
+    const assigned = assignedTransformsRef.current[songKey];
+    if (assigned && assigned.userMoved) {
+      // User previously assigned this position: preserve exact scale and position relative to bars
+      const targetY = barsVisible ? assigned.posY + 88 : assigned.posY;
+      setTransform(assigned.posX, targetY, assigned.scale, isInitialFitRef.current ? 0 : 250);
+    } else {
+      // Record initial fit as assigned baseline
+      assignedTransformsRef.current[songKey] = { scale, posX, posY, userMoved: false };
+      setTransform(posX, posY, scale, isInitialFitRef.current ? 0 : 250);
+    }
     isInitialFitRef.current = false;
+  }, [instance, setTransform, onBaseScaleChange, songKey, barsVisible, assignedTransformsRef]);
 
-    setTransform(posX, posY, scale, animDuration);
-  }, [instance, setTransform, onBaseScaleChange, barsVisible]);
-
+  // Initial fit on song mount / card reflow
   useEffect(() => {
     isInitialFitRef.current = true;
     let t1: any;
@@ -254,9 +270,6 @@ function ChartWrapper({
       clearTimeout(t1);
       clearTimeout(t2);
       clearTimeout(t3);
-      // Three-pass: 50 ms handles normal layout, 250 ms catches font/image
-      // load reflows, 600 ms catches resolution-change repaints where the
-      // card dimensions are still stale on the first two passes.
       t1 = setTimeout(fitToScreen, 50);
       t2 = setTimeout(fitToScreen, 250);
       t3 = setTimeout(fitToScreen, 600);
@@ -271,7 +284,21 @@ function ChartWrapper({
       window.removeEventListener('resize', runFit);
       window.removeEventListener('orientationchange', runFit);
     };
-  }, [fitToScreen, songKey, chart.id, barsVisible]);
+  }, [songKey, chart.id, fitToScreen]);
+
+  // Handle barsVisible toggle smoothly: when hidden, return to assigned position; do not change until user moves
+  useEffect(() => {
+    if (isInitialFitRef.current) return;
+    if (prevBarsVisibleRef.current === barsVisible) return;
+    prevBarsVisibleRef.current = barsVisible;
+
+    const assigned = assignedTransformsRef.current[songKey];
+    if (assigned && assigned.userMoved) {
+      setTransform(assigned.posX, assigned.posY, assigned.scale, 250);
+    } else {
+      fitToScreen();
+    }
+  }, [barsVisible, songKey, setTransform, fitToScreen, assignedTransformsRef]);
 
   return <ChartRenderer chart={chart} id="perf-chart-card" />;
 }
@@ -325,11 +352,28 @@ export default function SetlistPerformPage() {
   const [editingLines, setEditingLines] = useState<Line[]>([]);
   const [isSavingPerf, setIsSavingPerf] = useState(false);
 
+  // Rename setlist modal state
+  const [isRenameModalOpen, setIsRenameModalOpen] = useState(false);
+  const [renameInputValue, setRenameInputValue] = useState('');
+
+  const handleRenameSetlist = async (newName: string) => {
+    const trimmed = newName.trim();
+    if (!trimmed || !setlistId) return;
+    setSetlistName(trimmed);
+    try {
+      await updateSetlist(setlistId, { name: trimmed });
+    } catch (err) {
+      console.warn('[SetlistPerform] Failed to update setlist name:', err);
+    }
+  };
+
   const [showEndConfirmModal, setShowEndConfirmModal] = useState(false);
   const tabsRef = useRef<HTMLDivElement>(null);
   const activeTabRef = useRef<HTMLButtonElement>(null);
   const [barsVisible, setBarsVisible] = useState(false);
   const [perfMinScale, setPerfMinScale] = useState(1);
+
+  const assignedTransformsRef = useRef<Record<string, { scale: number; posX: number; posY: number; userMoved: boolean }>>({});
 
   const isDraggingRef = useRef(false);
   const dragStartPosRef = useRef({ x: 0, y: 0 });
@@ -377,6 +421,17 @@ export default function SetlistPerformPage() {
     useSetlistSession(setlistId, isLeaderDevice);
 
   const isLeader = mode === 'leader';
+
+  const handleUserTransform = useCallback((state: { scale: number; positionX: number; positionY: number }) => {
+    const currentKey = `${songPosition}`;
+    const basePosY = barsVisible ? state.positionY - 88 : state.positionY;
+    assignedTransformsRef.current[currentKey] = {
+      scale: state.scale,
+      posX: state.positionX,
+      posY: basePosY,
+      userMoved: true,
+    };
+  }, [songPosition, barsVisible]);
 
   // Load items
   useEffect(() => {
@@ -597,12 +652,43 @@ export default function SetlistPerformPage() {
     };
   }, []);
 
-  // Session end
+  // If session was previously ended, block back-navigation re-entry and redirect to setlist page
   useEffect(() => {
-    const handler = () => setSessionEnded(true);
+    if (typeof window !== 'undefined' && setlistId) {
+      if (sessionStorage.getItem(`setlist-session-ended-${setlistId}`) === '1') {
+        router.replace(`/setlists/view/?id=${setlistId}`);
+      }
+    }
+  }, [setlistId, router]);
+
+  // Session end broadcast received from admin/leader
+  useEffect(() => {
+    const handler = () => {
+      setSessionEnded(true);
+      if (typeof window !== 'undefined' && setlistId) {
+        sessionStorage.setItem(`setlist-session-ended-${setlistId}`, '1');
+      }
+      router.replace(`/setlists/view/?id=${setlistId}`);
+    };
     window.addEventListener('setlist-session-end', handler);
     return () => window.removeEventListener('setlist-session-end', handler);
-  }, []);
+  }, [setlistId, router]);
+
+  // Hardware Back Button: exit cleanly to setlist page and block trapping in ended session
+  useHardwareBackButton({
+    enabled: true,
+    onBack: () => {
+      if (isLeader) {
+        setShowEndConfirmModal(true);
+      } else {
+        if (typeof window !== 'undefined' && setlistId) {
+          sessionStorage.setItem(`setlist-session-ended-${setlistId}`, '1');
+        }
+        router.replace(`/setlists/view/?id=${setlistId}`);
+      }
+    },
+    stateKey: `setlist_perf_${setlistId}`,
+  });
 
   // Prevent accidental page leave / tab close during setlist performance session
   useEffect(() => {
@@ -618,21 +704,23 @@ export default function SetlistPerformPage() {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [isLeader]);
 
-  // Keyboard nav (leader)
+  // Keyboard nav (all users can use pedals/keys freely)
   useEffect(() => {
-    if (!isLeader) return;
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'ArrowRight' || e.key === 'PageDown') goTo(Math.min(songPosition + 1, items.length - 1));
       if (e.key === 'ArrowLeft'  || e.key === 'PageUp')   goTo(Math.max(songPosition - 1, 0));
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [isLeader, songPosition, items.length, goTo]);
+  }, [songPosition, items.length, goTo]);
 
   const handleEndSession = () => {
     endSession();
-    sessionStorage.removeItem(`setlist-leader-${setlistId}`);
-    router.push(`/setlists/view/?id=${setlistId}`);
+    if (typeof window !== 'undefined' && setlistId) {
+      sessionStorage.removeItem(`setlist-leader-${setlistId}`);
+      sessionStorage.setItem(`setlist-session-ended-${setlistId}`, '1');
+    }
+    router.replace(`/setlists/view/?id=${setlistId}`);
   };
 
   const currentItem = items[songPosition];
@@ -640,11 +728,15 @@ export default function SetlistPerformPage() {
   // ── Special screens ───────────────────────────────────────────────────────
 
   if (sessionEnded) {
+    if (typeof window !== 'undefined' && setlistId) {
+      sessionStorage.setItem(`setlist-session-ended-${setlistId}`, '1');
+      router.replace(`/setlists/view/?id=${setlistId}`);
+    }
     return (
       <div className="min-h-screen bg-bg flex flex-col items-center justify-center text-text-primary gap-4">
         <Radio size={40} className="text-accent-start opacity-50" />
         <h2 className="text-2xl font-bold">Session ended</h2>
-        <button onClick={() => router.push(`/setlists/view/?id=${setlistId}`)} className="px-6 py-3 bg-accent-gradient text-white font-bold rounded-xl shadow-md hover:brightness-110 transition-all">
+        <button onClick={() => router.replace(`/setlists/view/?id=${setlistId}`)} className="px-6 py-3 bg-accent-gradient text-white font-bold rounded-xl shadow-md hover:brightness-110 transition-all">
           Back to Setlist
         </button>
       </div>
@@ -701,7 +793,16 @@ export default function SetlistPerformPage() {
           {/* Desktop Back button */}
           <button
             type="button"
-            onClick={() => isLeader ? setShowEndConfirmModal(true) : (typeof window !== 'undefined' && window.history.length > 1 ? router.back() : router.push(`/setlists/view/?id=${setlistId}`))}
+            onClick={() => {
+              if (isLeader) {
+                setShowEndConfirmModal(true);
+              } else {
+                if (typeof window !== 'undefined' && setlistId) {
+                  sessionStorage.setItem(`setlist-session-ended-${setlistId}`, '1');
+                }
+                router.replace(`/setlists/view/?id=${setlistId}`);
+              }
+            }}
             className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-full bg-white/10 hover:bg-white/20 text-white border border-white/15 transition-all active:scale-95 cursor-pointer select-none shrink-0"
             title="Go back"
             aria-label="Go back"
@@ -711,15 +812,41 @@ export default function SetlistPerformPage() {
           </button>
 
           <button
-            onClick={() => isLeader ? setShowEndConfirmModal(true) : router.push(`/setlists/view/?id=${setlistId}`)}
-            className="p-2 text-text-secondary hover:text-white bg-surface-raised border border-border rounded-lg transition-all shrink-0"
+            type="button"
+            onClick={() => {
+              if (isLeader) {
+                setShowEndConfirmModal(true);
+              } else {
+                if (typeof window !== 'undefined' && setlistId) {
+                  sessionStorage.setItem(`setlist-session-ended-${setlistId}`, '1');
+                }
+                router.replace(`/setlists/view/?id=${setlistId}`);
+              }
+            }}
+            className="p-2 text-text-secondary hover:text-white bg-surface-raised border border-border rounded-lg transition-all shrink-0 cursor-pointer"
             title="Close setlist performance"
           >
             <X size={16} />
           </button>
 
           <div className="flex-1 min-w-0">
-            <p className="text-xs font-bold text-text-primary truncate">{setlistName}</p>
+            {isLeader ? (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setRenameInputValue(setlistName);
+                  setIsRenameModalOpen(true);
+                }}
+                className="flex items-center gap-1.5 text-xs font-bold text-text-primary hover:text-accent-start transition-colors group cursor-pointer max-w-full truncate text-left"
+                title="Click to rename setlist performance"
+              >
+                <span className="truncate">{setlistName || 'Performance Setlist'}</span>
+                <Pencil size={11} className="text-text-secondary group-hover:text-accent-start shrink-0" />
+              </button>
+            ) : (
+              <p className="text-xs font-bold text-text-primary truncate">{setlistName}</p>
+            )}
             <p className="text-[10px] text-text-secondary">
               {isLeader
                 ? `${followerCount} follower${followerCount !== 1 ? 's' : ''}`
@@ -803,27 +930,23 @@ export default function SetlistPerformPage() {
           {items.map((item, idx) => {
             const active = idx === songPosition;
             const Icon = item.item_type === 'chart' ? FileText : Music;
-            const canClick = isLeader || !isFollowing;
 
             return (
               <button
                 key={item.id}
                 ref={active ? activeTabRef : undefined}
-                disabled={!canClick}
+                type="button"
                 onClick={() => {
-                  if (isLeader) goTo(idx);
-                  else { stopFollowing(); }
+                  goTo(idx);
                   setBarsVisible(false);
                 }}
                 className={`
                   relative flex items-center gap-1.5 px-3 py-2 text-[11px] font-bold
                   rounded-t-xl border border-b-0 transition-all duration-150
-                  whitespace-nowrap shrink-0 max-w-[150px]
+                  whitespace-nowrap shrink-0 max-w-[150px] cursor-pointer
                   ${active
                     ? 'bg-bg border-border text-text-primary shadow-[0_-2px_10px_rgba(0,0,0,0.4)] z-10 -mb-px pb-[calc(0.5rem+1px)]'
-                    : canClick
-                      ? 'bg-surface/40 border-transparent text-text-secondary hover:text-text-primary hover:bg-surface/80 cursor-pointer'
-                      : 'bg-surface/20 border-transparent text-text-secondary/50 cursor-default'
+                    : 'bg-surface/40 border-transparent text-text-secondary hover:text-text-primary hover:bg-surface/80'
                   }
                 `}
               >
@@ -891,12 +1014,12 @@ export default function SetlistPerformPage() {
             trackPadPanning={{
               disabled: false,
               velocityDisabled: false,
-              lockAxisX: true, // Locks vertical scroll along Y-axis so chart stays centered
+              lockAxisX: false,
             }}
             panning={{
               disabled: false,
               velocityDisabled: false,
-              lockAxisX: true, // Locks vertical scroll along Y-axis so chart stays centered
+              lockAxisX: false,
             }}
             pinch={{
               step: 5,
@@ -904,12 +1027,22 @@ export default function SetlistPerformPage() {
               allowPanning: true,
             }}
             doubleClick={{ disabled: true }}
+            onPanningStop={(ref) => handleUserTransform(ref.state)}
+            onPinchStop={(ref) => handleUserTransform(ref.state)}
+            onZoomStop={(ref) => handleUserTransform(ref.state)}
+            onWheelStop={(ref) => handleUserTransform(ref.state)}
           >
             <TransformComponent
               wrapperStyle={{ width: '100vw', height: '100dvh', overflow: 'visible' }}
               contentStyle={{ padding: '0 0 120px', overflow: 'visible', width: 'max-content' }}
             >
-              <ChartWrapper chart={currentChart} songKey={`${songPosition}`} barsVisible={barsVisible} onBaseScaleChange={setPerfMinScale} />
+              <ChartWrapper
+                chart={currentChart}
+                songKey={`${songPosition}`}
+                barsVisible={barsVisible}
+                onBaseScaleChange={setPerfMinScale}
+                assignedTransformsRef={assignedTransformsRef}
+              />
             </TransformComponent>
           </TransformWrapper>
         )}
@@ -1109,6 +1242,76 @@ export default function SetlistPerformPage() {
                 className="flex-1 py-3 px-4 bg-red-600 hover:bg-red-500 rounded-xl text-xs font-bold text-white shadow-md hover:shadow-red-600/30 transition-all"
               >
                 End Session
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Rename Setlist Performance Modal ── */}
+      {isRenameModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-150"
+          onClick={(e) => { e.stopPropagation(); setIsRenameModalOpen(false); }}
+        >
+          <div
+            className="w-full max-w-md bg-surface border border-border rounded-2xl shadow-2xl p-5 flex flex-col gap-4 text-text-primary"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-border pb-3">
+              <h3 className="text-base font-bold flex items-center gap-2">
+                <Pencil size={18} className="text-accent-start" />
+                Edit Performance Name
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsRenameModalOpen(false)}
+                className="p-1.5 text-text-secondary hover:text-white rounded-lg transition-colors cursor-pointer"
+                title="Close"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-semibold text-text-secondary">Performance / Setlist Name</label>
+              <input
+                type="text"
+                value={renameInputValue}
+                onChange={(e) => setRenameInputValue(e.target.value)}
+                placeholder="e.g. Sunday Morning Service, Band Rehearsal"
+                className="w-full px-3.5 py-2.5 bg-surface-raised border border-border rounded-xl text-sm font-bold text-text-primary focus:outline-none focus:border-accent-start"
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (renameInputValue.trim()) {
+                      handleRenameSetlist(renameInputValue.trim());
+                      setIsRenameModalOpen(false);
+                    }
+                  }
+                }}
+              />
+            </div>
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setIsRenameModalOpen(false)}
+                className="px-4 py-2 text-xs font-bold text-text-secondary hover:text-white transition-all cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (renameInputValue.trim()) {
+                    handleRenameSetlist(renameInputValue.trim());
+                    setIsRenameModalOpen(false);
+                  }
+                }}
+                disabled={!renameInputValue.trim()}
+                className="px-5 py-2.5 bg-accent-gradient text-white text-xs font-bold rounded-xl shadow-md hover:brightness-110 transition-all disabled:opacity-50 cursor-pointer"
+              >
+                Save Name
               </button>
             </div>
           </div>

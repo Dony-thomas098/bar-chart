@@ -216,14 +216,14 @@ describe('Chart and Lyrics Editor Navigation & Routing Fixes', () => {
     const lyricsEditor = fs.readFileSync(path.resolve(__dirname, '../app/lyrics/[id]/edit/page.tsx'), 'utf-8');
 
     expect(chartEditor).toContain('useHardwareBackButton({');
-    expect(chartEditor).toContain('stateKey: \'chordly_chart_editor\'');
-    expect(chartEditor).toContain('if (returnTo) {\n      router.push(returnTo);');
-    expect(chartEditor).toContain('router.push(`/folder/?id=${chartRef.current.folder_id}`);');
+    expect(chartEditor).toContain("stateKey: 'chordly_chart_editor'");
+    expect(chartEditor).toContain('getViewerUrl');
+    expect(chartEditor).toContain('chartRef.current?.folder_id');
 
     expect(lyricsEditor).toContain('useHardwareBackButton({');
-    expect(lyricsEditor).toContain('stateKey: \'chordly_lyrics_editor\'');
-    expect(lyricsEditor).toContain('if (returnTo) {\n      router.push(returnTo);');
-    expect(lyricsEditor).toContain('router.push(`/lyrics/folder/?id=${lyricRef.current.folder_id}`);');
+    expect(lyricsEditor).toContain("stateKey: 'chordly_lyrics_editor'");
+    expect(lyricsEditor).toContain('getViewerUrl');
+    expect(lyricsEditor).toContain('lyricRef.current?.folder_id');
   });
 
   it('guarantees new chart creation in Navigation, FolderBrowser, and Sidebar includes returnTo parameter', () => {
@@ -400,5 +400,75 @@ describe('Chart and Lyrics Editor Navigation & Routing Fixes', () => {
     expect(storageCode).toContain("supabase.from('folders').update({ position, updated_at })");
     expect(storageCode).toContain("type: 'folder',");
     expect(storageCode).toContain("data: { ...folder, position, updated_at }");
+  });
+
+  it('guarantees chord view reader toolbar is clean and uncluttered without night view button', () => {
+    const readerCode = fs.readFileSync(path.resolve(__dirname, '../components/PiascoreReader.tsx'), 'utf-8');
+    const rendererCode = fs.readFileSync(path.resolve(__dirname, '../components/ChartRenderer.tsx'), 'utf-8');
+
+    // PiascoreReader does not render Night View button in bottom toolbar or adjust panel
+    expect(readerCode).not.toContain('<span>Night View</span>');
+    expect(readerCode).not.toContain('aria-label="Toggle Night View"');
+
+    // ChartRenderer still safely supports isNightView prop and applies stage dark background and high-contrast styles
+    expect(rendererCode).toContain('isNightView?: boolean;');
+    expect(rendererCode).toContain("bg-[#121216] text-[#F4F2F0]");
+    expect(rendererCode).toContain("isNightView ? '#FFFFFF' : '#0f172a'");
+    expect(rendererCode).toContain("print:bg-transparent");
+    expect(rendererCode).toContain("print:border-none");
+  });
+
+  it('guarantees Profile page is fully scrollable and not constrained by h-dvh', () => {
+    const profileCode = fs.readFileSync(path.resolve(__dirname, '../app/profile/page.tsx'), 'utf-8');
+
+    // Must not use h-dvh which locks the container to viewport height and blocks scrolling
+    expect(profileCode).not.toContain('h-dvh');
+
+    // Must use min-h-screen for natural document expansion
+    expect(profileCode).toContain('min-h-screen');
+
+    // main must have min-h-0 and generous bottom padding to clear the floating bottom navigation dock
+    expect(profileCode).toContain('min-h-0');
+    expect(profileCode).toContain('pb-[calc(10rem');
+  });
+
+  it('guarantees ChartEditor and LyricsEditor provide unsaved changes confirmation modal with Keep, Discard, and Review options', () => {
+    const chartEditCode = fs.readFileSync(path.resolve(__dirname, '../app/chart/[id]/edit/page.tsx'), 'utf-8');
+    const lyricsEditCode = fs.readFileSync(path.resolve(__dirname, '../app/lyrics/[id]/edit/page.tsx'), 'utf-8');
+
+    // ChartEditor: snapshot tracking, dirty detection, and 3-option modal
+    expect(chartEditCode).toContain('initialChartSnapshotRef');
+    expect(chartEditCode).toContain('hasEdits');
+    expect(chartEditCode).toContain('showUnsavedModal');
+    expect(chartEditCode).toContain('Keep Edits');
+    expect(chartEditCode).toContain('Discard Edits');
+    expect(chartEditCode).toContain('Review Changes');
+    expect(chartEditCode).toContain('handleDiscardEdits');
+    expect(chartEditCode).toContain('handleKeepEdits');
+    expect(chartEditCode).toContain('handleReviewEdits');
+
+    // LyricsEditor: snapshot tracking, dirty detection, and 3-option modal
+    expect(lyricsEditCode).toContain('initialLyricSnapshotRef');
+    expect(lyricsEditCode).toContain('hasEdits');
+    expect(lyricsEditCode).toContain('showUnsavedModal');
+    expect(lyricsEditCode).toContain('Keep Edits');
+    expect(lyricsEditCode).toContain('Discard Edits');
+    expect(lyricsEditCode).toContain('Review Changes');
+    expect(lyricsEditCode).toContain('handleDiscardEdits');
+    expect(lyricsEditCode).toContain('handleKeepEdits');
+    expect(lyricsEditCode).toContain('handleReviewEdits');
+  });
+
+  it('guarantees PiascoreReader and PiascoreLyricsReader prevent self-referential navigation loops and preserve folder return paths', () => {
+    const readerCode = fs.readFileSync(path.resolve(__dirname, '../components/PiascoreReader.tsx'), 'utf-8');
+    const lyricsReaderCode = fs.readFileSync(path.resolve(__dirname, '../components/PiascoreLyricsReader.tsx'), 'utf-8');
+
+    // Reader loop prevention
+    expect(readerCode).toContain("rawReturnTo.includes('/chart/?id=') || rawReturnTo.includes('/chart/edit/')");
+    expect(readerCode).toContain('safeReturnTarget');
+
+    // LyricsReader loop prevention
+    expect(lyricsReaderCode).toContain("rawReturnTo.includes('/lyrics/view/?id=') || rawReturnTo.includes('/lyrics/edit/')");
+    expect(lyricsReaderCode).toContain('safeReturnTarget');
   });
 });

@@ -20,7 +20,7 @@ export function ChordInput({ value, onChange, onKeyDown, className = '' }: Props
         className="absolute inset-0 pointer-events-none flex items-center justify-center whitespace-pre overflow-hidden"
         aria-hidden="true"
       >
-        <span className="font-semibold text-lg text-white">
+        <span className="font-semibold text-lg text-text-primary">
           {parseChord(value)}
         </span>
       </div>
@@ -33,7 +33,7 @@ export function ChordInput({ value, onChange, onKeyDown, className = '' }: Props
         onKeyDown={onKeyDown}
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
-        className="w-full h-full bg-transparent text-transparent caret-white outline-none border-none text-center font-semibold text-lg focus:ring-2 focus:ring-indigo-500 rounded px-1 transition-shadow chord-input-field"
+        className="w-full h-full bg-transparent text-transparent caret-orange-500 dark:caret-orange-400 outline-none border-none text-center font-semibold text-lg focus:ring-2 focus:ring-orange-500/40 rounded px-1 transition-shadow chord-input-field"
         spellCheck={false}
         autoComplete="off"
         style={{

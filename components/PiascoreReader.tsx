@@ -15,8 +15,9 @@ import {
   FolderOpen, Smile, X, Plus, Play, Pause, Bookmark as BookmarkIcon,
   Crop, LayoutGrid, Info, Edit3, ArrowUpDown, BookOpen, Volume2,
   ChevronRight, ArrowLeft, RotateCcw, Sliders, ScrollText, Printer,
-  Lock, Unlock
+  Lock, Unlock, Moon
 } from 'lucide-react';
+import { getStoredTheme, setTheme } from '@/lib/theme';
 import { useScreenWakeLock } from '@/hooks/useScreenWakeLock';
 import { useHardwareBackButton } from '@/hooks/useHardwareBackButton';
 
@@ -41,6 +42,7 @@ function ChartContentWrapper({
   chordColor,
   showUI = true,
   isLocked = false,
+  isNightView = false,
   onBaseScaleChange,
 }: { 
   chart: ChartData; 
@@ -48,6 +50,7 @@ function ChartContentWrapper({
   chordColor: string;
   showUI?: boolean;
   isLocked?: boolean;
+  isNightView?: boolean;
   onBaseScaleChange?: (scale: number) => void;
 }) {
   const { setTransform, instance } = useControls();
@@ -118,7 +121,7 @@ function ChartContentWrapper({
     };
   }, [fitToScreen, chart.id, showUI, isLocked]);
 
-  return <ChartRenderer chart={chart} selectedFont={selectedFont} chordColor={chordColor} isLocked={isLocked} id="piascore-chart-card" />;
+  return <ChartRenderer chart={chart} selectedFont={selectedFont} chordColor={chordColor} isLocked={isLocked} isNightView={false} id="piascore-chart-card" />;
 }
 
 export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollowStart }: Props) {
@@ -731,20 +734,22 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
                 showLockNotification('Screen is locked · Tap lock icon to unlock');
                 return;
               }
-              const returnTo = searchParams?.get('returnTo');
-              if (returnTo) {
-                router.push(returnTo);
+              const rawReturnTo = searchParams?.get('returnTo');
+              const isSelf = rawReturnTo && (rawReturnTo.includes('/chart/?id=') || rawReturnTo.includes('/chart/edit/'));
+              const validReturnTo = isSelf ? null : rawReturnTo;
+              if (validReturnTo) {
+                router.push(validReturnTo);
                 return;
               }
               if (folderId) {
-                router.push(`/folder/?id=${folderId}`);
+                router.push(`/folder/?id=${encodeURIComponent(folderId)}`);
                 return;
               }
-              if (typeof window !== 'undefined' && window.history.length > 1) {
-                router.back();
-              } else {
-                router.push('/chords');
+              if (currentChart?.folder_id) {
+                router.push(`/folder/?id=${encodeURIComponent(currentChart.folder_id)}`);
+                return;
               }
+              router.push('/chords');
             }}
             className={`hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-full transition-all active:scale-95 border cursor-pointer select-none ${
               isStageLocked
@@ -767,20 +772,22 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
                 showLockNotification('Screen is locked · Tap lock icon to unlock');
                 return;
               }
-              const returnTo = searchParams?.get('returnTo');
-              if (returnTo) {
-                router.push(returnTo);
+              const rawReturnTo = searchParams?.get('returnTo');
+              const isSelf = rawReturnTo && (rawReturnTo.includes('/chart/?id=') || rawReturnTo.includes('/chart/edit/'));
+              const validReturnTo = isSelf ? null : rawReturnTo;
+              if (validReturnTo) {
+                router.push(validReturnTo);
                 return;
               }
               if (folderId) {
-                router.push(`/folder/?id=${folderId}`);
+                router.push(`/folder/?id=${encodeURIComponent(folderId)}`);
                 return;
               }
-              if (typeof window !== 'undefined' && window.history.length > 1) {
-                router.back();
-              } else {
-                router.push('/chords');
+              if (currentChart?.folder_id) {
+                router.push(`/folder/?id=${encodeURIComponent(currentChart.folder_id)}`);
+                return;
               }
+              router.push('/chords');
             }}
             className={`md:hidden flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg transition-all active:scale-95 shrink-0 ${
               isStageLocked
@@ -1063,6 +1070,7 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
                   chordColor={chordColor}
                   showUI={showUI}
                   isLocked={isStageLocked}
+                  isNightView={false}
                   onBaseScaleChange={setMinZoomScale}
                 />
               </div>
@@ -1073,6 +1081,8 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
 
       {/* ── 5. FLOATING BOTTOM ACTION TOOLBAR ──────────────────────────────── */}
       <footer
+        onClick={(e) => e.stopPropagation()}
+        onPointerDown={(e) => e.stopPropagation()}
         className={`fixed bottom-[max(1rem,calc(env(safe-area-inset-bottom,0px)+0.75rem))] left-[14px] right-[14px] max-w-[500px] mx-auto z-50 bg-white/90 dark:bg-[#14141A] border border-slate-200/90 dark:border-[#2E2E36] rounded-[30px] shadow-[0_8px_24px_rgba(0,0,0,0.1)] dark:shadow-[0_8px_24px_rgba(0,0,0,0.6)] backdrop-blur-xl flex items-center justify-around h-16 px-3 transition-transform duration-300 ${
           showUI ? 'translate-y-0' : 'translate-y-[calc(100%+32px)]'
         }`}
@@ -1142,30 +1152,45 @@ export function PiascoreReader({ initialChart, folderId, onLeaderStart, onFollow
         </button>
 
         {/* Button 5: Writing */}
-        {canEditChart && currentChart && (
+        {currentChart && (
           <button
             type="button"
+            onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
               if (currentChart?.id) {
-                const returnPath = `/chart/?id=${encodeURIComponent(currentChart.id)}`;
+                const rawReturnTo = searchParams?.get('returnTo');
+                const isSelf = rawReturnTo && (rawReturnTo.includes('/chart/?id=') || rawReturnTo.includes('/chart/edit/'));
+                const folderFallback = folderId
+                  ? `/folder/?id=${encodeURIComponent(folderId)}`
+                  : (currentChart.folder_id ? `/folder/?id=${encodeURIComponent(currentChart.folder_id)}` : '/chords');
+                const safeReturnTarget = (!rawReturnTo || isSelf) ? folderFallback : rawReturnTo;
+
+                const returnPath = `/chart/?id=${encodeURIComponent(currentChart.id)}&returnTo=${encodeURIComponent(safeReturnTarget)}`;
                 const targetUrl = `/chart/edit/?id=${encodeURIComponent(currentChart.id)}&returnTo=${encodeURIComponent(returnPath)}`;
                 try {
                   router.push(targetUrl);
                 } catch {
                   if (typeof window !== 'undefined') {
                     window.location.assign(targetUrl);
+                    return;
                   }
                 }
-                setTimeout(() => {
-                  if (typeof window !== 'undefined' && !window.location.pathname.includes('/edit')) {
-                    window.location.assign(targetUrl);
-                  }
-                }, 150);
+                if (typeof window !== 'undefined') {
+                  const initialPath = window.location.pathname + window.location.search;
+                  setTimeout(() => {
+                    const currentPath = window.location.pathname + window.location.search;
+                    if (currentPath === initialPath && !window.location.pathname.includes('/edit')) {
+                      window.location.assign(targetUrl);
+                    }
+                  }, 80);
+                }
               }
             }}
             className="flex flex-col items-center gap-1 text-[10px] font-semibold text-slate-600 dark:text-[#8C8A93] hover:text-[#FF6A1F] transition-all active:scale-95 cursor-pointer"
+            title="Edit Chord Progression"
+            aria-label="Edit Chord Progression"
           >
             <Edit3 size={20} />
             <span>Writing</span>

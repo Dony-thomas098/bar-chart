@@ -680,7 +680,10 @@ export default function SetlistDetailPage() {
               <button
                 disabled={items.length === 0}
                 onClick={() => {
-                  sessionStorage.setItem(`setlist-leader-${setlistId}`, '1');
+                  if (typeof window !== 'undefined') {
+                    sessionStorage.removeItem(`setlist-session-ended-${setlistId}`);
+                    sessionStorage.setItem(`setlist-leader-${setlistId}`, '1');
+                  }
                   router.push(`/setlists/perform/?id=${setlistId}`);
                 }}
                 className="flex-1 py-2.5 px-5 btn-dark-pill flex items-center justify-center gap-2 text-sm disabled:opacity-40 cursor-pointer"

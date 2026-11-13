@@ -13,10 +13,11 @@ import {
   FolderOpen, Smile, X, Plus, Play, Pause, Bookmark as BookmarkIcon,
   Crop, LayoutGrid, Info, Edit3, ArrowUpDown, BookOpen, Volume2,
   ChevronRight, Type, AlignLeft, AlignCenter, AlignRight, ScrollText,
-  Lock, Unlock, ArrowLeft
+  Lock, Unlock, ArrowLeft, Moon, Sun
 } from 'lucide-react';
 import { useScreenWakeLock } from '@/hooks/useScreenWakeLock';
 import { useHardwareBackButton } from '@/hooks/useHardwareBackButton';
+import { getStoredTheme, setTheme } from '@/lib/theme';
 
 interface TabItem {
   id: string;
@@ -36,18 +37,25 @@ function PlainLyricsCard({
   selectedFont,
   textColor,
   textAlign = 'center',
+  isNightView = false,
 }: {
   lyric: Lyric;
   selectedFont: string;
   textColor: string;
   textAlign?: 'center' | 'left' | 'right';
+  isNightView?: boolean;
 }) {
   const paragraphs = lyric.body ? lyric.body.split('\n\n') : [];
+  const effectiveTextColor = textColor && textColor !== '#0f172a' ? textColor : (isNightView ? '#F4F2F0' : '#0f172a');
 
   return (
     <div
       id="piascore-lyrics-card"
-      className={`flex flex-col w-[min(94vw,760px)] min-w-[320px] p-6 sm:p-12 md:p-16 bg-white text-slate-900 shadow-2xl rounded-none border border-slate-200/80 relative select-none min-h-[70vh] mx-auto my-0 ${
+      className={`flex flex-col w-[min(94vw,760px)] min-w-[320px] p-6 sm:p-12 md:p-16 ${
+        isNightView
+          ? 'bg-[#121216] text-[#F4F2F0] border-[#2A2A34] shadow-[0_16px_48px_rgba(0,0,0,0.8)]'
+          : 'bg-white text-slate-900 border-slate-200/80 shadow-2xl'
+      } rounded-none border relative select-none min-h-[70vh] mx-auto my-0 ${
         textAlign === 'left' ? 'text-left items-start' : textAlign === 'right' ? 'text-right items-end' : 'text-center items-center'
       }`}
       style={{
@@ -55,12 +63,12 @@ function PlainLyricsCard({
           selectedFont && selectedFont !== 'system'
             ? selectedFont
             : 'var(--font-sans), sans-serif',
-        color: textColor,
+        color: effectiveTextColor,
       }}
     >
       {/* Title Header */}
-      <div className="flex flex-col items-center justify-center mb-8 pb-6 border-b border-slate-200 w-full">
-        <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-center text-slate-900">
+      <div className={`flex flex-col items-center justify-center mb-8 pb-6 border-b ${isNightView ? 'border-white/10' : 'border-slate-200'} w-full`}>
+        <h1 className={`text-3xl sm:text-4xl font-extrabold tracking-tight text-center ${isNightView ? 'text-white' : 'text-slate-900'}`}>
           {lyric.title || 'Untitled Lyrics'}
         </h1>
       </div>
@@ -70,7 +78,7 @@ function PlainLyricsCard({
         textAlign === 'left' ? 'text-left' : textAlign === 'right' ? 'text-right' : 'text-center'
       }`}>
         {paragraphs.map((stanza, idx) => (
-          <div key={idx} className={`p-2 rounded-xl hover:bg-slate-50 transition-colors w-full ${
+          <div key={idx} className={`p-2 rounded-xl ${isNightView ? 'hover:bg-white/5' : 'hover:bg-slate-50'} transition-colors w-full ${
             textAlign === 'left' ? 'text-left' : textAlign === 'right' ? 'text-right' : 'text-center'
           }`}>
             {stanza}
@@ -88,6 +96,7 @@ function LyricsContentWrapper({
   textAlign = 'center',
   showUI = true,
   isLocked = false,
+  isNightView = false,
   onBaseScaleChange,
 }: {
   lyric: Lyric;
@@ -96,6 +105,7 @@ function LyricsContentWrapper({
   textAlign?: 'center' | 'left' | 'right';
   showUI?: boolean;
   isLocked?: boolean;
+  isNightView?: boolean;
   onBaseScaleChange?: (scale: number) => void;
 }) {
   const { setTransform, instance } = useControls();
@@ -169,6 +179,7 @@ function LyricsContentWrapper({
       selectedFont={selectedFont}
       textColor={textColor}
       textAlign={textAlign}
+      isNightView={isNightView}
     />
   );
 }
@@ -178,6 +189,39 @@ export function PiascoreLyricsReader({ initialLyric, folderId }: Props) {
   const searchParams = useSearchParams();
   const { profile } = useAuth();
   const canEditLyrics = canModifySection(profile?.profession, 'lyrics');
+
+  // ── Night View State ────────────────────────────────────────────────────────
+  const [isNightView, setIsNightView] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    const saved = localStorage.getItem('chord-grid-night-view');
+    if (saved !== null) return saved === 'true';
+    return getStoredTheme() === 'dark' || document.documentElement.classList.contains('dark');
+  });
+
+  const toggleNightView = useCallback(() => {
+    setIsNightView((prev) => {
+      const next = !prev;
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('chord-grid-night-view', String(next));
+        setTheme(next ? 'dark' : 'light');
+      }
+      return next;
+    });
+  }, []);
+
+  useEffect(() => {
+    const handleThemeChange = () => {
+      const isDark = document.documentElement.classList.contains('dark') || getStoredTheme() === 'dark';
+      const savedNightView = localStorage.getItem('chord-grid-night-view');
+      if (savedNightView !== null) {
+        setIsNightView(savedNightView === 'true');
+      } else {
+        setIsNightView(isDark);
+      }
+    };
+    window.addEventListener('chord-grid-theme-change', handleThemeChange);
+    return () => window.removeEventListener('chord-grid-theme-change', handleThemeChange);
+  }, []);
 
   // ── Open Tabs State ─────────────────────────────────────────────────────────
   const [tabs, setTabs] = useState<TabItem[]>([
@@ -673,20 +717,22 @@ export function PiascoreLyricsReader({ initialLyric, folderId }: Props) {
                 showLockNotification('Screen is locked · Tap lock icon to unlock');
                 return;
               }
-              const returnTo = searchParams?.get('returnTo');
-              if (returnTo) {
-                router.push(returnTo);
+              const rawReturnTo = searchParams?.get('returnTo');
+              const isSelf = rawReturnTo && (rawReturnTo.includes('/lyrics/view/?id=') || rawReturnTo.includes('/lyrics/edit/'));
+              const validReturnTo = isSelf ? null : rawReturnTo;
+              if (validReturnTo) {
+                router.push(validReturnTo);
                 return;
               }
               if (folderId) {
-                router.push(`/lyrics/folder/?id=${folderId}`);
+                router.push(`/lyrics/folder/?id=${encodeURIComponent(folderId)}`);
                 return;
               }
-              if (typeof window !== 'undefined' && window.history.length > 1) {
-                router.back();
-              } else {
-                router.push('/lyrics');
+              if (currentLyric?.folder_id) {
+                router.push(`/lyrics/folder/?id=${encodeURIComponent(currentLyric.folder_id)}`);
+                return;
               }
+              router.push('/lyrics');
             }}
             className={`hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-full transition-all active:scale-95 border cursor-pointer select-none ${
               isStageLocked
@@ -706,20 +752,22 @@ export function PiascoreLyricsReader({ initialLyric, folderId }: Props) {
               showLockNotification('Screen is locked · Tap lock icon to unlock');
               return;
             }
-            const returnTo = searchParams?.get('returnTo');
-            if (returnTo) {
-              router.push(returnTo);
+            const rawReturnTo = searchParams?.get('returnTo');
+            const isSelf = rawReturnTo && (rawReturnTo.includes('/lyrics/view/?id=') || rawReturnTo.includes('/lyrics/edit/'));
+            const validReturnTo = isSelf ? null : rawReturnTo;
+            if (validReturnTo) {
+              router.push(validReturnTo);
               return;
             }
             if (folderId) {
-              router.push(`/lyrics/folder/?id=${folderId}`);
+              router.push(`/lyrics/folder/?id=${encodeURIComponent(folderId)}`);
               return;
             }
-            if (typeof window !== 'undefined' && window.history.length > 1) {
-              router.back();
-            } else {
-              router.push('/lyrics');
+            if (currentLyric?.folder_id) {
+              router.push(`/lyrics/folder/?id=${encodeURIComponent(currentLyric.folder_id)}`);
+              return;
             }
+            router.push('/lyrics');
           }}
           className={`md:hidden flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg transition-all active:scale-95 ${
             isStageLocked
@@ -963,6 +1011,7 @@ export function PiascoreLyricsReader({ initialLyric, folderId }: Props) {
                 textAlign={textAlign}
                 showUI={showUI}
                 isLocked={isStageLocked}
+                isNightView={isNightView}
                 onBaseScaleChange={setMinZoomScale}
               />
             </div>
@@ -970,7 +1019,7 @@ export function PiascoreLyricsReader({ initialLyric, folderId }: Props) {
         </TransformWrapper>
       </main>
 
-      {/* ── 5. BOTTOM ACTION TOOLBAR (5 Icons matching Piascore) ────────── */}
+      {/* ── 5. BOTTOM ACTION TOOLBAR ────────────────────────────────────── */}
       <footer
         className={`fixed bottom-0 left-0 right-0 z-50 bg-white/60 dark:bg-[#1a1a1e]/60 backdrop-blur-2xl saturate-[180%] border-t border-white/60 dark:border-white/15 shadow-[0_8px_32px_rgba(31,38,135,0.12),inset_0_1px_0_rgba(255,255,255,0.8)] flex items-center justify-around pb-[env(safe-area-inset-bottom,0px)] h-[calc(3.5rem+env(safe-area-inset-bottom,0px))] px-2 transition-transform duration-300 ${
           showUI ? 'translate-y-0' : 'translate-y-full'
@@ -990,7 +1039,7 @@ export function PiascoreLyricsReader({ initialLyric, folderId }: Props) {
               : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
           }`}
         >
-          <BookmarkIcon size={20} />
+          <BookmarkIcon size={20} className={isBookmarkOpen ? 'fill-accent-start' : ''} />
           <span>Bookmark</span>
         </button>
 
@@ -1010,6 +1059,22 @@ export function PiascoreLyricsReader({ initialLyric, folderId }: Props) {
         >
           <Crop size={20} />
           <span>Adjust Page</span>
+        </button>
+
+        {/* Button 3: Night View */}
+        <button
+          type="button"
+          onClick={toggleNightView}
+          className={`flex flex-col items-center gap-0.5 text-[10px] font-semibold transition-all active:scale-95 cursor-pointer ${
+            isNightView
+              ? 'text-accent-start'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+          }`}
+          title={isNightView ? 'Night View active · Tap for Day View' : 'Switch to Night View'}
+          aria-label={isNightView ? 'Night View active' : 'Night View'}
+        >
+          {isNightView ? <Moon size={20} className="fill-accent-start" /> : <Moon size={20} />}
+          <span>Night View</span>
         </button>
 
         {/* Button 3: Page */}
@@ -1056,7 +1121,14 @@ export function PiascoreLyricsReader({ initialLyric, folderId }: Props) {
               e.preventDefault();
               e.stopPropagation();
               if (currentLyric?.id) {
-                const returnPath = `/lyrics/view/?id=${encodeURIComponent(currentLyric.id)}`;
+                const rawReturnTo = searchParams?.get('returnTo');
+                const isSelf = rawReturnTo && (rawReturnTo.includes('/lyrics/view/?id=') || rawReturnTo.includes('/lyrics/edit/'));
+                const folderFallback = folderId
+                  ? `/lyrics/folder/?id=${encodeURIComponent(folderId)}`
+                  : (currentLyric.folder_id ? `/lyrics/folder/?id=${encodeURIComponent(currentLyric.folder_id)}` : '/lyrics');
+                const safeReturnTarget = (!rawReturnTo || isSelf) ? folderFallback : rawReturnTo;
+
+                const returnPath = `/lyrics/view/?id=${encodeURIComponent(currentLyric.id)}&returnTo=${encodeURIComponent(safeReturnTarget)}`;
                 const targetUrl = `/lyrics/edit/?id=${encodeURIComponent(currentLyric.id)}&returnTo=${encodeURIComponent(returnPath)}`;
                 try {
                   router.push(targetUrl);
@@ -1224,6 +1296,32 @@ export function PiascoreLyricsReader({ initialLyric, folderId }: Props) {
               className="p-1 text-slate-400 hover:text-slate-700"
             >
               <X size={16} />
+            </button>
+          </div>
+
+          {/* Night View Stage Toggle */}
+          <div className="flex items-center justify-between p-2.5 bg-slate-50 dark:bg-[#14141A] border border-slate-200 dark:border-[#2A2A31] rounded-2xl">
+            <div className="flex items-center gap-2.5">
+              <Moon size={18} className={isNightView ? 'text-[#FF6A1F] fill-[#FF6A1F]' : 'text-slate-400 dark:text-slate-500'} />
+              <div className="flex flex-col text-left">
+                <span className="text-xs font-bold text-slate-900 dark:text-[#F4F2F0]">Night View</span>
+                <span className="text-[10px] text-slate-500 dark:text-[#8C8A93]">High-contrast stage mode for dim venues</span>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={toggleNightView}
+              className={`w-11 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors ${
+                isNightView ? 'bg-[#FF6A1F]' : 'bg-slate-300 dark:bg-[#2E2E38]'
+              }`}
+              title={isNightView ? 'Disable Night View' : 'Enable Night View'}
+              aria-label="Toggle Night View"
+            >
+              <div
+                className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${
+                  isNightView ? 'translate-x-5' : 'translate-x-0'
+                }`}
+              />
             </button>
           </div>
 

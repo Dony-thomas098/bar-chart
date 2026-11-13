@@ -11,7 +11,7 @@ import { getChordNotes } from '@/lib/chord-notes';
 import { moveEntry, saveChart } from '@/lib/storage';
 import { FolderPickerModal } from '@/components/FolderPickerModal';
 import { useHardwareBackButton } from '@/hooks/useHardwareBackButton';
-import { X, Plus, LogOut, Download, Copy, RefreshCw, Cloud, CloudOff, Edit2, Folder as FolderIcon, CornerLeftUp, ChevronLeft, ChevronRight, Check, Keyboard, Music } from 'lucide-react';
+import { X, Plus, LogOut, Download, Copy, RefreshCw, Cloud, CloudOff, Edit2, Folder as FolderIcon, CornerLeftUp, ChevronLeft, ChevronRight, ChevronDown, Check, Keyboard, Music, AlertTriangle, RotateCcw, Eye } from 'lucide-react';
 import { ChartData } from '@/lib/chart-types';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
@@ -85,32 +85,120 @@ export default function ChartEditor() {
   const isTypingText = useRef(false);
   const lastEnterPress = useRef<number>(0);
 
-  const handleBack = useCallback(async () => {
+  const initialChartSnapshotRef = useRef<ChartData | null>(null);
+  const [showUnsavedModal, setShowUnsavedModal] = useState(false);
+  const showUnsavedModalRef = useRef(false);
+  useEffect(() => {
+    showUnsavedModalRef.current = showUnsavedModal;
+  }, [showUnsavedModal]);
+
+  useEffect(() => {
+    if (chart && !initialChartSnapshotRef.current) {
+      initialChartSnapshotRef.current = JSON.parse(JSON.stringify(chart));
+    }
+  }, [chart]);
+
+  const hasEdits = useCallback((): boolean => {
+    if (!initialChartSnapshotRef.current || !chartRef.current) return false;
+    const initial = initialChartSnapshotRef.current;
+    const current = chartRef.current;
+    if (
+      current.title !== initial.title ||
+      current.tempo !== initial.tempo ||
+      current.time_sig !== initial.time_sig ||
+      current.semitone_offset !== initial.semitone_offset ||
+      current.prefer_flats !== initial.prefer_flats ||
+      current.folder_id !== initial.folder_id ||
+      current.custom_text !== initial.custom_text
+    ) {
+      return true;
+    }
+    return JSON.stringify(current.lines) !== JSON.stringify(initial.lines);
+  }, []);
+
+  const getViewerUrl = useCallback((): string => {
+    if (returnTo && returnTo.startsWith('/chart/?id=')) {
+      return returnTo;
+    }
+    let folderTarget = chartRef.current?.folder_id
+      ? `/folder/?id=${encodeURIComponent(chartRef.current.folder_id)}`
+      : '/chords';
+    if (returnTo && !returnTo.startsWith('/chart')) {
+      folderTarget = returnTo;
+    }
+    return `/chart/?id=${encodeURIComponent(chartId)}&returnTo=${encodeURIComponent(folderTarget)}`;
+  }, [chartId, returnTo]);
+
+  const handleBack = useCallback(() => {
+    if (hasEdits()) {
+      setShowUnsavedModal(true);
+    } else {
+      router.push(getViewerUrl());
+    }
+  }, [hasEdits, getViewerUrl, router]);
+
+  const handleKeepEdits = useCallback(async () => {
     try {
       await forceSave();
     } catch (err) {
       console.warn('[ChartEditor] Error saving before navigation:', err);
     }
-    if (returnTo) {
-      router.push(returnTo);
-      return;
+    setShowUnsavedModal(false);
+    router.push(getViewerUrl());
+  }, [forceSave, getViewerUrl, router]);
+
+  const handleDiscardEdits = useCallback(async () => {
+    try {
+      if (initialChartSnapshotRef.current) {
+        await saveChart(initialChartSnapshotRef.current);
+        updateChart(initialChartSnapshotRef.current);
+      }
+    } catch (err) {
+      console.warn('[ChartEditor] Error reverting edits:', err);
     }
-    if (chartRef.current?.folder_id) {
-      router.push(`/folder/?id=${chartRef.current.folder_id}`);
-      return;
-    }
-    if (typeof window !== 'undefined' && window.history.length > 1) {
-      router.back();
-    } else {
-      router.push('/chords');
-    }
-  }, [forceSave, returnTo, router]);
+    setShowUnsavedModal(false);
+    router.push(getViewerUrl());
+  }, [getViewerUrl, router, updateChart]);
+
+  const handleReviewEdits = useCallback(() => {
+    setShowUnsavedModal(false);
+  }, []);
 
   useHardwareBackButton({
-    enabled: !isFolderPickerOpen,
-    onBack: handleBack,
     stateKey: 'chordly_chart_editor',
+    enabled: isFolderPickerOpen || showUnsavedModal,
+    onBack: () => {
+      if (isFolderPickerOpen) {
+        setIsFolderPickerOpen(false);
+      } else if (showUnsavedModal) {
+        setShowUnsavedModal(false);
+      }
+    },
   });
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const handlePopState = () => {
+      if (showUnsavedModalRef.current) {
+        setShowUnsavedModal(false);
+        return;
+      }
+      if (hasEdits()) {
+        try {
+          window.history.pushState(null, '', window.location.href);
+        } catch {}
+        setShowUnsavedModal(true);
+      } else {
+        router.push(getViewerUrl());
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [hasEdits, getViewerUrl, router]);
 
   // Mobile Keypad & Active Selection State
   const [activeMobileSelection, setActiveMobileSelection] = useState<{
@@ -118,6 +206,19 @@ export default function ChartEditor() {
     blockId: string;
     barIndex: number;
   } | null>(null);
+  const [isKeypadHidden, setIsKeypadHidden] = useState(false);
+  const lastSelectedBarRef = useRef<{
+    lineId: string;
+    blockId: string;
+    barIndex: number;
+  } | null>(null);
+
+  useEffect(() => {
+    if (activeMobileSelection) {
+      lastSelectedBarRef.current = activeMobileSelection;
+    }
+  }, [activeMobileSelection]);
+
   const [isSlashBassMode, setIsSlashBassMode] = useState(false);
   const [isNativeKeyboard, setIsNativeKeyboard] = useState(false);
   const [mobileToast, setMobileToast] = useState<string | null>(null);
@@ -861,7 +962,7 @@ export default function ChartEditor() {
   const activeBlock = activeLine?.blocks?.find(b => b.id === activeMobileSelection?.blockId);
 
   return (
-    <div className={`min-h-screen bg-bg flex flex-col text-text-primary relative ${activeMobileSelection ? 'pb-80 xl:pb-32' : 'pb-32'}`}>
+    <div className={`min-h-screen bg-bg flex flex-col text-text-primary relative ${activeMobileSelection && !isKeypadHidden ? 'pb-80 xl:pb-32' : 'pb-32'}`}>
       
       {/* Editor Main Content */}
       <main className="flex-1 overflow-x-hidden p-3 sm:p-8">
@@ -1039,6 +1140,7 @@ export default function ChartEditor() {
                                 type="button"
                                 onClick={() => {
                                   setIsSlashBassMode(false);
+                                  setIsKeypadHidden(false);
                                   setActiveMobileSelection({ lineId: line.id, blockId: block.id, barIndex: barIdx });
                                 }}
                                 className={`h-12 rounded-[14px] font-mono text-sm font-bold flex items-center justify-center transition-all select-none overflow-hidden px-1 border ${
@@ -1158,7 +1260,12 @@ export default function ChartEditor() {
                           <div className="flex items-center space-x-3 relative">
                             {block.bars.map((bar, barIdx) => (
                               <React.Fragment key={`${block.id}-${barIdx}`}>
-                                <div className="w-28 h-14 bg-white dark:bg-white/10 border border-glass shadow-sm rounded-xl transition-all focus-within:ring-2 focus-within:ring-orange-500/40 focus-within:border-orange-500 shrink-0 overflow-hidden">
+                                <div 
+                                  onClick={() => {
+                                    lastSelectedBarRef.current = { lineId: line.id, blockId: block.id, barIndex: barIdx };
+                                  }}
+                                  className="w-28 h-14 bg-white dark:bg-white/10 border border-glass shadow-sm rounded-xl transition-all focus-within:ring-2 focus-within:ring-orange-500/40 focus-within:border-orange-500 shrink-0 overflow-hidden"
+                                >
                                   <ChordInput 
                                     value={bar} 
                                     onChange={(val) => updateBar(line.id, block.id, barIdx, val)}
@@ -1372,10 +1479,10 @@ export default function ChartEditor() {
       </main>
 
       {/* ═══════════════════════════════════════════════════════════════
-          MOBILE CHORD KEYPAD (BOTTOM SHEET - NO DARKENING OVERLAY)
+          CHORD KEYPAD (BOTTOM SHEET - NO DARKENING OVERLAY)
           ═══════════════════════════════════════════════════════════════ */}
-      {activeMobileSelection && (
-        <div className="fixed left-0 right-0 bottom-0 bg-surface-glass backdrop-blur-2xl border-t border-glass rounded-t-[24px] p-3.5 pb-[max(16px,env(safe-area-inset-bottom))] z-50 shadow-glass-strong xl:hidden max-w-lg mx-auto animate-slide-up">
+      {activeMobileSelection && !isKeypadHidden && (
+        <div className="fixed left-0 right-0 bottom-0 bg-surface-glass backdrop-blur-2xl border-t border-glass rounded-t-[24px] p-3.5 pb-[max(16px,env(safe-area-inset-bottom))] z-50 shadow-glass-strong max-w-lg mx-auto animate-slide-up">
           
           {/* Drawer Top Controls */}
           <div className="flex items-center justify-between gap-2 mb-2 px-1">
@@ -1387,12 +1494,14 @@ export default function ChartEditor() {
             </div>
             <div className="flex items-center gap-1.5">
               <button
+                type="button"
                 onClick={() => { if (typeof navigator !== 'undefined' && 'vibrate' in navigator) navigator.vibrate(8); stepMobileBar(-1); }}
                 className="px-3 py-1.5 bg-white/70 dark:bg-white/10 border border-glass text-text-primary rounded-full text-xs font-bold flex items-center gap-0.5 active:scale-95 transition-all shadow-sm"
               >
                 <ChevronLeft size={13} /> Prev
               </button>
               <button
+                type="button"
                 onClick={handleNextBarClick}
                 className="px-3 py-1.5 bg-white/70 dark:bg-white/10 border border-glass text-text-primary rounded-full text-xs font-bold flex items-center gap-0.5 active:scale-95 transition-all shadow-sm"
                 title="Next Bar (Double tap to add new line)"
@@ -1400,12 +1509,25 @@ export default function ChartEditor() {
                 Next <ChevronRight size={13} />
               </button>
               <button
+                type="button"
+                onClick={() => {
+                  if (typeof navigator !== 'undefined' && 'vibrate' in navigator) navigator.vibrate(10);
+                  setIsKeypadHidden(true);
+                }}
+                className="px-3 py-1.5 bg-white/70 dark:bg-white/10 border border-glass text-text-secondary hover:text-text-primary rounded-full text-xs font-bold flex items-center gap-1 active:scale-95 transition-all shadow-sm cursor-pointer"
+                title="Hide Keypad"
+              >
+                <ChevronDown size={14} /> Hide
+              </button>
+              <button
+                type="button"
                 onClick={async () => {
                   if (typeof navigator !== 'undefined' && 'vibrate' in navigator) navigator.vibrate(20);
                   setActiveMobileSelection(null);
+                  setIsKeypadHidden(false);
                   await forceSave();
                 }}
-                className="px-3.5 py-1.5 bg-btn-dark text-white rounded-full text-xs font-bold flex items-center gap-1 active:scale-95 shadow-btn-dark transition-all"
+                className="px-3.5 py-1.5 bg-btn-dark text-white rounded-full text-xs font-bold flex items-center gap-1 active:scale-95 shadow-btn-dark transition-all cursor-pointer"
               >
                 <Check size={13} /> Done
               </button>
@@ -1598,6 +1720,46 @@ export default function ChartEditor() {
         </div>
       )}
 
+      {/* Floating Toggle Button to Enable / Show Keypad when hidden or not active */}
+      {(!activeMobileSelection || isKeypadHidden) && (
+        <div className="fixed bottom-5 right-4 z-40 animate-fade-in no-print">
+          <button
+            type="button"
+            onClick={() => {
+              if (typeof navigator !== 'undefined' && 'vibrate' in navigator) navigator.vibrate(12);
+              setIsKeypadHidden(false);
+              if (!activeMobileSelection) {
+                const last = lastSelectedBarRef.current;
+                if (
+                  last &&
+                  chart?.lines?.some(
+                    l => l.id === last.lineId && l.blocks?.some(b => b.id === last.blockId && b.bars?.length > last.barIndex)
+                  )
+                ) {
+                  setActiveMobileSelection(last);
+                } else if (chart?.lines?.length) {
+                  const firstLine = chart.lines[0];
+                  const firstBlock = firstLine?.blocks?.[0];
+                  if (firstBlock && firstBlock.bars?.length > 0) {
+                    setActiveMobileSelection({
+                      lineId: firstLine.id,
+                      blockId: firstBlock.id,
+                      barIndex: 0,
+                    });
+                  }
+                }
+              }
+            }}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-btn-dark text-white font-bold text-xs shadow-xl active:scale-95 transition-all border border-glass hover:bg-black/90 dark:hover:bg-white/20 cursor-pointer"
+            title="Open Chord Keypad"
+            aria-label="Open Chord Keypad"
+          >
+            <Keyboard size={15} className="text-orange-400" />
+            <span>Keypad</span>
+          </button>
+        </div>
+      )}
+
       {/* Mobile Toast Alert */}
       {mobileToast && (
         <div className="fixed left-1/2 bottom-24 -translate-x-1/2 z-50 bg-white/70 dark:bg-black/60 border border-white/60 dark:border-white/15 text-text-primary dark:text-white text-xs font-bold px-4 py-2.5 rounded-full shadow-[0_8px_32px_rgba(31,38,135,0.12),inset_0_1px_0_rgba(255,255,255,0.8)] backdrop-blur-2xl saturate-[180%] flex items-center gap-1.5 animate-fade-in pointer-events-none">
@@ -1615,6 +1777,59 @@ export default function ChartEditor() {
           }}
           title="Move Chart to..."
         />
+      )}
+
+      {/* Unsaved Changes Confirmation Modal */}
+      {showUnsavedModal && (
+        <div
+          className="fixed inset-0 z-[120] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-200"
+          onClick={handleReviewEdits}
+        >
+          <div
+            className="bg-white/95 dark:bg-[#18181d]/95 backdrop-blur-2xl border border-white/60 dark:border-white/15 shadow-2xl rounded-3xl p-6 sm:p-8 w-full max-w-sm sm:max-w-md flex flex-col gap-4 text-center select-none"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="w-14 h-14 rounded-2xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center mx-auto text-amber-500">
+              <AlertTriangle size={30} />
+            </div>
+
+            <div>
+              <h3 className="text-xl font-bold text-text-primary">Keep Your Edits?</h3>
+              <p className="text-xs sm:text-sm text-text-secondary mt-2 leading-relaxed">
+                You made changes to this chart. Do you want to keep your edits, discard them to prevent accidental changes, or review your work?
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-2.5 mt-2">
+              {/* Option 1: Keep Edits & Exit */}
+              <button
+                type="button"
+                onClick={handleKeepEdits}
+                className="w-full py-3 px-4 bg-accent-gradient text-white text-xs sm:text-sm font-bold tracking-wider uppercase rounded-xl hover:brightness-110 active:scale-98 transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md"
+              >
+                <Check size={16} /> Keep Edits & Exit
+              </button>
+
+              {/* Option 2: Discard Edits */}
+              <button
+                type="button"
+                onClick={handleDiscardEdits}
+                className="w-full py-3 px-4 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 text-xs sm:text-sm font-bold tracking-wider uppercase rounded-xl active:scale-98 transition-all flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <RotateCcw size={16} /> Discard Edits
+              </button>
+
+              {/* Option 3: Review Changes */}
+              <button
+                type="button"
+                onClick={handleReviewEdits}
+                className="w-full py-2.5 px-4 bg-surface hover:bg-surface-raised border border-border text-text-primary text-xs sm:text-sm font-bold rounded-xl active:scale-98 transition-all flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Eye size={16} /> Review Changes
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

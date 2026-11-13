@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { ChevronLeft, ChevronRight, Check, Delete, Plus, Keyboard } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronDown, Check, Delete, Plus, Keyboard } from 'lucide-react';
 import { getChordNotes } from '@/lib/chord-notes';
 
 interface MobileChordKeypadProps {
@@ -15,6 +15,7 @@ interface MobileChordKeypadProps {
   onAddBar?: () => void;
   onAddLine?: () => void;
   onDeleteBar?: () => void;
+  onHide?: () => void;
   onClose: () => void;
 }
 
@@ -29,6 +30,7 @@ export function MobileChordKeypad({
   onAddBar,
   onAddLine,
   onDeleteBar,
+  onHide,
   onClose,
 }: MobileChordKeypadProps) {
   const currentChordDisplay = activeChord && activeChord !== '_' && activeChord !== '-' ? activeChord : '-';
@@ -120,6 +122,17 @@ export function MobileChordKeypad({
             title="Next Bar (Double tap to create new line)"
           >
             Next <ChevronRight size={14} />
+          </button>
+          <button
+            onClick={() => {
+              triggerHaptic(10);
+              if (onHide) onHide();
+              else onClose();
+            }}
+            className="flex items-center gap-0.5 px-3 py-1.5 text-xs font-bold rounded-full bg-white/70 dark:bg-white/10 text-text-secondary hover:text-text-primary border border-glass hover:bg-white active:scale-95 transition-all shadow-sm"
+            title="Hide Keypad"
+          >
+            <ChevronDown size={14} /> Hide
           </button>
           <button
             onClick={handleDone}

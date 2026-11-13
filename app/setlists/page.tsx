@@ -360,7 +360,10 @@ export default function SetlistsPage() {
       showToast('Setlist is empty. Add songs first');
       return;
     }
-    sessionStorage.setItem(`setlist-leader-${s.id}`, '1');
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem(`setlist-session-ended-${s.id}`);
+      sessionStorage.setItem(`setlist-leader-${s.id}`, '1');
+    }
     router.push(`/setlists/perform/?id=${s.id}`);
   };
 

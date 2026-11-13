@@ -51,17 +51,18 @@
   --btn-dark-border: rgba(255, 255, 255, 0.18);
 
   /* Auth Screen Design Tokens */
-  --auth-bg: #0F1015;
+  --auth-bg: #08090E;
   --auth-glow: #2B1710;
-  --auth-card: #17171C;
-  --auth-card-border: #2C2C34;
-  --auth-input-bg: #121216;
-  --auth-input-border: #33333C;
+  --auth-card: #14151E;
+  --auth-card-border: rgba(255, 255, 255, 0.08);
+  --auth-input-bg: #12131C;
+  --auth-input-border: #262738;
   --auth-input-focus: #FF5A00;
   --auth-accent-start: #FF5A00;
-  --auth-accent-end: #FF5C7A;
+  --auth-accent-mid: #FF2E55;
+  --auth-accent-end: #E02475;
   --auth-text-primary: #FFFFFF;
-  --auth-text-muted: #8C8A93;
+  --auth-text-muted: #8E8D9A;
   --auth-link-orange: #FF6A1F;
   --btn-dark-shadow: 0 8px 20px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.2);
 
@@ -668,4 +669,74 @@ body:has([data-viewing-lyrics="true"]) .fixed.bottom-0.z-40:has(nav[aria-label="
   display: none !important;
   visibility: hidden !important;
   pointer-events: none !important;
+}
+
+/* Premium Auth Screen Custom Keyframes & Motion */
+@keyframes chordly-float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes chordly-orbit {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes chordly-eq-1 {
+  0%, 100% { height: 26px; opacity: 0.35; }
+  50% { height: 38px; opacity: 0.65; }
+}
+
+@keyframes chordly-eq-2 {
+  0%, 100% { height: 52px; opacity: 0.45; }
+  50% { height: 68px; opacity: 0.8; }
+}
+
+@keyframes chordly-eq-3 {
+  0%, 100% { height: 80px; opacity: 0.55; }
+  50% { height: 96px; opacity: 0.9; }
+}
+
+@keyframes chordly-eq-4 {
+  0%, 100% { height: 42px; opacity: 0.4; }
+  50% { height: 58px; opacity: 0.7; }
+}
+
+@keyframes chordly-glow-breathe {
+  0%, 100% {
+    opacity: 0.45;
+    transform: scale(0.96);
+  }
+  50% {
+    opacity: 0.75;
+    transform: scale(1.04);
+  }
+}
+
+.animate-chordly-float {
+  animation: chordly-float 5s ease-in-out infinite;
+}
+
+.animate-chordly-orbit {
+  animation: chordly-orbit 14s linear infinite;
+}
+
+.animate-chordly-glow {
+  animation: chordly-glow-breathe 4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-chordly-float,
+  .animate-chordly-orbit,
+  .animate-chordly-glow {
+    animation: none !important;
+  }
 }

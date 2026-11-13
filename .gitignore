@@ -44,3 +44,4 @@ next-env.d.ts
 # scratch files
 scratch_db.ts
 scratch_*.ts
+shots/

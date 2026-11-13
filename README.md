@@ -12,7 +12,7 @@
   <img src="https://img.shields.io/badge/Supabase-Database%20%26%20Realtime-3ECF8E?style=for-the-badge&logo=supabase" alt="Supabase" />
   <img src="https://img.shields.io/badge/Tailwind_CSS-v4-38B2AC?style=for-the-badge&logo=tailwind-css" alt="Tailwind CSS" />
   <img src="https://img.shields.io/badge/Platforms-Web%20%7C%20PWA%20%7C%20Android%20%7C%20iOS-orange?style=for-the-badge" alt="Platforms" />
-  <img src="https://img.shields.io/badge/Tests-Vitest%20Passing-brightgreen?style=for-the-badge&logo=vitest" alt="Vitest" />
+  <img src="https://img.shields.io/badge/Tests-180%20Passing-brightgreen?style=for-the-badge&logo=vitest" alt="Vitest" />
 </p>
 
 ---
@@ -82,10 +82,12 @@ Whether rehearsing in a studio, gigging on stage with spotty Wi-Fi, or leading S
 
 ### 📁 Hierarchical Library & Workspace
 - Deeply nested folder tree navigation with breadcrumb trails.
+- **Admin Drag-and-Drop Folder Reordering**: Band admins can custom reorder folders via intuitive drag-and-drop (`@dnd-kit`), persisting custom positions band-wide while gracefully falling back to alphabetical sorting.
 - Toggle between **Grid View** and **List View** with multi-attribute sorting.
 - Multi-item batch actions: bulk move, bulk delete, and folder assignment.
 - Fast recursive search across song titles, artists, and lyrics.
 - Dedicated Bookmarks/Favorites manager and soft-delete Trash bin with instant restore.
+- Resilient safe-navigation routing with fallback transitions across folders, charts, and lyrics.
 
 ### 📱 Cross-Platform Mobile Apps (Android & iOS)
 - Integrated with **Capacitor 8** for standalone Android APK and iOS apps.
@@ -157,7 +159,7 @@ flowchart TD
 | **Icons** | [Lucide React](https://lucide.dev/) | Clean, consistent icons |
 | **Database & Auth** | [Supabase](https://supabase.com/) | PostgreSQL, Row Level Security, Auth, and Realtime WebSockets |
 | **Local Storage** | [IndexedDB (`idb`)](https://github.com/jakearchibald/idb) | Client-side database for instant-load and offline operations |
-| **Drag & Drop** | `@dnd-kit/core`, `@dnd-kit/sortable` | Smooth drag-and-drop setlist reordering |
+| **Drag & Drop** | `@dnd-kit/core`, `@dnd-kit/sortable` | Smooth drag-and-drop setlist reordering and admin folder positioning |
 | **Score Zoom** | `react-zoom-pan-pinch` | Smooth pinch-to-zoom and pan for lead sheets |
 | **Mobile Runtime** | [Capacitor 8](https://capacitorjs.com/) | Native runtime bridging web apps to Android and iOS |
 | **Live Updates (OTA)** | `@capawesome/capacitor-live-update` | Remote over-the-air update system for mobile apps |
@@ -326,20 +328,22 @@ Whenever commits are pushed to the `main` branch, GitHub Actions automatically:
 Chordly uses PostgreSQL hosted on **Supabase** with Row Level Security (RLS) enabled on all tables.
 
 ### Tables Overview
-- `folders`: Hierarchical folder directory with nested parent-child references.
+- `folders`: Hierarchical folder directory with nested parent-child references, band association, and custom sort order (`position` integer column).
 - `charts`: Song title, tempo, time signature, JSON line/measure data, transposition settings, and folder ID.
 - `lyrics`: Text-based song lyrics, chord lines, artist, key, tempo, and folder ID.
 - `setlists`: Performance setlists with date, title, and performance notes.
 - `setlist_items`: Ordered associations linking charts and lyrics to setlists with per-song transpose overrides and rehearsal notes.
-- `bands` & `band_members`: Collaborative band workspaces with role-based permissions (admin, editor, viewer).
+- `bands` & `profiles`: Collaborative band workspaces with role-based permissions (admin, instrument, vocals).
 
 ### Applying Migrations
 Run the SQL scripts in the Supabase SQL Editor in the following order:
-1. [schema.sql](file:///d:/chord-grid/schema.sql) — Base tables, indexes, and initial RLS policies.
-2. [migrations_auth_username_email.sql](file:///d:/chord-grid/migrations_auth_username_email.sql) — Profile username and authentication enhancements.
-3. [migrations_secure_rls.sql](file:///d:/chord-grid/migrations_secure_rls.sql) — Enhanced Row Level Security for shared records.
-4. [migrations_shared_workspace_realtime.sql](file:///d:/chord-grid/migrations_shared_workspace_realtime.sql) — Collaborative band workspace tables & realtime replication.
-5. [migrations_band_workspace.sql](file:///d:/chord-grid/migrations_band_workspace.sql) — Workspace roles, member invitations, and stage synchronization.
+1. [schema.sql](schema.sql) — Base tables, indexes, and initial RLS policies.
+2. [migrations_auth_username_email.sql](migrations_auth_username_email.sql) — Profile username and authentication enhancements.
+3. [migrations_secure_rls.sql](migrations_secure_rls.sql) — Enhanced Row Level Security for shared records.
+4. [migrations_shared_workspace_realtime.sql](migrations_shared_workspace_realtime.sql) — Collaborative band workspace tables & realtime replication.
+5. [migrations_band_workspace.sql](migrations_band_workspace.sql) — Workspace roles, member invitations, and stage synchronization.
+6. [migrations_010_fix_mobile_chart_access.sql](migrations_010_fix_mobile_chart_access.sql) — Mobile & band member open read access with strict creator/admin write controls.
+7. [migrations_011_folders_position.sql](migrations_011_folders_position.sql) — Adds `position` column and indexing to `folders` for custom drag-and-drop ordering.
 
 ---
 
@@ -352,24 +356,24 @@ This section documents the current real-world implementation of collaborative ba
 ### 1. Band Creation
 
 * **Who Can Create a Band & UI Route**:
-  * **Client-Side Authorization**: Only users whose active profile has the profession/role set to `admin` are allowed to open the **Create Band** tab in [`BandConnectModal`](file:///d:/chord-grid/components/BandConnectModal.tsx#L72-L75, #L217-L220). If a non-admin clicks the tab, an error notification is displayed: *"Only band admins can create a new band workspace. Please enter your band PIN to join."*
-  * **Unlocking Admin Privileges**: Any user can unlock the `admin` profession from the Profile screen ([`app/profile/page.tsx`](file:///d:/chord-grid/app/profile/page.tsx#L584-L617, #L710-L750)) by entering the Band Leader Passcode (defaults to `"1234"`). Verification is processed locally via `verifyAdminPasscode()` in [`lib/adminAuth.ts`](file:///d:/chord-grid/lib/adminAuth.ts#L11-L14).
-  * **Database RLS Authorization**: In Supabase, the RLS policy `"Allow authenticated insert bands"` in [`migrations_locked_down_security.sql`](file:///d:/chord-grid/migrations_locked_down_security.sql#L301-L305) permits any authenticated user (`TO authenticated`) to insert a row into `public.bands` provided `auth.uid() = admin_id`.
+  * **Client-Side Authorization**: Only users whose active profile has the profession/role set to `admin` are allowed to open the **Create Band** tab in [`BandConnectModal`](components/BandConnectModal.tsx#L72-L75). If a non-admin clicks the tab, an error notification is displayed: *"Only band admins can create a new band workspace. Please enter your band PIN to join."*
+  * **Unlocking Admin Privileges**: Any user can unlock the `admin` profession from the Profile screen ([`app/profile/page.tsx`](app/profile/page.tsx#L584-L617)) by entering the Band Leader Passcode (defaults to `"1234"`). Verification is processed locally via `verifyAdminPasscode()` in [`lib/adminAuth.ts`](lib/adminAuth.ts#L11-L14).
+  * **Database RLS Authorization**: In Supabase, the RLS policy `"Allow authenticated insert bands"` in [`migrations_locked_down_security.sql`](migrations_locked_down_security.sql#L301-L305) permits any authenticated user (`TO authenticated`) to insert a row into `public.bands` provided `auth.uid() = admin_id`.
   * **Screen and Routes**:
-    * **Profile Route** ([`app/profile/page.tsx`](file:///d:/chord-grid/app/profile/page.tsx#L452-L459)): Accessed by tapping **"Join / Create"** (or **"Manage Band"** if already connected) under the **Band Workspace** section.
-    * **Folder / Home Route** ([`components/FolderBrowser.tsx`](file:///d:/chord-grid/components/FolderBrowser.tsx#L79-L108, #L1476-L1481)): Automatically prompts signed-in email users to join or create a band if no band association is detected on initial catalog load.
+    * **Profile Route** ([`app/profile/page.tsx`](app/profile/page.tsx#L452-L459)): Accessed by tapping **"Join / Create"** (or **"Manage Band"** if already connected) under the **Band Workspace** section.
+    * **Folder / Home Route** ([`components/FolderBrowser.tsx`](components/FolderBrowser.tsx#L79-L108)): Automatically prompts signed-in email users to join or create a band if no band association is detected on initial catalog load.
 * **Band Code Generation & Storage**:
-  * **Custom vs. Random**: The band code is **custom-entered** by the user into the *"Set Band Code / PIN"* input field ([`components/BandConnectModal.tsx`](file:///d:/chord-grid/components/BandConnectModal.tsx#L297-L306)). It is **not** randomly generated.
-  * **Format & Validation**: The input is forced to uppercase (`e.target.value.toUpperCase()`). In [`lib/band.ts`](file:///d:/chord-grid/lib/band.ts#L305-L307), `createBand()` requires a minimum length of 2 characters (`trimmedCode.length < 2` throws an error). It verifies uniqueness by querying Supabase (`supabase.from('bands').select('id').ilike('code', trimmedCode)`); if taken, it returns *"The code '{code}' is already taken. Please choose another code."*
+  * **Custom vs. Random**: The band code is **custom-entered** by the user into the *"Set Band Code / PIN"* input field ([`components/BandConnectModal.tsx`](components/BandConnectModal.tsx#L297-L306)). It is **not** randomly generated.
+  * **Format & Validation**: The input is forced to uppercase (`e.target.value.toUpperCase()`). In [`lib/band.ts`](lib/band.ts#L305-L307), `createBand()` requires a minimum length of 2 characters (`trimmedCode.length < 2` throws an error). It verifies uniqueness by querying Supabase (`supabase.from('bands').select('id').ilike('code', trimmedCode)`); if taken, it returns *"The code '{code}' is already taken. Please choose another code."*
   * **Storage Locations**:
-    * Supabase table `public.bands`: Stored in column `code` (`TEXT NOT NULL UNIQUE`) alongside `id`, `name`, and `admin_id` ([`migrations_band_workspace.sql`](file:///d:/chord-grid/migrations_band_workspace.sql#L12-L19)).
-    * Supabase table `public.profiles`: Stored as foreign key `band_id` (UUID) and `band_name` (TEXT) ([`lib/band.ts`](file:///d:/chord-grid/lib/band.ts#L343-L352)).
-    * Supabase Auth Metadata: Synced to `user_metadata.band_code`, `user_metadata.band_id`, and `user_metadata.band_name` via `supabase.auth.updateUser()` ([`lib/band.ts`](file:///d:/chord-grid/lib/band.ts#L353-L355)).
+    * Supabase table `public.bands`: Stored in column `code` (`TEXT NOT NULL UNIQUE`) alongside `id`, `name`, and `admin_id` ([`migrations_band_workspace.sql`](migrations_band_workspace.sql#L12-L19)).
+    * Supabase table `public.profiles`: Stored as foreign key `band_id` (UUID) and `band_name` (TEXT) ([`lib/band.ts`](lib/band.ts#L343-L352)).
+    * Supabase Auth Metadata: Synced to `user_metadata.band_code`, `user_metadata.band_id`, and `user_metadata.band_name` via `supabase.auth.updateUser()` ([`lib/band.ts`](lib/band.ts#L353-L355)).
     * Browser `localStorage`:
       * `chord-grid-band-id` (`BAND_ID_KEY`)
       * `chord-grid-band-name` (`BAND_NAME_KEY`)
       * `chord-grid-band-joined` (`BAND_JOINED_KEY`) — stores the active code
-      * `chord-grid-band-email-<email>` — cached JSON object containing `{ id, name, code, admin_id, created_at }` ([`lib/band.ts`](file:///d:/chord-grid/lib/band.ts#L15-L17, #L47-L60)).
+      * `chord-grid-band-email-<email>` — cached JSON object containing `{ id, name, code, admin_id, created_at }` ([`lib/band.ts`](lib/band.ts#L15-L17)).
 * **Expiration, Regeneration & Revocation**:
   * **Expiration**: **Not implemented**. Band codes do not have an expiration timestamp or TTL; they persist indefinitely.
   * **Regeneration**: **Not implemented**. There is no UI button or API method to regenerate or rotate an existing band's code.
@@ -381,12 +385,12 @@ This section documents the current real-world implementation of collaborative ba
 
 * **Step-by-Step Joining Flow**:
   1. Open the **Band Workspace** dialog:
-     * Navigate to `/profile` ([`app/profile/page.tsx`](file:///d:/chord-grid/app/profile/page.tsx#L452-L459)), scroll to **Band Workspace**, and tap **"Join / Create"** (or **"Manage Band"**).
-     * Alternatively, on the home library screen ([`components/FolderBrowser.tsx`](file:///d:/chord-grid/components/FolderBrowser.tsx#L91-L99)), the modal auto-triggers 1.5 seconds after authentication if the user has no linked band.
-  2. In [`BandConnectModal`](file:///d:/chord-grid/components/BandConnectModal.tsx#L247-L275), ensure the **"Join Band"** tab is selected (default tab).
+     * Navigate to `/profile` ([`app/profile/page.tsx`](app/profile/page.tsx#L452-L459)), scroll to **Band Workspace**, and tap **"Join / Create"** (or **"Manage Band"**).
+     * Alternatively, on the home library screen ([`components/FolderBrowser.tsx`](components/FolderBrowser.tsx#L91-L99)), the modal auto-triggers 1.5 seconds after authentication if the user has no linked band.
+  2. In [`BandConnectModal`](components/BandConnectModal.tsx#L247-L275), ensure the **"Join Band"** tab is selected (default tab).
   3. Enter the Band Code / PIN into the input field (characters auto-uppercase; a helper note reminds users that the default choir PIN is `1234`).
   4. Click the gradient **"Connect to Band"** button.
-  5. `joinBand(code)` in [`lib/band.ts`](file:///d:/chord-grid/lib/band.ts#L369-L417) executes:
+  5. `joinBand(code)` in [`lib/band.ts`](lib/band.ts#L369-L417) executes:
      ```typescript
      const { data, error } = await supabase
        .from('bands')
@@ -398,22 +402,22 @@ This section documents the current real-world implementation of collaborative ba
 * **Approval Requirements**:
   * **Instant**. Joining is immediate upon entering a valid code. There is no admin approval queue, confirmation prompt, or pending invitation step.
 * **Multiple Bands**:
-  * **No (Single Band Only)**. A user can only belong to one band at a time. The database column `profiles.band_id` is a scalar UUID reference ([`migrations_band_workspace.sql`](file:///d:/chord-grid/migrations_band_workspace.sql#L28)), and `localStorage` stores only one active band session. Joining a second band overwrites the previous band ID and code.
+  * **No (Single Band Only)**. A user can only belong to one band at a time. The database column `profiles.band_id` is a scalar UUID reference ([`migrations_band_workspace.sql`](migrations_band_workspace.sql#L28)), and `localStorage` stores only one active band session. Joining a second band overwrites the previous band ID and code.
 * **Cross-Platform Consistency**:
-  * **Yes**. Web, Android (via Capacitor), and iOS (via Capacitor) execute the exact same Next.js and React code ([`BandConnectModal.tsx`](file:///d:/chord-grid/components/BandConnectModal.tsx), [`lib/band.ts`](file:///d:/chord-grid/lib/band.ts)). Supabase API calls and `localStorage` operations behave identically across all three platforms.
+  * **Yes**. Web, Android (via Capacitor), and iOS (via Capacitor) execute the exact same Next.js and React code ([`BandConnectModal.tsx`](components/BandConnectModal.tsx), [`lib/band.ts`](lib/band.ts)). Supabase API calls and `localStorage` operations behave identically across all three platforms.
 * **Authentication Requirement & Guest Mode**:
   * **Signed-in Users**: Full joining and syncing experience as described.
   * **Guest Mode**:
-    * Unauthenticated guest users navigating to `/profile` are redirected to `/auth` ([`app/profile/page.tsx`](file:///d:/chord-grid/app/profile/page.tsx#L131-L133)).
-    * The auto-prompt in [`components/FolderBrowser.tsx`](file:///d:/chord-grid/components/FolderBrowser.tsx#L80) explicitly disables itself if `localStorage.getItem('chord-grid-guest-mode') === 'true'`.
-    * If `joinBand()` is called in guest mode, the Supabase SELECT query succeeds because the RLS policy `"Allow read bands"` grants public read access to `anon` ([`migrations_locked_down_security.sql`](file:///d:/chord-grid/migrations_locked_down_security.sql#L291-L294)). The band is saved into the browser's `localStorage`. However, because no Supabase auth session exists, the remote profile update is skipped. Furthermore, background cloud sync is explicitly blocked for guests in [`components/OfflineSyncContext.tsx`](file:///d:/chord-grid/components/OfflineSyncContext.tsx#L270-L272) and [`lib/storage.ts`](file:///d:/chord-grid/lib/storage.ts#L77-L81). Guests do not receive band items.
+    * Unauthenticated guest users navigating to `/profile` are redirected to `/auth` ([`app/profile/page.tsx`](app/profile/page.tsx#L131-L133)).
+    * The auto-prompt in [`components/FolderBrowser.tsx`](components/FolderBrowser.tsx#L80) explicitly disables itself if `localStorage.getItem('chord-grid-guest-mode') === 'true'`.
+    * If `joinBand()` is called in guest mode, the Supabase SELECT query succeeds because the RLS policy `"Allow read bands"` grants public read access to `anon` ([`migrations_locked_down_security.sql`](migrations_locked_down_security.sql#L291-L294)). The band is saved into the browser's `localStorage`. However, because no Supabase auth session exists, the remote profile update is skipped. Furthermore, background cloud sync is explicitly blocked for guests in [`components/OfflineSyncContext.tsx`](components/OfflineSyncContext.tsx#L270-L272) and [`lib/storage.ts`](lib/storage.ts#L77-L81). Guests do not receive band items.
 
 ---
 
 ### 3. Roles and Permissions
 
 * **Actual Roles in Codebase**:
-  The TypeScript role definition in [`components/AuthProvider.tsx`](file:///d:/chord-grid/components/AuthProvider.tsx#L10) defines three professions:
+  The TypeScript role definition in [`components/AuthProvider.tsx`](components/AuthProvider.tsx#L10) defines three professions:
   ```typescript
   export type UserProfession = 'singing' | 'instrument' | 'admin' | null;
   ```
@@ -423,21 +427,21 @@ This section documents the current real-world implementation of collaborative ba
 
 | Capability / Action | Admin (`admin`) | Instrumentalist (`instrument`) | Vocalist / Singer (`singing`) | Enforcement Level | File Reference |
 |---|---|---|---|---|---|
-| **Create Band** | ✅ Allowed | ❌ Blocked | ❌ Blocked | UI check + Supabase RLS | [`BandConnectModal.tsx#L72-L75`](file:///d:/chord-grid/components/BandConnectModal.tsx#L72-L75), [`migrations_locked_down_security.sql#L301-L305`](file:///d:/chord-grid/migrations_locked_down_security.sql#L301-L305) |
-| **View / Copy Band PIN** | ✅ Full Code Shown | ❌ Masked (`••••`) | ❌ Masked (`••••`) | UI check only | [`BandConnectModal.tsx#L162-L180`](file:///d:/chord-grid/components/BandConnectModal.tsx#L162-L180) |
-| **Leave / Switch Band** | ✅ Button Visible | ❌ Button Hidden | ❌ Button Hidden | UI check only | [`BandConnectModal.tsx#L189-L196`](file:///d:/chord-grid/components/BandConnectModal.tsx#L189-L196) |
-| **Create Charts & Lyrics** | ✅ Allowed | ✅ Allowed | ✅ Allowed | Supabase RLS (`authenticated`) | [`AuthProvider.tsx#L22-L28`](file:///d:/chord-grid/components/AuthProvider.tsx#L22-L28), [`migrations_locked_down_security.sql#L148, #L192`](file:///d:/chord-grid/migrations_locked_down_security.sql#L148) |
-| **Edit Charts & Lyrics** | ✅ Allowed | ✅ Allowed | ✅ Allowed | Supabase RLS (`authenticated`) | [`AuthProvider.tsx#L22-L28`](file:///d:/chord-grid/components/AuthProvider.tsx#L22-L28), [`migrations_locked_down_security.sql#L154, #L198`](file:///d:/chord-grid/migrations_locked_down_security.sql#L154) |
-| **Move to Trash (Soft Delete)** | ✅ Allowed | ✅ Allowed | ✅ Allowed | Supabase RLS (UPDATE allowed) | [`lib/storage.ts#L479-L573`](file:///d:/chord-grid/lib/storage.ts#L479-L573) |
-| **Restore from Trash** | ✅ Allowed | ✅ Allowed | ✅ Allowed | Supabase RLS (UPDATE allowed) | [`lib/storage.ts#L577-L662`](file:///d:/chord-grid/lib/storage.ts#L577-L662) |
-| **Permanent Hard Delete** | ✅ Any Item | ⚠️ Only items they created | ⚠️ Only items they created | **Supabase RLS Policy** | [`migrations_locked_down_security.sql#L161-L169, #L205-L213`](file:///d:/chord-grid/migrations_locked_down_security.sql#L161-L169) |
+| **Create Band** | ✅ Allowed | ❌ Blocked | ❌ Blocked | UI check + Supabase RLS | [`BandConnectModal.tsx#L72-L75`](components/BandConnectModal.tsx#L72-L75), [`migrations_locked_down_security.sql#L301-L305`](migrations_locked_down_security.sql#L301-L305) |
+| **View / Copy Band PIN** | ✅ Full Code Shown | ❌ Masked (`••••`) | ❌ Masked (`••••`) | UI check only | [`BandConnectModal.tsx#L162-L180`](components/BandConnectModal.tsx#L162-L180) |
+| **Leave / Switch Band** | ✅ Button Visible | ❌ Button Hidden | ❌ Button Hidden | UI check only | [`BandConnectModal.tsx#L189-L196`](components/BandConnectModal.tsx#L189-L196) |
+| **Create Charts & Lyrics** | ✅ Allowed | ✅ Allowed | ✅ Allowed | Supabase RLS (`authenticated`) | [`AuthProvider.tsx#L22-L28`](components/AuthProvider.tsx#L22-L28), [`migrations_locked_down_security.sql#L148, #L192`](migrations_locked_down_security.sql#L148) |
+| **Edit Charts & Lyrics** | ✅ Allowed | ✅ Allowed | ✅ Allowed | Supabase RLS (`authenticated`) | [`AuthProvider.tsx#L22-L28`](components/AuthProvider.tsx#L22-L28), [`migrations_locked_down_security.sql#L154, #L198`](migrations_locked_down_security.sql#L154) |
+| **Move to Trash (Soft Delete)** | ✅ Allowed | ✅ Allowed | ✅ Allowed | Supabase RLS (UPDATE allowed) | [`lib/storage.ts#L479-L573`](lib/storage.ts#L479-L573) |
+| **Restore from Trash** | ✅ Allowed | ✅ Allowed | ✅ Allowed | Supabase RLS (UPDATE allowed) | [`lib/storage.ts#L577-L662`](lib/storage.ts#L577-L662) |
+| **Permanent Hard Delete** | ✅ Any Item | ⚠️ Only items they created | ⚠️ Only items they created | **Supabase RLS Policy** | [`migrations_locked_down_security.sql#L161-L169, #L205-L213`](migrations_locked_down_security.sql#L161-L169) |
 | **Invite Members** | ❌ Not implemented | ❌ Not implemented | ❌ Not implemented | None (members self-join via PIN) | — |
 | **Remove / Kick Members** | ❌ Not implemented | ❌ Not implemented | ❌ Not implemented | None | — |
 | **Change Other Members' Roles** | ❌ Not implemented | ❌ Not implemented | ❌ Not implemented | None (each user sets their role in `/profile`) | — |
 
 * **Enforcement Breakdown**:
-  * **UI Only**: Hiding/showing the band code in `BandConnectModal`, the "Leave Band" button, and unlocking Admin mode via client-side passcode input ([`app/profile/page.tsx#L710-L750`](file:///d:/chord-grid/app/profile/page.tsx#L710-L750)). The client helper `canModifySection()` in [`components/AuthProvider.tsx#L22-L28`](file:///d:/chord-grid/components/AuthProvider.tsx#L22-L28) unconditionally returns `true` for all roles.
-  * **Supabase RLS Enforced**: Hard deletions on `folders`, `charts`, `lyrics`, and `setlists` enforce that `created_by::text = auth.uid()::text OR EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND (role = 'admin' OR role = 'profession_admin'))` ([`migrations_locked_down_security.sql#L161-L169`](file:///d:/chord-grid/migrations_locked_down_security.sql#L161-L169)). Band updates/deletions require `auth.uid() = admin_id`.
+  * **UI Only**: Hiding/showing the band code in `BandConnectModal`, the "Leave Band" button, and unlocking Admin mode via client-side passcode input ([`app/profile/page.tsx#L710-L750`](app/profile/page.tsx#L710-L750)). The client helper `canModifySection()` in [`components/AuthProvider.tsx#L22-L28`](components/AuthProvider.tsx#L22-L28) unconditionally returns `true` for all roles.
+  * **Supabase RLS Enforced**: Hard deletions on `folders`, `charts`, `lyrics`, and `setlists` enforce that `created_by::text = auth.uid()::text OR EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND (role = 'admin' OR role = 'profession_admin'))` ([`migrations_locked_down_security.sql#L161-L169`](migrations_locked_down_security.sql#L161-L169)). Band updates/deletions require `auth.uid() = admin_id`.
 
 ---
 
@@ -445,9 +449,9 @@ This section documents the current real-world implementation of collaborative ba
 
 * **Shared vs. Personal Scope**:
   * **Shared Content**: `charts`, `lyrics`, `folders`, `setlists`, `setlist_items`.
-    * **Codebase Architecture Reality**: None of the content tables (`charts`, `lyrics`, `folders`, `setlists`, `setlist_items`) contain a `band_id` column (see [`schema.sql`](file:///d:/chord-grid/schema.sql), [`migrations_shared_workspace_realtime.sql`](file:///d:/chord-grid/migrations_shared_workspace_realtime.sql)).
+    * **Codebase Architecture Reality**: None of the content tables (`charts`, `lyrics`, `folders`, `setlists`, `setlist_items`) contain a `band_id` column (see [`schema.sql`](schema.sql), [`migrations_shared_workspace_realtime.sql`](migrations_shared_workspace_realtime.sql)).
     * All items saved to Supabase belong to a single shared catalog accessible by all authenticated users of the Supabase project instance.
-    * When `listFolder()` runs in [`lib/storage.ts#L209-L228`](file:///d:/chord-grid/lib/storage.ts#L209-L228), it selects all records without any band-based filtering.
+    * When `listFolder()` runs in [`lib/storage.ts#L209-L228`](lib/storage.ts#L209-L228), it selects all records without any band-based filtering.
   * **Personal Content**:
     * Individual profile attributes: `role`, `instrument`, `username`, and `email` in `public.profiles`.
     * Client-side UI settings: Selected font (`chord-grid-font`), autoscroll speed, and navigation ordering preferences.
@@ -455,13 +459,13 @@ This section documents the current real-world implementation of collaborative ba
 * **Moving or Copying Between Personal and Band**:
   * **Not implemented**. Because charts do not have a `band_id` or an `is_personal` flag, there is no technical boundary between personal and band charts in the database.
 * **Mutation Visibility Across Members**:
-  * **Create**: When a user creates an item, it is saved to IndexedDB and sent to Supabase. Supabase Realtime fires a `postgres_changes` INSERT payload. In [`components/OfflineSyncContext.tsx#L125-L215`](file:///d:/chord-grid/components/OfflineSyncContext.tsx#L125-L215), other connected devices receive the payload, cache it in their local IndexedDB (`cacheChart`, `cacheFolder`, `cacheLyric`), and trigger `window.dispatchEvent(new CustomEvent('refresh-folder'))`. The new item appears instantly in their library.
+  * **Create**: When a user creates an item, it is saved to IndexedDB and sent to Supabase. Supabase Realtime fires a `postgres_changes` INSERT payload. In [`components/OfflineSyncContext.tsx#L125-L215`](components/OfflineSyncContext.tsx#L125-L215), other connected devices receive the payload, cache it in their local IndexedDB (`cacheChart`, `cacheFolder`, `cacheLyric`), and trigger `window.dispatchEvent(new CustomEvent('refresh-folder'))`. The new item appears instantly in their library.
   * **Edit**:
-    * In the active chart view, [`hooks/useChartSync.ts#L61-L65`](file:///d:/chord-grid/hooks/useChartSync.ts#L61-L65) broadcasts edits over the Supabase Broadcast channel `chart-${chartId}` (`broadcast: update`). Other members viewing the same chart see live updates without refreshing.
+    * In the active chart view, [`hooks/useChartSync.ts#L61-L65`](hooks/useChartSync.ts#L61-L65) broadcasts edits over the Supabase Broadcast channel `chart-${chartId}` (`broadcast: update`). Other members viewing the same chart see live updates without refreshing.
     * Database updates trigger `postgres_changes` UPDATE in `OfflineSyncContext.tsx`, updating the cached item in IndexedDB and refreshing folder views.
-  * **Soft Delete (Trash)**: [`lib/storage.ts#L479-L573`](file:///d:/chord-grid/lib/storage.ts#L479-L573) updates the item's title in Supabase with the prefix `__TRASH__:<timestamp>:<title>`. Active folder queries filter out items with this prefix. Other members' devices receive the UPDATE event, update IndexedDB, and the item disappears from their active folders and appears in `/trash`.
-  * **Hard Delete**: [`lib/storage.ts#L392-L427`](file:///d:/chord-grid/lib/storage.ts#L392-L427) deletes the row from Supabase. Supabase Realtime sends a `DELETE` payload containing `old.id` (enabled by `REPLICA IDENTITY FULL`). `OfflineSyncContext.tsx` calls `deleteFromCache(payload.old.id)` on all member devices, removing it from their local IndexedDB.
-  * **Restore**: [`lib/storage.ts#L577-L662`](file:///d:/chord-grid/lib/storage.ts#L577-L662) strips the `__TRASH__` prefix in Supabase. Realtime UPDATE delivers the restored record, `OfflineSyncContext.tsx` updates IndexedDB, and the item returns to active folders across all devices.
+  * **Soft Delete (Trash)**: [`lib/storage.ts#L479-L573`](lib/storage.ts#L479-L573) updates the item's title in Supabase with the prefix `__TRASH__:<timestamp>:<title>`. Active folder queries filter out items with this prefix. Other members' devices receive the UPDATE event, update IndexedDB, and the item disappears from their active folders and appears in `/trash`.
+  * **Hard Delete**: [`lib/storage.ts#L392-L427`](lib/storage.ts#L392-L427) deletes the row from Supabase. Supabase Realtime sends a `DELETE` payload containing `old.id` (enabled by `REPLICA IDENTITY FULL`). `OfflineSyncContext.tsx` calls `deleteFromCache(payload.old.id)` on all member devices, removing it from their local IndexedDB.
+  * **Restore**: [`lib/storage.ts#L577-L662`](lib/storage.ts#L577-L662) strips the `__TRASH__` prefix in Supabase. Realtime UPDATE delivers the restored record, `OfflineSyncContext.tsx` updates IndexedDB, and the item returns to active folders across all devices.
 
 ---
 
@@ -469,29 +473,29 @@ This section documents the current real-world implementation of collaborative ba
 
 * **Supabase Realtime Channels, Tables & Filters**:
   * **Global Catalog Sync Channel**:
-    * Channel Name: `offline-sync-realtime` ([`components/OfflineSyncContext.tsx#L120-L121`](file:///d:/chord-grid/components/OfflineSyncContext.tsx#L120-L121))
+    * Channel Name: `offline-sync-realtime` ([`components/OfflineSyncContext.tsx#L120-L121`](components/OfflineSyncContext.tsx#L120-L121))
     * Tables: `charts`, `lyrics`, `folders`, `setlists`, `setlist_items`
     * Events: `postgres_changes` on `event: '*'`
     * Filters: **None** (listens to all table changes in the public schema).
-    * Database Configuration: Tables configured with `REPLICA IDENTITY FULL` and published to `supabase_realtime` in [`migrations_shared_workspace_realtime.sql#L10-L48`](file:///d:/chord-grid/migrations_shared_workspace_realtime.sql#L10-L48).
+    * Database Configuration: Tables configured with `REPLICA IDENTITY FULL` and published to `supabase_realtime` in [`migrations_shared_workspace_realtime.sql#L10-L48`](migrations_shared_workspace_realtime.sql#L10-L48).
   * **Chart Collaboration Channel**:
-    * Channel Name: `chart-${chartId}` ([`hooks/useChartSync.ts#L48`](file:///d:/chord-grid/hooks/useChartSync.ts#L48))
+    * Channel Name: `chart-${chartId}` ([`hooks/useChartSync.ts#L48`](hooks/useChartSync.ts#L48))
     * Events: `postgres_changes` with `filter: 'id=eq.' + chartId`, Broadcast event `update`, and Presence tracking for collaborator email presence.
   * **Stage Performance Channel**:
-    * Channel Name: `session-${code}` ([`hooks/usePerformanceSession.ts#L104`](file:///d:/chord-grid/hooks/usePerformanceSession.ts#L104))
+    * Channel Name: `session-${code}` ([`hooks/usePerformanceSession.ts#L104`](hooks/usePerformanceSession.ts#L104))
     * Events: Broadcast events `request-state`, `sync-state`, `nav`, and `end-session`. Presence tracks stage roles (`leader` vs `follower`) and current index.
 * **Live Performance Room Code vs. Band Code**:
   * **They are completely different codes**:
     * The **Band Code** is a permanent workspace identifier (e.g., `"WB2026"` or `"1234"`) stored in `public.bands.code`.
-    * The **Performance Room Code** is an ephemeral, random 6-character code (e.g., `"K9F2A7"`) generated dynamically via `generateCode(6)` in [`app/perform/page.tsx#L54-L62`](file:///d:/chord-grid/app/perform/page.tsx#L54-L62) when a performance session starts.
+    * The **Performance Room Code** is an ephemeral, random 6-character code (e.g., `"K9F2A7"`) generated dynamically via `generateCode(6)` in [`app/perform/page.tsx#L54-L62`](app/perform/page.tsx#L54-L62) when a performance session starts.
     * The stage route `/perform/[code]` does **not** reference, require, or validate against the band code. Followers join using the session leader's 6-character stage code.
 * **Offline & Reconnection Handling**:
-  * **Offline**: When connectivity drops, WebSocket subscriptions disconnect. Edits continue locally in IndexedDB, and each mutation is appended to the `pending_saves` object store ([`lib/storage.ts#L40-L44, #L96-L135`](file:///d:/chord-grid/lib/storage.ts#L40-L44)).
+  * **Offline**: When connectivity drops, WebSocket subscriptions disconnect. Edits continue locally in IndexedDB, and each mutation is appended to the `pending_saves` object store ([`lib/storage.ts#L40-L44, #L96-L135`](lib/storage.ts#L40-L44)).
   * **Reconnection**:
-    1. The browser `online` event triggers `flushPendingSaves()` ([`lib/storage.ts#L87-L140`](file:///d:/chord-grid/lib/storage.ts#L87-L140)), which iterates through `pending_saves` and pushes pending upserts and deletes to Supabase.
-    2. After a 1.5-second debounce, `OfflineSyncContext.tsx` ([`components/OfflineSyncContext.tsx#L308-L321`](file:///d:/chord-grid/components/OfflineSyncContext.tsx#L308-L321)) executes `triggerSync(false)` → `syncAllOffline()` ([`lib/storage.ts#L1195-L1245`](file:///d:/chord-grid/lib/storage.ts#L1195-L1245)), querying Supabase to pull any remote changes created by other members while offline.
+    1. The browser `online` event triggers `flushPendingSaves()` ([`lib/storage.ts#L87-L140`](lib/storage.ts#L87-L140)), which iterates through `pending_saves` and pushes pending upserts and deletes to Supabase.
+    2. After a 1.5-second debounce, `OfflineSyncContext.tsx` ([`components/OfflineSyncContext.tsx#L308-L321`](components/OfflineSyncContext.tsx#L308-L321)) executes `triggerSync(false)` → `syncAllOffline()` ([`lib/storage.ts#L1195-L1245`](lib/storage.ts#L1195-L1245)), querying Supabase to pull any remote changes created by other members while offline.
 * **Local Data on Leaving, Removal, or Band Deletion**:
-  * **Leaving a Band**: `leaveBand()` in [`lib/band.ts#L420-L440`](file:///d:/chord-grid/lib/band.ts#L420-L440) clears `localStorage` band keys (`BAND_ID_KEY`, `BAND_NAME_KEY`, `BAND_JOINED_KEY`, and `chord-grid-band-email-<email>`), dispatches `band-left`, and sets `profiles.band_id = null` in Supabase. **Local charts and folders in IndexedDB are NOT deleted or purged.**
+  * **Leaving a Band**: `leaveBand()` in [`lib/band.ts#L420-L440`](lib/band.ts#L420-L440) clears `localStorage` band keys (`BAND_ID_KEY`, `BAND_NAME_KEY`, `BAND_JOINED_KEY`, and `chord-grid-band-email-<email>`), dispatches `band-left`, and sets `profiles.band_id = null` in Supabase. **Local charts and folders in IndexedDB are NOT deleted or purged.**
   * **Removal from Band**: **Not implemented**.
   * **Band Deletion**: **Not implemented** in the client UI.
 
@@ -500,19 +504,28 @@ This section documents the current real-world implementation of collaborative ba
 ### 6. Database
 
 * **Tables, Columns & RLS Policies Involved**:
-  * **`public.bands`** ([`migrations_band_workspace.sql#L12-L19`](file:///d:/chord-grid/migrations_band_workspace.sql#L12-L19)):
+  * **`public.folders`** ([`schema.sql`](schema.sql), [`migrations_011_folders_position.sql`](migrations_011_folders_position.sql)):
+    * `id` (UUID PRIMARY KEY DEFAULT gen_random_uuid())
+    * `name` (TEXT NOT NULL)
+    * `parent_id` (UUID REFERENCES public.folders(id) ON DELETE CASCADE)
+    * `position` (INTEGER NULL) — custom drag-and-drop ordering index
+    * `band_id` (UUID REFERENCES public.bands(id) ON DELETE CASCADE)
+    * `created_by` (UUID REFERENCES auth.users(id) ON DELETE SET NULL)
+    * `created_at` (TIMESTAMPTZ NOT NULL DEFAULT NOW())
+    * `deleted_at` (TIMESTAMPTZ DEFAULT NULL)
+  * **`public.bands`** ([`migrations_band_workspace.sql#L12-L19`](migrations_band_workspace.sql#L12-L19)):
     * `id` (UUID PRIMARY KEY DEFAULT gen_random_uuid())
     * `name` (TEXT NOT NULL)
     * `code` (TEXT NOT NULL UNIQUE)
     * `admin_id` (UUID REFERENCES auth.users(id) ON DELETE SET NULL)
     * `created_at` (TIMESTAMPTZ NOT NULL DEFAULT NOW())
     * `updated_at` (TIMESTAMPTZ NOT NULL DEFAULT NOW())
-    * **RLS Policies** ([`migrations_locked_down_security.sql#L289-L317`](file:///d:/chord-grid/migrations_locked_down_security.sql#L289-L317)):
+    * **RLS Policies** ([`migrations_locked_down_security.sql#L289-L317`](migrations_locked_down_security.sql#L289-L317)):
       * SELECT: `"Allow read bands"` (`TO authenticated, anon USING (true)`)
       * INSERT: `"Allow authenticated insert bands"` (`TO authenticated WITH CHECK (auth.uid() = admin_id)`)
       * UPDATE: `"Allow admin update bands"` (`TO authenticated USING (auth.uid() = admin_id) WITH CHECK (auth.uid() = admin_id)`)
       * DELETE: `"Allow admin delete bands"` (`TO authenticated USING (auth.uid() = admin_id)`)
-  * **`public.profiles`** ([`schema.sql#L12-L21`](file:///d:/chord-grid/schema.sql#L12-L21), [`migrations_band_workspace.sql#L22-L37`](file:///d:/chord-grid/migrations_band_workspace.sql#L22-L37)):
+  * **`public.profiles`** ([`schema.sql#L12-L21`](schema.sql#L12-L21), [`migrations_band_workspace.sql#L22-L37`](migrations_band_workspace.sql#L22-L37)):
     * `id` (UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE)
     * `email` (TEXT)
     * `username` (TEXT UNIQUE NOT NULL)
@@ -523,7 +536,7 @@ This section documents the current real-world implementation of collaborative ba
     * `band_name` (TEXT)
     * `created_at` (TIMESTAMPTZ NOT NULL DEFAULT NOW())
     * `updated_at` (TIMESTAMPTZ NOT NULL DEFAULT NOW())
-    * **RLS Policies** ([`migrations_locked_down_security.sql#L320-L353`](file:///d:/chord-grid/migrations_locked_down_security.sql#L320-L353)):
+    * **RLS Policies** ([`migrations_locked_down_security.sql#L320-L353`](migrations_locked_down_security.sql#L320-L353)):
       * SELECT: `"Allow read profiles"` (`TO authenticated, anon USING (true)`)
       * INSERT: `"Allow insert own profile"` (`TO authenticated WITH CHECK (auth.uid() = id)`)
       * UPDATE: `"Allow update own profile"` (`TO authenticated USING (auth.uid() = id) WITH CHECK (auth.uid() = id)`)
@@ -533,24 +546,26 @@ This section documents the current real-world implementation of collaborative ba
   * **`band_id` Column on Content Tables**:
     * **Not implemented / None**. The catalog tables (`folders`, `charts`, `lyrics`, `setlists`, `setlist_items`) do not contain a `band_id` column.
 * **Migration Execution Order**:
-  1. [`schema.sql`](file:///d:/chord-grid/schema.sql): Sets up base tables (`profiles`, `folders`, `charts`, `lyrics`, `setlists`, `setlist_items`), uuid extension, and `handle_new_user` trigger.
-  2. [`migrations_auth_username_email.sql`](file:///d:/chord-grid/migrations_auth_username_email.sql): Adds `email`, `username`, and `display_name` columns and defines the `resolve_login_email` RPC.
-  3. [`migrations_band_workspace.sql`](file:///d:/chord-grid/migrations_band_workspace.sql): Creates `public.bands`, adds `band_id` and `band_name` columns to `profiles`, inserts the default `'Choir Band'` with code `'1234'`, and publishes `bands` and `profiles` to `supabase_realtime`.
-  4. [`migrations_shared_workspace_realtime.sql`](file:///d:/chord-grid/migrations_shared_workspace_realtime.sql): Enables `REPLICA IDENTITY FULL` on content tables and adds them to `supabase_realtime`.
-  5. [`migrations_locked_down_security.sql`](file:///d:/chord-grid/migrations_locked_down_security.sql): Consolidates and hardens RLS policies across all tables, dropping wide-open policies and securing mutations while keeping read access for collaboration and stage followers. *(Supersedes the older isolation script `migrations_secure_rls.sql`)*.
+  1. [`schema.sql`](schema.sql): Sets up base tables (`profiles`, `folders`, `charts`, `lyrics`, `setlists`, `setlist_items`), uuid extension, and `handle_new_user` trigger.
+  2. [`migrations_auth_username_email.sql`](migrations_auth_username_email.sql): Adds `email`, `username`, and `display_name` columns and defines the `resolve_login_email` RPC.
+  3. [`migrations_band_workspace.sql`](migrations_band_workspace.sql): Creates `public.bands`, adds `band_id` and `band_name` columns to `profiles`, inserts the default `'Choir Band'` with code `'1234'`, and publishes `bands` and `profiles` to `supabase_realtime`.
+  4. [`migrations_shared_workspace_realtime.sql`](migrations_shared_workspace_realtime.sql): Enables `REPLICA IDENTITY FULL` on content tables and adds them to `supabase_realtime`.
+  5. [`migrations_locked_down_security.sql`](migrations_locked_down_security.sql): Consolidates and hardens RLS policies across all tables, dropping wide-open policies and securing mutations while keeping read access for collaboration and stage followers. *(Supersedes the older isolation script `migrations_secure_rls.sql`)*.
+  6. [`migrations_010_fix_mobile_chart_access.sql`](migrations_010_fix_mobile_chart_access.sql): Opens SELECT access across charts, lyrics, and folders for all band members and mobile followers while strictly securing write/delete mutations.
+  7. [`migrations_011_folders_position.sql`](migrations_011_folders_position.sql): Adds nullable `position` column (`INTEGER`) and index `idx_folders_position` to `public.folders` to enable custom admin-controlled drag-and-drop folder ordering.
 
 ---
 
 ### 7. Known Limitations
 
-1. **Global Content Catalog (No Multi-Tenancy Isolation)**: Content tables (`charts`, `lyrics`, `folders`, `setlists`) lack a `band_id` column. All authenticated users share the same database catalog, meaning songs created in Band A are visible and synchronized to members of Band B on the same Supabase instance ([`lib/storage.ts#L209-L228`](file:///d:/chord-grid/lib/storage.ts#L209-L228)).
-2. **Missing `band_members` Table & Single Band Limit**: Band membership is a single scalar column on `profiles.band_id`. Users cannot belong to multiple bands simultaneously, and admins cannot view a roster of connected members ([`migrations_band_workspace.sql#L28`](file:///d:/chord-grid/migrations_band_workspace.sql#L28)).
+1. **Global Content Catalog (No Multi-Tenancy Isolation)**: Content tables (`charts`, `lyrics`, `folders`, `setlists`) lack a `band_id` column. All authenticated users share the same database catalog, meaning songs created in Band A are visible and synchronized to members of Band B on the same Supabase instance ([`lib/storage.ts#L209-L228`](lib/storage.ts#L209-L228)).
+2. **Missing `band_members` Table & Single Band Limit**: Band membership is a single scalar column on `profiles.band_id`. Users cannot belong to multiple bands simultaneously, and admins cannot view a roster of connected members ([`migrations_band_workspace.sql#L28`](migrations_band_workspace.sql#L28)).
 3. **No Member Management**: There are no admin features to invite members by email, approve join requests, kick/remove members, or promote/demote members.
-4. **Client-Side Admin Role Elevation**: Unlocking the `admin` role is verified only on the client against a local passcode (default `"1234"` in [`lib/adminAuth.ts`](file:///d:/chord-grid/lib/adminAuth.ts#L1-L20)), allowing any user possessing the passcode to elevate their profile.
+4. **Client-Side Admin Role Elevation**: Unlocking the `admin` role is verified only on the client against a local passcode (default `"1234"` in [`lib/adminAuth.ts`](lib/adminAuth.ts#L1-L20)), allowing any user possessing the passcode to elevate their profile.
 5. **Immutable & Non-Expiring Band Codes**: Band codes do not support expiration, regeneration, or revocation.
-6. **Hardcoded Email Heuristics**: [`lib/band.ts#L258-L279`](file:///d:/chord-grid/lib/band.ts#L258-L279) contains hardcoded email substring checks (`ddosatt`, `donythomas`) that automatically link matching accounts to a hardcoded church band code (`INFANTJESUS`).
+6. **Hardcoded Email Heuristics**: [`lib/band.ts#L258-L279`](lib/band.ts#L258-L279) contains hardcoded email substring checks (`ddosatt`, `donythomas`) that automatically link matching accounts to a hardcoded church band code (`INFANTJESUS`).
 7. **Decoupled Stage Sync**: Live performance stage rooms (`/perform/[code]`) operate on ephemeral random 6-character codes and are completely disconnected from the band workspace.
-8. **No Local Cache Cleanup on Leave**: Calling `leaveBand()` unlinks the active band profile but does not purge previously downloaded songs or folders from the browser's IndexedDB ([`lib/band.ts#L420-L440`](file:///d:/chord-grid/lib/band.ts#L420-L440)).
+8. **No Local Cache Cleanup on Leave**: Calling `leaveBand()` unlinks the active band profile but does not purge previously downloaded songs or folders from the browser's IndexedDB ([`lib/band.ts#L420-L440`](lib/band.ts#L420-L440)).
 
 ---
 
@@ -631,11 +646,13 @@ sequenceDiagram
 
 ## 🧪 Testing
 
-Unit tests for musical transposition, chord parsing, and notation structures are written using **Vitest**:
+Unit and integration tests for musical transposition, chord parsing, voicing calculator, offline sync engine, folder positioning, and notation structures are written using **Vitest**:
 
 ```bash
 npm test
 ```
+
+Currently **180 tests passing across 11 test suites** with 100% pass rate.
 
 To run tests in watch mode during development:
 ```bash

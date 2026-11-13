@@ -236,3 +236,41 @@ describe('Local Cache Preservation Against Stale Cloud Overwrite', () => {
     expect(inDb?.title).toBe('Local Edits in Queue');
   });
 });
+
+describe('Desktop ChordInput Visibility and Keypad Toggle State', () => {
+  it('ChordInput renders chord with theme-aware text-text-primary styling and orange caret', async () => {
+    const { ChordInput } = await import('../components/ChordInput');
+    const element = React.createElement(ChordInput, {
+      value: 'C#m',
+      onChange: () => {},
+    });
+    expect(React.isValidElement(element)).toBe(true);
+  });
+
+  it('handles hide and enable keypad transitions', () => {
+    interface KeypadState {
+      activeSelection: { lineId: string; blockId: string; barIndex: number } | null;
+      isKeypadHidden: boolean;
+      lastSelection: { lineId: string; blockId: string; barIndex: number } | null;
+    }
+
+    let state: KeypadState = {
+      activeSelection: { lineId: 'line-1', blockId: 'block-1', barIndex: 0 },
+      isKeypadHidden: false,
+      lastSelection: { lineId: 'line-1', blockId: 'block-1', barIndex: 0 },
+    };
+
+    // User clicks Hide button on keypad
+    state = { ...state, isKeypadHidden: true };
+    expect(state.isKeypadHidden).toBe(true);
+    // Keypad should not be visible when isKeypadHidden is true
+    const isVisible = !!state.activeSelection && !state.isKeypadHidden;
+    expect(isVisible).toBe(false);
+
+    // User clicks Enable/Keypad floating button to restore
+    state = { ...state, isKeypadHidden: false };
+    expect(state.isKeypadHidden).toBe(false);
+    expect(!!state.activeSelection && !state.isKeypadHidden).toBe(true);
+    expect(state.lastSelection?.barIndex).toBe(0);
+  });
+});

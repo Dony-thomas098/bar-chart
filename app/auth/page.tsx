@@ -15,7 +15,9 @@ import {
   X, 
   CheckCircle2, 
   AlertCircle, 
-  ArrowLeft 
+  ArrowLeft,
+  ArrowRight,
+  UserPlus
 } from 'lucide-react';
 
 type TabMode = 'signin' | 'signup';
@@ -68,8 +70,6 @@ export default function AuthPage() {
     return '/';
   };
 
-
-
   // Detect iOS / macOS platform for Apple Sign In display
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -116,7 +116,6 @@ export default function AuthPage() {
         setGeneralError(null);
         setSuccessMessage(null);
       } else if (event === 'SIGNED_IN' && session?.user) {
-        // Safely sync user email & username to profiles without wiping band_id, role, or instrument
         try {
           const userMeta = session.user.user_metadata || {};
           const fallbackUsername = userMeta.username || (session.user.email ? session.user.email.split('@')[0] : '');
@@ -346,14 +345,13 @@ export default function AuthPage() {
 
         // Resolve username to email if no '@' present
         if (!cleanIdentifier.includes('@')) {
-          // 1. Try local cached mapping first
           const cachedEmail = typeof window !== 'undefined' ? localStorage.getItem(`cc_user_${cleanIdentifier.toLowerCase()}`) : null;
           if (cachedEmail) {
             targetEmail = cachedEmail;
           } else {
             let foundEmail: string | null = null;
 
-            // 2. Try Supabase RPC resolve_login_email (high performance, secure, case-insensitive)
+            // 1. Try Supabase RPC resolve_login_email
             try {
               const { data: rpcEmail, error: rpcErr } = await supabase.rpc('resolve_login_email', {
                 identifier: cleanIdentifier,
@@ -365,7 +363,7 @@ export default function AuthPage() {
               console.debug('[Auth] RPC lookup skipped:', rpcEx);
             }
 
-            // 2b. Try Migration 009 RPC get_email_for_username
+            // 2. Try Migration 009 RPC get_email_for_username
             if (!foundEmail) {
               try {
                 const { data: rpcEmail, error: rpcErr } = await supabase.rpc('get_email_for_username', {
@@ -396,7 +394,7 @@ export default function AuthPage() {
               }
             }
 
-            // 4. Fallback: Query public.profiles where email starts with username (e.g. dony -> dony@gmail.com)
+            // 4. Fallback: Query public.profiles where email starts with username
             if (!foundEmail) {
               try {
                 const { data: profileByPrefix } = await supabase
@@ -414,7 +412,6 @@ export default function AuthPage() {
             if (foundEmail) {
               targetEmail = foundEmail;
             } else {
-              // 5. Fallback for legacy username-only test accounts
               targetEmail = `${cleanIdentifier.toLowerCase()}@chordcraft.app`;
             }
           }
@@ -426,18 +423,16 @@ export default function AuthPage() {
         });
 
         if (error) {
-          // Increment failed attempts
           const nextFailed = failedAttempts + 1;
           setFailedAttempts(nextFailed);
           if (nextFailed >= 5) {
             setLockoutTimer(60);
             throw new Error('Too many failed attempts. For security, please wait 60 seconds.');
           }
-          // Generic security error so accounts cannot be probed
           throw new Error('Incorrect username or password. Please try again.');
         }
 
-        // Cache resolution on success so subsequent logins on this device are instant
+        // Cache resolution on success
         if (typeof window !== 'undefined') {
           localStorage.setItem(`cc_user_${cleanIdentifier.toLowerCase()}`, targetEmail);
           if (targetEmail.includes('@')) {
@@ -453,7 +448,6 @@ export default function AuthPage() {
           }
         }
 
-        // Reset failed attempts on success
         setFailedAttempts(0);
         router.push(getReturnToUrl());
       } catch (err: any) {
@@ -483,7 +477,6 @@ export default function AuthPage() {
       setIsSubmitting(true);
 
       try {
-        // Pre-check: Check if username is already taken in profiles
         try {
           const { data: existingUser } = await supabase
             .from('profiles')
@@ -500,7 +493,6 @@ export default function AuthPage() {
           console.debug('[Auth] Pre-check username error:', checkErr);
         }
 
-        // Call Supabase signUp with email, password, and custom username metadata
         const { data, error } = await supabase.auth.signUp({
           email: cleanEmail,
           password,
@@ -519,7 +511,6 @@ export default function AuthPage() {
           throw error;
         }
 
-        // Cache mapping locally so username login works immediately on this device
         if (typeof window !== 'undefined') {
           localStorage.setItem(`cc_user_${cleanUsername}`, cleanEmail);
           localStorage.setItem(`cc_user_${cleanEmail}`, cleanEmail);
@@ -628,11 +619,96 @@ export default function AuthPage() {
 
   return (
     <main 
-      className="relative min-h-[100dvh] w-full flex flex-col items-center justify-center bg-[#0F1015] text-[#FFFFFF] px-4 sm:px-6 pt-[max(env(safe-area-inset-top),20px)] pb-[max(env(safe-area-inset-bottom),28px)] font-sans select-none overflow-y-auto"
-      style={{
-        backgroundImage: 'radial-gradient(circle at 12% 8%, rgba(255, 90, 0, 0.22) 0%, rgba(43, 23, 16, 0.48) 32%, transparent 65%)'
-      }}
+      className="relative min-h-[100dvh] w-full flex flex-col items-center justify-center bg-[#07080D] text-white px-4 sm:px-6 pt-[max(env(safe-area-inset-top),20px)] pb-[max(env(safe-area-inset-bottom),28px)] font-sans select-none overflow-x-hidden overflow-y-auto"
     >
+      {/* ── BACKGROUND ARTWORK & ABSTRACT WAVES ──────────────────────────── */}
+      <div className="fixed inset-0 pointer-events-none select-none overflow-hidden z-0" aria-hidden="true">
+        {/* Ambient Center Backlight */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[540px] h-[540px] rounded-full bg-gradient-to-tr from-[#FF5A00]/16 via-[#FF2D55]/12 to-[#9333EA]/16 blur-[130px]" />
+
+        {/* Top-Left: Fluid Curved Flame / Sunset Organic Waves (Matching Reference Image) */}
+        <div className="absolute top-0 left-0 w-[300px] sm:w-[420px] h-[300px] sm:h-[420px] pointer-events-none">
+          <svg className="w-full h-full overflow-visible" viewBox="0 0 320 320" fill="none">
+            <defs>
+              <linearGradient id="flameLayerOuter" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#EB4800" stopOpacity="0.9" />
+                <stop offset="45%" stopColor="#FF2E55" stopOpacity="0.75" />
+                <stop offset="85%" stopColor="#8B0068" stopOpacity="0.25" />
+                <stop offset="100%" stopColor="#07080D" stopOpacity="0" />
+              </linearGradient>
+              <linearGradient id="flameLayerInner" x1="0%" y1="0%" x2="85%" y2="85%">
+                <stop offset="0%" stopColor="#FF6A00" stopOpacity="1" />
+                <stop offset="30%" stopColor="#FF3815" stopOpacity="0.95" />
+                <stop offset="70%" stopColor="#FF2D55" stopOpacity="0.85" />
+                <stop offset="100%" stopColor="#07080D" stopOpacity="0" />
+              </linearGradient>
+              <filter id="softFlameBlur" x="-30%" y="-30%" width="160%" height="160%">
+                <feGaussianBlur stdDeviation="24" result="blur" />
+                <feComposite in="SourceGraphic" in2="blur" operator="over" />
+              </filter>
+            </defs>
+            {/* Soft Ambient Outer Flame */}
+            <path
+              d="M 0,0 L 260,0 C 240,70 190,130 140,165 C 80,210 50,260 0,310 Z"
+              fill="url(#flameLayerOuter)"
+              filter="url(#softFlameBlur)"
+              opacity="0.85"
+            />
+            {/* Rich Inner Flame Tongue */}
+            <path
+              d="M 0,0 L 195,0 C 185,55 140,95 105,125 C 60,160 35,200 0,230 Z"
+              fill="url(#flameLayerInner)"
+              opacity="0.95"
+            />
+          </svg>
+        </div>
+
+        {/* Top-Right: Music Spectrum Visualizer Bars (Matching Reference Image) */}
+        <div className="absolute top-16 right-5 sm:top-20 sm:right-10 flex items-end gap-1.5 sm:gap-2 opacity-85 z-0">
+          <div className="w-2 sm:w-2.5 h-6 rounded-full bg-gradient-to-t from-purple-950/70 via-indigo-600/50 to-purple-400/80 shadow-[0_0_8px_rgba(168,85,247,0.4)]" />
+          <div className="w-2 sm:w-2.5 h-14 rounded-full bg-gradient-to-t from-purple-950/70 via-indigo-600/60 to-purple-400/90 shadow-[0_0_12px_rgba(168,85,247,0.5)]" />
+          <div className="w-2 sm:w-2.5 h-10 rounded-full bg-gradient-to-t from-purple-950/70 via-indigo-600/55 to-purple-400/85 shadow-[0_0_10px_rgba(168,85,247,0.45)]" />
+          <div className="w-2 sm:w-2.5 h-20 rounded-full bg-gradient-to-t from-purple-950/70 via-indigo-600/65 to-purple-300/95 shadow-[0_0_14px_rgba(168,85,247,0.55)]" />
+        </div>
+
+        {/* Bottom-Right: Flowing Neon Magenta / Purple Liquid Waves (Matching Reference Image) */}
+        <div className="absolute bottom-0 right-0 w-[320px] sm:w-[440px] h-[320px] sm:h-[440px] pointer-events-none">
+          <svg className="w-full h-full overflow-visible" viewBox="0 0 340 340" fill="none">
+            <defs>
+              <linearGradient id="magentaLayerOuter" x1="100%" y1="100%" x2="0%" y2="0%">
+                <stop offset="0%" stopColor="#C026D3" stopOpacity="0.95" />
+                <stop offset="40%" stopColor="#FF2D55" stopOpacity="0.8" />
+                <stop offset="80%" stopColor="#6B21A8" stopOpacity="0.3" />
+                <stop offset="100%" stopColor="#07080D" stopOpacity="0" />
+              </linearGradient>
+              <linearGradient id="magentaLayerInner" x1="100%" y1="100%" x2="20%" y2="20%">
+                <stop offset="0%" stopColor="#D946EF" stopOpacity="1" />
+                <stop offset="45%" stopColor="#E11D48" stopOpacity="0.9" />
+                <stop offset="80%" stopColor="#9333EA" stopOpacity="0.5" />
+                <stop offset="100%" stopColor="#07080D" stopOpacity="0" />
+              </linearGradient>
+            </defs>
+            <path
+              d="M 340,340 L 340,90 C 280,120 220,170 170,220 C 130,265 90,300 0,340 Z"
+              fill="url(#magentaLayerOuter)"
+              filter="blur(22px)"
+              opacity="0.9"
+            />
+            <path
+              d="M 340,340 L 340,160 C 295,185 250,225 210,265 C 180,295 150,320 70,340 Z"
+              fill="url(#magentaLayerInner)"
+              opacity="0.85"
+            />
+          </svg>
+        </div>
+
+        {/* Glowing Decorative Dust Particles (Matching Reference Image) */}
+        <div className="absolute top-[16%] left-[24%] w-1.5 h-1.5 rounded-full bg-[#FF7A00] shadow-[0_0_8px_#FF7A00] opacity-85 animate-pulse" />
+        <div className="absolute top-[28%] right-[11%] w-2 h-2 rounded-full bg-[#FF3B30] shadow-[0_0_10px_#FF3B30] opacity-75 animate-pulse" />
+        <div className="absolute bottom-[28%] left-[14%] w-1.5 h-1.5 rounded-full bg-[#C084FC] shadow-[0_0_8px_#C084FC] opacity-70" />
+        <div className="absolute bottom-[16%] right-[24%] w-2 h-2 rounded-full bg-[#FF2D55] shadow-[0_0_10px_#FF2D55] opacity-80 animate-pulse" />
+      </div>
+
       {/* Desktop-only back button */}
       <button
         type="button"
@@ -643,7 +719,7 @@ export default function AuthPage() {
             router.push('/');
           }
         }}
-        className="hidden md:inline-flex fixed top-5 left-5 z-50 items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-full bg-[#17171C]/80 hover:bg-[#23232A] text-white border border-[#2C2C34] hover:border-white/20 shadow-md backdrop-blur-md transition-all active:scale-95 cursor-pointer select-none"
+        className="hidden md:inline-flex fixed top-5 left-5 z-40 items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-full bg-[#13141E]/80 hover:bg-[#1C1D2A] text-white/90 hover:text-white border border-white/10 hover:border-white/20 shadow-md backdrop-blur-md transition-all active:scale-95 cursor-pointer select-none"
         title="Go back"
         aria-label="Go back"
       >
@@ -651,32 +727,93 @@ export default function AuthPage() {
         <span>Back</span>
       </button>
 
-      {/* Centered Main Card */}
-      <div className="w-full max-w-[440px] my-auto rounded-[32px] bg-[#17171C] border border-[#2C2C34] p-6 sm:p-8 shadow-[0_24px_64px_rgba(0,0,0,0.65),0_1px_0_rgba(255,255,255,0.05)_inset] select-auto transition-all">
-        {/* 1. App Logo, Title, Subtitle */}
-            <div className="flex flex-col items-center text-center mb-6">
-          <div className="w-14 h-14 rounded-2xl bg-[#231816] border border-[#3E2319] flex items-center justify-center shadow-lg shadow-[#FF5A00]/10 mb-4 transition-transform hover:scale-105">
-            <img 
-              src="/icon.png" 
-              alt="Chordly Logo" 
-              className="w-9 h-9 object-contain"
-            />
+      {/* ── CENTERED AUTH PANEL ────────────────────────────────────────── */}
+      <div className="w-full max-w-[430px] my-auto rounded-none sm:rounded-[36px] bg-transparent sm:bg-[#12131C]/85 border-0 sm:border sm:border-white/[0.08] p-2 sm:p-8 shadow-none sm:shadow-[0_24px_64px_rgba(0,0,0,0.7),0_1px_0_rgba(255,255,255,0.06)_inset] sm:backdrop-blur-xl relative z-10 select-auto transition-all">
+        
+        {/* 1. Header: Glowing Orbital Logo + Title + Subtitle */}
+        <div className="flex flex-col items-center text-center mb-5">
+          {/* Logo with Orbital Ring & Ambient Backglow */}
+          <div className="relative flex items-center justify-center mb-4.5 w-24 h-24">
+            {/* Ambient Warm Backglow */}
+            <div className="absolute inset-1.5 rounded-[24px] bg-gradient-to-tr from-[#FF5A00] via-[#FF3B30] to-[#FF2D55] blur-xl opacity-60 animate-chordly-glow" />
+
+            {/* Orbital Ring SVG */}
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none">
+              <svg className="w-36 h-20 -rotate-[20deg] overflow-visible" viewBox="0 0 144 80">
+                <defs>
+                  <linearGradient id="orbitGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#FF7A00" stopOpacity="0.9" />
+                    <stop offset="45%" stopColor="#FF2D55" stopOpacity="0.85" />
+                    <stop offset="80%" stopColor="#A855F7" stopOpacity="0.4" />
+                    <stop offset="100%" stopColor="#3B82F6" stopOpacity="0.1" />
+                  </linearGradient>
+                </defs>
+                {/* Orbital Elliptical Path */}
+                <ellipse
+                  cx="72"
+                  cy="40"
+                  rx="66"
+                  ry="24"
+                  fill="none"
+                  stroke="url(#orbitGrad)"
+                  strokeWidth="1.6"
+                  strokeDasharray="160 25"
+                  opacity="0.85"
+                />
+                {/* Glowing Satellite Dot */}
+                <circle
+                  cx="132"
+                  cy="45"
+                  r="2.5"
+                  fill="#FFFFFF"
+                  className="animate-pulse"
+                  filter="drop-shadow(0 0 4px #FF5A00)"
+                />
+              </svg>
+            </div>
+
+            {/* Squircle Dark Container */}
+            <div className="w-[74px] h-[74px] rounded-[22px] bg-[#161722] border border-white/[0.14] flex items-center justify-center shadow-[0_8px_24px_rgba(0,0,0,0.5),0_1px_0_rgba(255,255,255,0.1)_inset] relative z-10 transition-transform duration-300 hover:scale-105 animate-chordly-float">
+              <img 
+                src="/icon.png" 
+                alt="Chordly Logo" 
+                className="w-11 h-11 object-contain drop-shadow"
+              />
+            </div>
           </div>
-          <h1 className="text-2xl sm:text-[28px] font-extrabold text-white tracking-tight mb-1">
-            {tabMode === 'signin' ? 'Welcome back' : 'Create Account'}
+
+          {/* Heading */}
+          <h1 className="text-2xl sm:text-[30px] font-extrabold text-white tracking-tight mb-1">
+            {tabMode === 'signin' ? (
+              <>
+                Welcome <span className="bg-gradient-to-r from-[#FF5A00] via-[#FF3B30] to-[#FF2D55] bg-clip-text text-transparent">back</span>
+              </>
+            ) : (
+              <>
+                Create <span className="bg-gradient-to-r from-[#FF5A00] via-[#FF3B30] to-[#FF2D55] bg-clip-text text-transparent">Account</span>
+              </>
+            )}
           </h1>
-          <p className="text-sm text-[#8C8A93]">
+
+          {/* Subtitle */}
+          <p className="text-sm text-[#8E8D9A]">
             {tabMode === 'signin' 
               ? 'Sign in to continue to your charts' 
               : 'Create an account to sync your charts across devices'}
           </p>
+
+          {/* Small Decorative Gradient Line */}
+          <div 
+            className="w-9 h-[3px] rounded-full bg-gradient-to-r from-[#FF5A00] via-[#FF3B30] to-[#FF2D55] mx-auto mt-2.5 shadow-[0_0_8px_rgba(255,90,0,0.4)]" 
+            aria-hidden="true" 
+          />
         </div>
 
-        {/* 2. Segmented Toggle: Sign In | Create Account */}
+        {/* 2. Segmented Pill Tabs: Sign In | Create Account */}
         <div 
           role="tablist" 
           aria-label="Account sign in or creation"
-          className="w-full h-[50px] bg-[#121216] border border-[#2C2C34] rounded-full p-1 flex items-center mb-6 relative"
+          className="w-full h-[52px] bg-[#0E0F15] border border-white/[0.08] rounded-full p-1 flex items-center my-6 relative backdrop-blur-sm"
         >
           <button
             type="button"
@@ -692,14 +829,16 @@ export default function AuthPage() {
                 setIdentifier(signupEmail);
               }
             }}
-            className={`flex-1 h-full rounded-full text-sm font-bold transition-all cursor-pointer flex items-center justify-center focus-visible:ring-2 focus-visible:ring-[#FF5A00] focus-visible:outline-none ${
+            className={`flex-1 h-full rounded-full text-sm font-bold transition-all cursor-pointer flex items-center justify-center gap-2 focus-visible:ring-2 focus-visible:ring-[#FF5A00] focus-visible:outline-none ${
               tabMode === 'signin'
-                ? 'bg-gradient-to-r from-[#FF5A00] to-[#FF5C7A] text-white shadow-[0_2px_10px_rgba(255,90,0,0.35)]'
-                : 'text-[#8C8A93] hover:text-white'
+                ? 'bg-gradient-to-r from-[#FF5A00] via-[#FF3B30] to-[#FF2D55] text-white shadow-[0_4px_18px_rgba(255,70,50,0.5),0_0_12px_rgba(255,90,0,0.35)]'
+                : 'text-[#8E8D9A] hover:text-white'
             }`}
           >
-            Sign In
+            <User size={16} className={tabMode === 'signin' ? 'text-white' : 'text-[#8E8D9A]'} aria-hidden="true" />
+            <span>Sign In</span>
           </button>
+
           <button
             type="button"
             role="tab"
@@ -709,13 +848,14 @@ export default function AuthPage() {
               setGeneralError(null);
               setSuccessMessage(null);
             }}
-            className={`flex-1 h-full rounded-full text-sm font-bold transition-all cursor-pointer flex items-center justify-center focus-visible:ring-2 focus-visible:ring-[#FF5A00] focus-visible:outline-none ${
+            className={`flex-1 h-full rounded-full text-sm font-bold transition-all cursor-pointer flex items-center justify-center gap-2 focus-visible:ring-2 focus-visible:ring-[#FF5A00] focus-visible:outline-none ${
               tabMode === 'signup'
-                ? 'bg-gradient-to-r from-[#FF5A00] to-[#FF5C7A] text-white shadow-[0_2px_10px_rgba(255,90,0,0.35)]'
-                : 'text-[#8C8A93] hover:text-white'
+                ? 'bg-gradient-to-r from-[#FF5A00] via-[#FF3B30] to-[#FF2D55] text-white shadow-[0_4px_18px_rgba(255,70,50,0.5),0_0_12px_rgba(255,90,0,0.35)]'
+                : 'text-[#8E8D9A] hover:text-white'
             }`}
           >
-            Create Account
+            <UserPlus size={16} className={tabMode === 'signup' ? 'text-white' : 'text-[#8E8D9A]'} aria-hidden="true" />
+            <span>Create Account</span>
           </button>
         </div>
 
@@ -724,7 +864,7 @@ export default function AuthPage() {
           <div 
             role="alert" 
             aria-live="polite"
-            className="mb-5 p-3 rounded-2xl bg-[#FF5C7A]/10 border border-[#FF5C7A]/25 text-[#FF5C7A] text-xs font-medium flex items-start gap-2.5"
+            className="mb-4 p-3 rounded-2xl bg-[#FF2D55]/10 border border-[#FF2D55]/25 text-[#FF5C7A] text-xs font-medium flex items-start gap-2.5 animate-in fade-in"
           >
             <AlertCircle size={16} className="mt-0.5 shrink-0" />
             <span>{generalError}</span>
@@ -735,33 +875,33 @@ export default function AuthPage() {
           <div 
             role="status" 
             aria-live="polite"
-            className="mb-5 p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 text-xs font-medium flex items-start gap-2.5"
+            className="mb-4 p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 text-xs font-medium flex items-start gap-2.5 animate-in fade-in"
           >
             <CheckCircle2 size={16} className="mt-0.5 shrink-0" />
             <span>{successMessage}</span>
           </div>
         )}
 
-        {/* Auth Form */}
+        {/* 3. Auth Form */}
         <form ref={formRef} onSubmit={handleAuth} noValidate className="space-y-4">
           
           {tabMode === 'signin' ? (
-            /* 3. Field: Username or email (Sign In) */
+            /* Field: Username or email (Sign In) */
             <div>
               <label 
                 htmlFor="auth-identifier" 
-                className="block text-[11px] font-bold tracking-wider text-[#8C8A93] uppercase mb-2"
+                className="block text-[11px] font-bold tracking-[0.08em] text-[#8E8D9A] uppercase mb-2"
               >
                 Username or email
               </label>
               <div 
-                className={`relative flex items-center bg-[#121216] border rounded-2xl h-[52px] px-3.5 transition-all ${
+                className={`relative flex items-center bg-[#0E0F17] border rounded-2xl h-[54px] px-3.5 transition-all ${
                   identifierError 
                     ? 'border-[#FF5C7A] ring-1 ring-[#FF5C7A]/30' 
-                    : 'border-[#33333C] focus-within:border-[#FF5A00] focus-within:ring-2 focus-within:ring-[#FF5A00]/25'
+                    : 'border-[#262738] focus-within:border-[#FF5A00] focus-within:ring-1 focus-within:ring-[#FF5A00]/40 focus-within:shadow-[0_0_18px_rgba(255,90,0,0.22)]'
                 }`}
               >
-                <User size={18} className="text-[#8C8A93] shrink-0" aria-hidden="true" />
+                <User size={18} className="text-[#7B7A8B] shrink-0" aria-hidden="true" />
                 <input
                   id="auth-identifier"
                   name="username"
@@ -776,7 +916,7 @@ export default function AuthPage() {
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
                   onBlur={() => setIdentifierTouched(true)}
-                  className="w-full bg-transparent text-white placeholder-[#5E5C64] text-sm pl-2.5 pr-2 focus:outline-none"
+                  className="w-full bg-transparent text-white placeholder-[#585768] text-sm pl-2.5 pr-2 focus:outline-none"
                 />
               </div>
               {identifierError && (
@@ -787,24 +927,24 @@ export default function AuthPage() {
               )}
             </div>
           ) : (
-            /* Fields for Create Account: Username + Email Address */
+            /* Fields for Create Account: Username + Email */
             <>
               {/* Field: Username */}
               <div>
                 <label 
                   htmlFor="signup-username" 
-                  className="block text-[11px] font-bold tracking-wider text-[#8C8A93] uppercase mb-2"
+                  className="block text-[11px] font-bold tracking-[0.08em] text-[#8E8D9A] uppercase mb-2"
                 >
                   Username
                 </label>
                 <div 
-                  className={`relative flex items-center bg-[#121216] border rounded-2xl h-[52px] px-3.5 transition-all ${
+                  className={`relative flex items-center bg-[#0E0F17] border rounded-2xl h-[54px] px-3.5 transition-all ${
                     signupUsernameError 
                       ? 'border-[#FF5C7A] ring-1 ring-[#FF5C7A]/30' 
-                      : 'border-[#33333C] focus-within:border-[#FF5A00] focus-within:ring-2 focus-within:ring-[#FF5A00]/25'
+                      : 'border-[#262738] focus-within:border-[#FF5A00] focus-within:ring-1 focus-within:ring-[#FF5A00]/40 focus-within:shadow-[0_0_18px_rgba(255,90,0,0.22)]'
                   }`}
                 >
-                  <User size={18} className="text-[#8C8A93] shrink-0" aria-hidden="true" />
+                  <User size={18} className="text-[#7B7A8B] shrink-0" aria-hidden="true" />
                   <input
                     id="signup-username"
                     name="username"
@@ -818,7 +958,7 @@ export default function AuthPage() {
                     value={signupUsername}
                     onChange={(e) => setSignupUsername(e.target.value.toLowerCase().replace(/\s+/g, ''))}
                     onBlur={() => setSignupUsernameTouched(true)}
-                    className="w-full bg-transparent text-white placeholder-[#5E5C64] text-sm pl-2.5 pr-2 focus:outline-none"
+                    className="w-full bg-transparent text-white placeholder-[#585768] text-sm pl-2.5 pr-2 focus:outline-none"
                   />
                 </div>
                 {signupUsernameError && (
@@ -833,18 +973,18 @@ export default function AuthPage() {
               <div>
                 <label 
                   htmlFor="signup-email" 
-                  className="block text-[11px] font-bold tracking-wider text-[#8C8A93] uppercase mb-2"
+                  className="block text-[11px] font-bold tracking-[0.08em] text-[#8E8D9A] uppercase mb-2"
                 >
                   Email address
                 </label>
                 <div 
-                  className={`relative flex items-center bg-[#121216] border rounded-2xl h-[52px] px-3.5 transition-all ${
+                  className={`relative flex items-center bg-[#0E0F17] border rounded-2xl h-[54px] px-3.5 transition-all ${
                     signupEmailError 
                       ? 'border-[#FF5C7A] ring-1 ring-[#FF5C7A]/30' 
-                      : 'border-[#33333C] focus-within:border-[#FF5A00] focus-within:ring-2 focus-within:ring-[#FF5A00]/25'
+                      : 'border-[#262738] focus-within:border-[#FF5A00] focus-within:ring-1 focus-within:ring-[#FF5A00]/40 focus-within:shadow-[0_0_18px_rgba(255,90,0,0.22)]'
                   }`}
                 >
-                  <Mail size={18} className="text-[#8C8A93] shrink-0" aria-hidden="true" />
+                  <Mail size={18} className="text-[#7B7A8B] shrink-0" aria-hidden="true" />
                   <input
                     id="signup-email"
                     name="email"
@@ -859,7 +999,7 @@ export default function AuthPage() {
                     value={signupEmail}
                     onChange={(e) => setSignupEmail(e.target.value)}
                     onBlur={() => setSignupEmailTouched(true)}
-                    className="w-full bg-transparent text-white placeholder-[#5E5C64] text-sm pl-2.5 pr-2 focus:outline-none"
+                    className="w-full bg-transparent text-white placeholder-[#585768] text-sm pl-2.5 pr-2 focus:outline-none"
                   />
                 </div>
                 {signupEmailError && (
@@ -872,22 +1012,22 @@ export default function AuthPage() {
             </>
           )}
 
-          {/* 4. Field: Password with show/hide eye icon */}
+          {/* 4. Field: Password with eye visibility toggle */}
           <div>
             <label 
               htmlFor="auth-password" 
-              className="block text-[11px] font-bold tracking-wider text-[#8C8A93] uppercase mb-2"
+              className="block text-[11px] font-bold tracking-[0.08em] text-[#8E8D9A] uppercase mb-2"
             >
               Password
             </label>
             <div 
-              className={`relative flex items-center bg-[#121216] border rounded-2xl h-[52px] px-3.5 transition-all ${
+              className={`relative flex items-center bg-[#0E0F17] border rounded-2xl h-[54px] px-3.5 transition-all ${
                 passwordError 
                   ? 'border-[#FF5C7A] ring-1 ring-[#FF5C7A]/30' 
-                  : 'border-[#33333C] focus-within:border-[#FF5A00] focus-within:ring-2 focus-within:ring-[#FF5A00]/25'
+                  : 'border-[#262738] focus-within:border-[#FF5A00] focus-within:ring-1 focus-within:ring-[#FF5A00]/40 focus-within:shadow-[0_0_18px_rgba(255,90,0,0.22)]'
               }`}
             >
-              <Lock size={18} className="text-[#8C8A93] shrink-0" aria-hidden="true" />
+              <Lock size={18} className="text-[#7B7A8B] shrink-0" aria-hidden="true" />
               <input
                 id="auth-password"
                 name="password"
@@ -898,14 +1038,14 @@ export default function AuthPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 onBlur={() => setPasswordTouched(true)}
-                className="w-full bg-transparent text-white placeholder-[#5E5C64] text-sm pl-2.5 pr-10 focus:outline-none"
+                className="w-full bg-transparent text-white placeholder-[#585768] text-sm pl-2.5 pr-10 focus:outline-none"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 aria-label={showPassword ? 'Hide password' : 'Show password'}
                 aria-pressed={showPassword}
-                className="absolute right-2 p-2 text-[#8C8A93] hover:text-white transition-colors cursor-pointer rounded-lg min-w-[40px] min-h-[40px] flex items-center justify-center focus-visible:ring-2 focus-visible:ring-[#FF5A00] focus-visible:outline-none"
+                className="absolute right-2 p-2 text-[#7B7A8B] hover:text-white transition-colors cursor-pointer rounded-lg min-w-[40px] min-h-[40px] flex items-center justify-center focus-visible:ring-2 focus-visible:ring-[#FF5A00] focus-visible:outline-none"
               >
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
@@ -917,7 +1057,7 @@ export default function AuthPage() {
               </p>
             )}
 
-            {/* 5. "Forgot password?" right-aligned directly under password */}
+            {/* Right-aligned "Forgot password?" link under password in sign in */}
             {tabMode === 'signin' && (
               <div className="flex justify-end mt-2">
                 <button
@@ -927,7 +1067,7 @@ export default function AuthPage() {
                     setGeneralError(null);
                     setSuccessMessage(null);
                   }}
-                  className="text-xs sm:text-sm font-semibold text-[#FF6A1F] hover:text-[#ff7f3d] transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-[#FF5A00] focus-visible:outline-none rounded"
+                  className="text-xs sm:text-sm font-semibold text-[#FF6B35] hover:text-[#FF884D] transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-[#FF5A00] focus-visible:outline-none rounded"
                 >
                   Forgot password?
                 </button>
@@ -935,40 +1075,44 @@ export default function AuthPage() {
             )}
           </div>
 
-          {/* 6. Primary Button: Sign In / Create Account */}
+          {/* 5. Primary Sign-In / Create Account Button with circular arrow */}
           <button
             type="submit"
             disabled={isSubmitting || lockoutTimer > 0}
-            className="w-full h-[52px] rounded-full bg-gradient-to-r from-[#FF5A00] to-[#FF5C7A] text-white font-bold text-base shadow-[0_8px_24px_rgba(255,90,0,0.35)] hover:shadow-[0_10px_28px_rgba(255,90,0,0.45)] hover:brightness-105 active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed disabled:active:scale-100 focus-visible:ring-2 focus-visible:ring-[#FF5A00] focus-visible:outline-none mt-2"
+            className="w-full h-[54px] rounded-full bg-gradient-to-r from-[#FF5A00] via-[#FF2E55] to-[#E02475] text-white font-bold text-base shadow-[0_8px_28px_rgba(255,60,50,0.55),0_0_16px_rgba(255,90,0,0.4)] hover:shadow-[0_12px_36px_rgba(255,60,50,0.7),0_0_22px_rgba(255,90,0,0.55)] hover:brightness-105 active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center relative px-6 mt-4 disabled:opacity-60 disabled:cursor-not-allowed disabled:active:scale-100 focus-visible:ring-2 focus-visible:ring-[#FF5A00] focus-visible:outline-none"
           >
             {isSubmitting ? (
               <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
             ) : lockoutTimer > 0 ? (
               `Locked (${lockoutTimer}s)`
-            ) : tabMode === 'signin' ? (
-              'Sign In'
             ) : (
-              'Create Account'
+              <>
+                <span className="mx-auto">{tabMode === 'signin' ? 'Sign In' : 'Create Account'}</span>
+                <div className="absolute right-3.5 w-8 h-8 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center shrink-0" aria-hidden="true">
+                  <ArrowRight size={16} className="text-white" />
+                </div>
+              </>
             )}
           </button>
         </form>
 
-        {/* 7. Divider: OR CONTINUE WITH */}
-        <div className="my-6 flex items-center gap-3">
-          <div className="flex-1 h-px bg-[#2C2C34]" />
-          <span className="text-[10px] font-bold tracking-widest text-[#8C8A93] uppercase whitespace-nowrap">
+        {/* 6. Centered Divider: OR CONTINUE WITH */}
+        <div className="my-5 flex items-center gap-3">
+          <div className="flex-1 h-px bg-white/[0.08]" />
+          <span className="text-[10px] font-bold tracking-[0.1em] text-[#787786] uppercase whitespace-nowrap">
             OR CONTINUE WITH
           </span>
-          <div className="flex-1 h-px bg-[#2C2C34]" />
+          <div className="flex-1 h-px bg-white/[0.08]" />
         </div>
 
-        {/* 8. Continue with Google */}
-        <div className="space-y-2.5">
+        {/* 7. Alternative Login Options */}
+        <div className="space-y-3">
+          {/* Continue with Google */}
           <button
             type="button"
             onClick={handleGoogleLogin}
             disabled={isSubmitting}
-            className="w-full h-[52px] rounded-full bg-[#1C1C22] hover:bg-[#23232A] border border-[#33333C] hover:border-[#444450] text-white font-semibold text-sm transition-all cursor-pointer flex items-center justify-center gap-3 active:scale-[0.98] disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-[#FF5A00] focus-visible:outline-none"
+            className="w-full h-[52px] rounded-full bg-[#13141F] hover:bg-[#1A1B28] border border-white/[0.08] hover:border-white/20 text-white font-medium text-sm transition-all cursor-pointer flex items-center justify-center gap-3 active:scale-[0.98] disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-[#FF5A00] focus-visible:outline-none shadow-sm"
           >
             <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
               <path
@@ -991,13 +1135,13 @@ export default function AuthPage() {
             <span>Continue with Google</span>
           </button>
 
-          {/* Continue with Apple (Included for iOS / Safari / App Store compliance) */}
+          {/* Continue with Apple (iOS / Safari / App Store compliance) */}
           {isApplePlatform && (
             <button
               type="button"
               onClick={handleAppleLogin}
               disabled={isSubmitting}
-              className="w-full h-[52px] rounded-full bg-[#000000] hover:bg-[#111111] border border-[#33333C] hover:border-[#444450] text-white font-semibold text-sm transition-all cursor-pointer flex items-center justify-center gap-2.5 active:scale-[0.98] disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-[#FF5A00] focus-visible:outline-none"
+              className="w-full h-[52px] rounded-full bg-[#000000] hover:bg-[#111111] border border-white/[0.08] hover:border-white/20 text-white font-medium text-sm transition-all cursor-pointer flex items-center justify-center gap-2.5 active:scale-[0.98] disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-[#FF5A00] focus-visible:outline-none shadow-sm"
             >
               <svg className="w-4 h-4 fill-current shrink-0" viewBox="0 0 170 170" aria-hidden="true">
                 <path d="M150.37 130.25c-2.45 5.66-5.35 10.87-8.71 15.66-4.58 6.53-8.33 11.05-11.22 13.56-4.48 4.12-9.28 6.23-14.42 6.35-3.69 0-8.14-1.05-13.32-3.18-5.19-2.12-9.97-3.17-14.34-3.17-4.58 0-9.49 1.05-14.75 3.17-5.26 2.13-9.5 3.24-12.74 3.35-4.35.13-9.16-1.9-14.42-6.08-3.7-3.04-7.58-7.7-11.64-13.98-5.74-8.8-10.36-18.73-13.88-29.77-3.52-11.04-5.28-21.73-5.28-32.06 0-14.34 3.75-26.39 11.24-36.16 7.49-9.77 17.07-14.75 28.74-14.95 4.36 0 9.27 1.13 14.75 3.39 5.48 2.26 9.17 3.45 11.07 3.59 2.24-.26 6.17-1.55 11.79-3.86 5.62-2.31 10.6-3.32 14.95-3.04 12.02.58 21.6 4.75 28.74 12.5-10.45 6.32-15.54 15.13-15.27 26.43.27 8.92 3.65 16.38 10.15 22.37 6.5 5.99 14.28 9.38 23.34 10.17-2.1 6.53-4.8 13.06-8.1 19.59zM119.22 31.84c0-7.39 2.68-14.22 8.04-20.48 5.36-6.26 11.96-10.27 19.8-12.04.53 1.05.8 2.18.8 3.39 0 7.39-2.73 14.27-8.19 20.64-5.46 6.37-12.23 10.32-20.31 11.85-.09-1.12-.14-2.24-.14-3.36z" />
@@ -1005,31 +1149,31 @@ export default function AuthPage() {
               <span>Continue with Apple</span>
             </button>
           )}
-        </div>
 
-        {/* 9. Continue offline (Guest mode) */}
-        <button
-          type="button"
-          onClick={handleGuestClick}
-          className="w-full mt-5 py-2 flex flex-col items-center justify-center text-center cursor-pointer group rounded-xl hover:bg-white/[0.03] transition-colors focus-visible:ring-2 focus-visible:ring-[#FF5A00] focus-visible:outline-none"
-        >
-          <div className="flex items-center justify-center gap-1.5 text-sm font-semibold text-white group-hover:text-[#FF6A1F] transition-colors">
-            <Zap size={16} className="text-[#FF6A1F] fill-[#FF6A1F]" />
-            <span>Continue offline (Guest mode)</span>
+          {/* Continue offline (Guest mode) */}
+          <div>
+            <button
+              type="button"
+              onClick={handleGuestClick}
+              className="w-full h-[52px] rounded-full bg-[#13141F] hover:bg-[#1A1B28] border border-white/[0.08] hover:border-white/20 text-white font-medium text-sm transition-all cursor-pointer flex items-center justify-center gap-2.5 active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-[#FF5A00] focus-visible:outline-none shadow-sm"
+            >
+              <Zap size={16} className="text-[#FF6A1F] fill-[#FF6A1F]" aria-hidden="true" />
+              <span>Continue offline (Guest mode)</span>
+            </button>
+            <p className="text-xs text-[#8E8D9A] text-center mt-2">
+              Charts stay on this device. Sign in anytime to sync.
+            </p>
           </div>
-          <span className="text-xs text-[#8C8A93] mt-1">
-            Charts stay on this device. Sign in anytime to sync.
-          </span>
-        </button>
+        </div>
       </div>
 
-      {/* 10. Footer: Terms & Privacy Policy */}
-      <footer className="mt-6 text-center text-xs text-[#8C8A93] max-w-[440px] px-4">
+      {/* 8. Footer: Terms & Privacy Policy */}
+      <footer className="mt-5 text-center text-xs text-[#8E8D9A] max-w-[430px] px-4 relative z-10">
         <span>By continuing you agree to our </span>
         <button
           type="button"
           onClick={() => setModalView('terms')}
-          className="text-[#8C8A93] hover:text-[#FF6A1F] underline underline-offset-2 transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-[#FF5A00] focus-visible:outline-none rounded"
+          className="text-white/90 hover:text-[#FF6A1F] underline underline-offset-2 transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-[#FF5A00] focus-visible:outline-none rounded"
         >
           Terms
         </button>
@@ -1037,30 +1181,30 @@ export default function AuthPage() {
         <button
           type="button"
           onClick={() => setModalView('privacy')}
-          className="text-[#8C8A93] hover:text-[#FF6A1F] underline underline-offset-2 transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-[#FF5A00] focus-visible:outline-none rounded"
+          className="text-white/90 hover:text-[#FF6A1F] underline underline-offset-2 transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-[#FF5A00] focus-visible:outline-none rounded"
         >
           Privacy Policy
         </button>
       </footer>
 
-      {/* --- FORGOT PASSWORD MODAL --- */}
+      {/* ── FORGOT PASSWORD MODAL ─────────────────────────────────────── */}
       {modalView === 'forgot' && (
         <div 
           role="dialog" 
           aria-modal="true" 
           aria-labelledby="forgot-title"
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-in fade-in duration-200"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200"
           onClick={() => setModalView('none')}
         >
           <div 
-            className="w-full max-w-sm rounded-[28px] bg-[#17171C] border border-[#2C2C34] p-6 sm:p-7 shadow-2xl relative"
+            className="w-full max-w-sm rounded-[28px] bg-[#12131C] border border-white/10 p-6 sm:p-7 shadow-2xl relative"
             onClick={(e) => e.stopPropagation()}
           >
             <button
               type="button"
               onClick={() => setModalView('none')}
               aria-label="Close dialog"
-              className="absolute top-4 right-4 p-2 text-[#8C8A93] hover:text-white rounded-full hover:bg-white/10 transition-colors"
+              className="absolute top-4 right-4 p-2 text-[#8E8D9A] hover:text-white rounded-full hover:bg-white/10 transition-colors"
             >
               <X size={18} />
             </button>
@@ -1068,7 +1212,7 @@ export default function AuthPage() {
             <h2 id="forgot-title" className="text-xl font-bold text-white mb-1.5 tracking-tight">
               Reset Password
             </h2>
-            <p className="text-xs text-[#8C8A93] mb-5">
+            <p className="text-xs text-[#8E8D9A] mb-5">
               Enter your registered email address and we will send you a password recovery link.
             </p>
 
@@ -1076,15 +1220,15 @@ export default function AuthPage() {
               <div>
                 <label 
                   htmlFor="forgot-email" 
-                  className="block text-[11px] font-bold tracking-wider text-[#8C8A93] uppercase mb-2"
+                  className="block text-[11px] font-bold tracking-[0.08em] text-[#8E8D9A] uppercase mb-2"
                 >
                   Email Address
                 </label>
                 <div 
-                  className={`relative flex items-center bg-[#121216] border rounded-2xl h-[52px] px-3.5 transition-all ${
+                  className={`relative flex items-center bg-[#0E0F17] border rounded-2xl h-[52px] px-3.5 transition-all ${
                     forgotError 
                       ? 'border-[#FF5C7A]' 
-                      : 'border-[#33333C] focus-within:border-[#FF5A00]'
+                      : 'border-[#262738] focus-within:border-[#FF5A00]'
                   }`}
                 >
                   <input
@@ -1095,7 +1239,7 @@ export default function AuthPage() {
                     value={forgotEmail}
                     onChange={(e) => setForgotEmail(e.target.value)}
                     onBlur={() => setForgotEmailTouched(true)}
-                    className="w-full bg-transparent text-white placeholder-[#5E5C64] text-sm focus:outline-none"
+                    className="w-full bg-transparent text-white placeholder-[#585768] text-sm focus:outline-none"
                   />
                 </div>
                 {forgotError && (
@@ -1109,7 +1253,7 @@ export default function AuthPage() {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full h-[50px] rounded-full bg-gradient-to-r from-[#FF5A00] to-[#FF5C7A] text-white font-bold text-sm shadow-[0_4px_16px_rgba(255,90,0,0.35)] hover:brightness-105 transition-all cursor-pointer flex items-center justify-center disabled:opacity-50"
+                className="w-full h-[50px] rounded-full bg-gradient-to-r from-[#FF5A00] via-[#FF2E55] to-[#E02475] text-white font-bold text-sm shadow-[0_4px_16px_rgba(255,90,0,0.35)] hover:brightness-105 transition-all cursor-pointer flex items-center justify-center disabled:opacity-50"
               >
                 {isSubmitting ? 'Sending Link...' : 'Send Recovery Link'}
               </button>
@@ -1117,7 +1261,7 @@ export default function AuthPage() {
               <button
                 type="button"
                 onClick={() => setModalView('none')}
-                className="w-full py-2 text-xs font-semibold text-[#8C8A93] hover:text-white transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                className="w-full py-2 text-xs font-semibold text-[#8E8D9A] hover:text-white transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <ArrowLeft size={14} /> Back to Sign In
               </button>
@@ -1126,19 +1270,19 @@ export default function AuthPage() {
         </div>
       )}
 
-      {/* --- PASSWORD RECOVERY / SET NEW PASSWORD MODAL --- */}
+      {/* ── PASSWORD RECOVERY MODAL ───────────────────────────────────── */}
       {modalView === 'recovery' && (
         <div 
           role="dialog" 
           aria-modal="true" 
           aria-labelledby="recovery-title"
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-in fade-in duration-200"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200"
         >
-          <div className="w-full max-w-sm rounded-[28px] bg-[#17171C] border border-[#2C2C34] p-6 sm:p-7 shadow-2xl relative">
+          <div className="w-full max-w-sm rounded-[28px] bg-[#12131C] border border-white/10 p-6 sm:p-7 shadow-2xl relative">
             <h2 id="recovery-title" className="text-xl font-bold text-white mb-1.5 tracking-tight">
               Set New Password
             </h2>
-            <p className="text-xs text-[#8C8A93] mb-5">
+            <p className="text-xs text-[#8E8D9A] mb-5">
               Please enter your new password to regain access to your charts.
             </p>
 
@@ -1146,11 +1290,11 @@ export default function AuthPage() {
               <div>
                 <label 
                   htmlFor="recovery-password" 
-                  className="block text-[11px] font-bold tracking-wider text-[#8C8A93] uppercase mb-2"
+                  className="block text-[11px] font-bold tracking-[0.08em] text-[#8E8D9A] uppercase mb-2"
                 >
                   New Password
                 </label>
-                <div className="relative flex items-center bg-[#121216] border border-[#33333C] focus-within:border-[#FF5A00] rounded-2xl h-[52px] px-3.5 transition-all">
+                <div className="relative flex items-center bg-[#0E0F17] border border-[#262738] focus-within:border-[#FF5A00] rounded-2xl h-[52px] px-3.5 transition-all">
                   <input
                     id="recovery-password"
                     type={showPassword ? 'text' : 'password'}
@@ -1158,13 +1302,13 @@ export default function AuthPage() {
                     placeholder="••••••••"
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
-                    className="w-full bg-transparent text-white placeholder-[#5E5C64] text-sm pr-10 focus:outline-none"
+                    className="w-full bg-transparent text-white placeholder-[#585768] text-sm pr-10 focus:outline-none"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
                     aria-label={showPassword ? 'Hide password' : 'Show password'}
-                    className="absolute right-2 p-2 text-[#8C8A93] hover:text-white cursor-pointer"
+                    className="absolute right-2 p-2 text-[#7B7A8B] hover:text-white cursor-pointer"
                   >
                     {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
@@ -1174,7 +1318,7 @@ export default function AuthPage() {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full h-[50px] rounded-full bg-gradient-to-r from-[#FF5A00] to-[#FF5C7A] text-white font-bold text-sm shadow-[0_4px_16px_rgba(255,90,0,0.35)] hover:brightness-105 transition-all cursor-pointer flex items-center justify-center disabled:opacity-50"
+                className="w-full h-[50px] rounded-full bg-gradient-to-r from-[#FF5A00] via-[#FF2E55] to-[#E02475] text-white font-bold text-sm shadow-[0_4px_16px_rgba(255,90,0,0.35)] hover:brightness-105 transition-all cursor-pointer flex items-center justify-center disabled:opacity-50"
               >
                 {isSubmitting ? 'Updating...' : 'Update Password & Continue'}
               </button>
@@ -1183,20 +1327,20 @@ export default function AuthPage() {
         </div>
       )}
 
-      {/* --- TERMS OF SERVICE MODAL --- */}
+      {/* ── TERMS OF SERVICE MODAL ────────────────────────────────────── */}
       {modalView === 'terms' && (
         <div 
           role="dialog" 
           aria-modal="true" 
           aria-labelledby="terms-title"
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-in fade-in duration-200"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200"
           onClick={() => setModalView('none')}
         >
           <div 
-            className="w-full max-w-lg rounded-[28px] bg-[#17171C] border border-[#2C2C34] p-6 sm:p-7 shadow-2xl relative max-h-[80vh] flex flex-col"
+            className="w-full max-w-lg rounded-[28px] bg-[#12131C] border border-white/10 p-6 sm:p-7 shadow-2xl relative max-h-[80vh] flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between pb-3 border-b border-[#2C2C34] mb-4">
+            <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
               <h2 id="terms-title" className="text-lg font-bold text-white tracking-tight">
                 Terms of Service
               </h2>
@@ -1204,13 +1348,13 @@ export default function AuthPage() {
                 type="button"
                 onClick={() => setModalView('none')}
                 aria-label="Close dialog"
-                className="p-1.5 text-[#8C8A93] hover:text-white rounded-full hover:bg-white/10 transition-colors"
+                className="p-1.5 text-[#8E8D9A] hover:text-white rounded-full hover:bg-white/10 transition-colors"
               >
                 <X size={18} />
               </button>
             </div>
             
-            <div className="overflow-y-auto text-xs text-[#8C8A93] space-y-3.5 pr-2 leading-relaxed">
+            <div className="overflow-y-auto text-xs text-[#8E8D9A] space-y-3.5 pr-2 leading-relaxed">
               <p>Welcome to <strong className="text-white">Chordly</strong>. By accessing or using our application, whether via web or desktop, you agree to comply with and be bound by these terms.</p>
               <h3 className="text-sm font-semibold text-white pt-1">1. User Account & Offline Local Data</h3>
               <p>You can use Chordly in offline Guest Mode without an account. All your musical charts and setlists are preserved locally on your device via IndexedDB. When signing in or syncing, your charts are protected by Supabase security policies.</p>
@@ -1220,7 +1364,7 @@ export default function AuthPage() {
               <p>We do not sell your personal data. We strive to provide reliable offline-first editing and live stage synchronization tools for musicians and performers.</p>
             </div>
 
-            <div className="pt-4 mt-4 border-t border-[#2C2C34] flex justify-end">
+            <div className="pt-4 mt-4 border-t border-white/10 flex justify-end">
               <button
                 type="button"
                 onClick={() => setModalView('none')}
@@ -1233,20 +1377,20 @@ export default function AuthPage() {
         </div>
       )}
 
-      {/* --- PRIVACY POLICY MODAL --- */}
+      {/* ── PRIVACY POLICY MODAL ──────────────────────────────────────── */}
       {modalView === 'privacy' && (
         <div 
           role="dialog" 
           aria-modal="true" 
           aria-labelledby="privacy-title"
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-in fade-in duration-200"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200"
           onClick={() => setModalView('none')}
         >
           <div 
-            className="w-full max-w-lg rounded-[28px] bg-[#17171C] border border-[#2C2C34] p-6 sm:p-7 shadow-2xl relative max-h-[80vh] flex flex-col"
+            className="w-full max-w-lg rounded-[28px] bg-[#12131C] border border-white/10 p-6 sm:p-7 shadow-2xl relative max-h-[80vh] flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between pb-3 border-b border-[#2C2C34] mb-4">
+            <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
               <h2 id="privacy-title" className="text-lg font-bold text-white tracking-tight">
                 Privacy Policy
               </h2>
@@ -1254,13 +1398,13 @@ export default function AuthPage() {
                 type="button"
                 onClick={() => setModalView('none')}
                 aria-label="Close dialog"
-                className="p-1.5 text-[#8C8A93] hover:text-white rounded-full hover:bg-white/10 transition-colors"
+                className="p-1.5 text-[#8E8D9A] hover:text-white rounded-full hover:bg-white/10 transition-colors"
               >
                 <X size={18} />
               </button>
             </div>
             
-            <div className="overflow-y-auto text-xs text-[#8C8A93] space-y-3.5 pr-2 leading-relaxed">
+            <div className="overflow-y-auto text-xs text-[#8E8D9A] space-y-3.5 pr-2 leading-relaxed">
               <p>At <strong className="text-white">Chordly</strong>, your privacy is our top priority. We believe musician tools should work reliably without intrusive tracking.</p>
               <h3 className="text-sm font-semibold text-white pt-1">1. Local-First Storage</h3>
               <p>In Guest Mode, your charts, songs, transpositions, and setlists never leave your device. All information is safely stored locally in your browser/device database.</p>
@@ -1270,7 +1414,7 @@ export default function AuthPage() {
               <p>We only use trusted, privacy-respecting providers (Supabase Authentication and official OAuth SDKs) to manage sessions securely without storing passwords in plain text.</p>
             </div>
 
-            <div className="pt-4 mt-4 border-t border-[#2C2C34] flex justify-end">
+            <div className="pt-4 mt-4 border-t border-white/10 flex justify-end">
               <button
                 type="button"
                 onClick={() => setModalView('none')}

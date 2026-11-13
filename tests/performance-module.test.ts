@@ -143,4 +143,115 @@ describe('Performance Module & Live Stage Invariants', () => {
     expect(setlistCode).toContain("pt-[max(1rem,env(safe-area-inset-top,0px))]");
     expect(setlistCode).toContain('barsVisible={barsVisible}');
   });
+
+  it('guarantees setlist perform allows free song tab switching for all users and updates songPosition', () => {
+    const setlistCode = fs.readFileSync(setlistPerfPath, 'utf-8');
+    // Tabs must not be disabled for followers
+    expect(setlistCode).not.toContain('disabled={!canClick}');
+    // Tab onClick must call goTo(idx) directly
+    expect(setlistCode).toContain('goTo(idx);');
+    // goTo must update songPosition for all users and detach followers from leader lock
+    expect(setlistCode).toContain('if (!isLeaderRef.current) {\n      setIsFollowing(false);\n      isFollowingRef.current = false;\n    }');
+  });
+
+  it('guarantees setlist perform preserves user-assigned permanent space and restores it when options bar hides', () => {
+    const setlistCode = fs.readFileSync(setlistPerfPath, 'utf-8');
+    // Must track assignedTransformsRef
+    expect(setlistCode).toContain('assignedTransformsRef');
+    expect(setlistCode).toContain('userMoved: true');
+    // Must pass assignedTransformsRef to ChartWrapper
+    expect(setlistCode).toContain('assignedTransformsRef={assignedTransformsRef}');
+    // When bar hides, must restore assigned position without resetting unless user moves
+    expect(setlistCode).toContain('setTransform(assigned.posX, assigned.posY, assigned.scale, 250);');
+  });
+
+  it('guarantees setlist perform immediately redirects on session-end and blocks back button re-entry', () => {
+    const setlistCode = fs.readFileSync(setlistPerfPath, 'utf-8');
+    // Intercepts hardware / gesture back button
+    expect(setlistCode).toContain('useHardwareBackButton');
+    expect(setlistCode).toContain('setlist_perf_');
+    // Sets ended flag in sessionStorage
+    expect(setlistCode).toContain('setlist-session-ended-');
+    // Mount effect redirects if session was ended
+    expect(setlistCode).toContain('sessionStorage.getItem(`setlist-session-ended-${setlistId}`) === \'1\'');
+    // Broadcast listener redirects immediately
+    expect(setlistCode).toContain('window.addEventListener(\'setlist-session-end\', handler);');
+  });
+
+  it('guarantees performance session supports renaming with real-time broadcast and modal', () => {
+    const pageCode = fs.readFileSync(perfPagePath, 'utf-8');
+    const hookCode = fs.readFileSync(perfHookPath, 'utf-8');
+
+    // Hook must export renameSession and broadcast 'session-rename'
+    expect(hookCode).toContain('renameSession: (name: string) => void;');
+    expect(hookCode).toContain("event: 'session-rename'");
+    expect(hookCode).toContain('renameSession');
+    expect(hookCode).toContain('payload?.sessionName');
+
+    // Live stage page must render rename button / pencil and Rename Performance Modal
+    expect(pageCode).toContain('Rename Performance');
+    expect(pageCode).toContain('renameSession');
+    expect(pageCode).toContain('isRenameModalOpen');
+    expect(pageCode).toContain('title="Click to rename performance"');
+  });
+
+  it('guarantees perform builder resolves saved setlist charts without "Unknown" titles', () => {
+    const builderCode = fs.readFileSync(perfBuilderPath, 'utf-8');
+
+    // Must import readChart and readLyrics
+    expect(builderCode).toContain('readChart');
+    expect(builderCode).toContain('readLyrics');
+
+    // SavedSetlist must support items array
+    expect(builderCode).toContain('items?: QueueItem[];');
+    expect(builderCode).toContain('items: queue');
+
+    // handleLoadSetlist must resolve chart and lyric items by ID
+    expect(builderCode).toContain('await readChart(id)');
+    expect(builderCode).toContain('await readLyrics(id)');
+
+    // Live Queue section must support editing Performance Name on setup screen
+    expect(builderCode).toContain('value={setlistName}');
+    expect(builderCode).toContain('Performance Name (e.g. My Setlist, Sunday Service)');
+  });
+
+  it('guarantees live stage preserves user custom pan/zoom position on top bar toggle and centers chords above pill', () => {
+    const pageCode = fs.readFileSync(perfPagePath, 'utf-8');
+
+    // Must track assignedTransformsRef
+    expect(pageCode).toContain('assignedTransformsRef');
+    expect(pageCode).toContain('handleUserTransform');
+    expect(pageCode).toContain('onPanningStop');
+    expect(pageCode).toContain('userMoved: true');
+
+    // When showHeader toggles, custom transform must be restored with top bar offset adjustment
+    expect(pageCode).toContain('const targetY = showHeader ? assigned.posY + 56 : assigned.posY;');
+    expect(pageCode).toContain('setTransform(assigned.posX, targetY, assigned.scale, 250);');
+
+    // Must pass bottomPadding so chords are never cut off by the navigation pill
+    expect(pageCode).toContain('bottomPadding: showHeader ? 75 : 24');
+
+    // Top bar must have high contrast styling
+    expect(pageCode).toContain('bg-white/95 dark:bg-[#121216]/95 backdrop-blur-xl border-b border-slate-200 dark:border-white/10');
+
+    // Must support renaming performance in live stage modal
+    expect(pageCode).toContain('isRenameModalOpen');
+    expect(pageCode).toContain('Edit Performance Name');
+    expect(pageCode).toContain('renameSession');
+  });
+
+  it('guarantees setlist perform page supports renaming performance setlist', () => {
+    const setlistCode = fs.readFileSync(setlistPerfPath, 'utf-8');
+    expect(setlistCode).toContain('isRenameModalOpen');
+    expect(setlistCode).toContain('handleRenameSetlist');
+    expect(setlistCode).toContain('updateSetlist');
+    expect(setlistCode).toContain('Click to rename setlist performance');
+  });
+
+  it('guarantees lib/setlists.ts falls back to local IndexedDB for missing chart and lyric titles', () => {
+    const libCode = fs.readFileSync(setlistsLibPath, 'utf-8');
+    expect(libCode).toContain('readChart');
+    expect(libCode).toContain('readLyrics');
+    expect(libCode).toContain('titleMap[item.item_id]');
+  });
 });
